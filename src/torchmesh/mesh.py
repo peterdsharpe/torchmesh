@@ -1,15 +1,9 @@
-import torch
-
-
 from dataclasses import fields
-from pathlib import Path
 from typing import Any, Sequence, Literal
-
 
 import torch
 import torch.nn.functional as F
 from tensordict import TensorDict, tensorclass
-
 
 @tensorclass  # TODO evaluate speed vs. flexiblity tradeoff with tensor_only=True
 class Mesh:
