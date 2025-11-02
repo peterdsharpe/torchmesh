@@ -24,6 +24,8 @@ dev = [
     "ipykernel>=7.1.0",
     "ipython>=9.6.0",
     "pytest>=8.4.2",
+    "pyvista>=0.46.4",
+    "trame>=3.12.0",
 ]
 
 [tool.uv]
