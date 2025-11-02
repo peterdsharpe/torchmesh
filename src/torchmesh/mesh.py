@@ -5,13 +5,20 @@ import torch
 import torch.nn.functional as F
 from tensordict import TensorDict, tensorclass
 
+
 @tensorclass  # TODO evaluate speed vs. flexiblity tradeoff with tensor_only=True
 class Mesh:
     points: torch.Tensor  # shape: (n_points, n_spatial_dimensions)
     faces: torch.Tensor  # shape: (n_faces, n_manifold_dimensions + 1)
-    point_data: TensorDict = None  # ty: ignore[invalid-assignment] # initialized in __post_init__
-    face_data: TensorDict = None  # ty: ignore[invalid-assignment] # initialized in __post_init__
-    global_data: TensorDict = None  # ty: ignore[invalid-assignment] # initialized in __post_init__
+    point_data: TensorDict | dict[str, torch.Tensor] | None = (
+        None  # initialized in __post_init__
+    )
+    face_data: TensorDict | dict[str, torch.Tensor] | None = (
+        None  # initialized in __post_init__
+    )
+    global_data: TensorDict | dict[str, torch.Tensor] | None = (
+        None  # initialized in __post_init__
+    )
 
     def __post_init__(self):
         ### Validate shapes
@@ -23,7 +30,7 @@ class Mesh:
             raise ValueError(
                 f"`faces` must have shape (n_faces, n_manifold_dimensions + 1), but got {self.faces.shape=}."
             )
-        
+
         ### Validate dtypes
         if torch.is_floating_point(self.faces):
             raise TypeError(
@@ -56,26 +63,6 @@ class Mesh:
                 batch_size=torch.Size([]),
                 device=self.points.device,
             )
-
-
-    def __eq__(self, other: Any) -> bool:
-        """Check equality by comparing all dataclass fields."""
-        if type(self) is not type(other):
-            return False
-
-        for field in fields(self):
-            a, b = getattr(self, field.name), getattr(other, field.name)
-            if type(a) is not type(b):
-                return False
-            if isinstance(a, torch.Tensor):
-                if not torch.equal(a, b):
-                    return False
-            elif isinstance(a, TensorDict):
-                if not (a == b).all():
-                    return False
-            elif a != b:
-                return False
-        return True
 
     @property
     def n_spatial_dims(self) -> int:
@@ -382,10 +369,12 @@ class Mesh:
                 concentration=torch.tensor(alpha, device=self.points.device),
                 rate=torch.tensor(1.0, device=self.points.device),
             )
-        raw_barycentric_coords = distribution.sample((self.n_faces, self.n_manifold_dims + 1))
+        raw_barycentric_coords = distribution.sample(
+            (self.n_faces, self.n_manifold_dims + 1)
+        )
 
         ### Normalize so they sum to 1
-        barycentric_coords = F.normalize(raw_barycentric_coords,p=1,dim=-1)
+        barycentric_coords = F.normalize(raw_barycentric_coords, p=1, dim=-1)
 
         ### Compute weighted combination of face vertices
         return (barycentric_coords.unsqueeze(-1) * self.points[self.faces]).sum(dim=1)
