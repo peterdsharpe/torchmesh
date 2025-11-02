@@ -1,0 +1,50 @@
+"""Tests for torchmesh.io module - mesh equivalence."""
+
+import pyvista as pv
+import torch
+
+from torchmesh.io import from_pyvista
+from torchmesh.mesh import Mesh
+
+
+class TestMeshEquivalence:
+    """Tests that converted meshes are equivalent to direct construction."""
+
+    def test_airplane_equivalence(self):
+        """Test that from_pyvista produces same result as direct construction."""
+        pv_mesh = pv.examples.load_airplane()
+        
+        # Using from_pyvista
+        mesh_from_pv = from_pyvista(pv_mesh)
+        
+        # Direct construction (as in examples.py)
+        mesh_direct = Mesh(
+            points=pv_mesh.points,
+            faces=pv_mesh.regular_faces,
+            point_data=pv_mesh.point_data,
+            face_data=pv_mesh.cell_data,
+            global_data=pv_mesh.field_data,
+        )
+        
+        assert torch.equal(mesh_from_pv.points, mesh_direct.points)
+        assert torch.equal(mesh_from_pv.faces, mesh_direct.faces)
+
+    def test_tetbeam_equivalence(self):
+        """Test that from_pyvista produces same result as direct construction for tetbeam."""
+        pv_mesh = pv.examples.load_tetbeam()
+        
+        # Using from_pyvista
+        mesh_from_pv = from_pyvista(pv_mesh)
+        
+        # Direct construction (as in examples.py)
+        mesh_direct = Mesh(
+            points=pv_mesh.points,
+            faces=pv_mesh.cells_dict[pv.CellType.TETRA],
+            point_data=pv_mesh.point_data,
+            face_data=pv_mesh.cell_data,
+            global_data=pv_mesh.field_data,
+        )
+        
+        assert torch.equal(mesh_from_pv.points, mesh_direct.points)
+        assert torch.equal(mesh_from_pv.faces, mesh_direct.faces)
+
