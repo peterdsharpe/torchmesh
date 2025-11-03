@@ -19,11 +19,11 @@ class TestFromPyvista2D:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3  # Triangular faces
+        assert mesh.cells.shape[1] == 3  # Triangular cells
         assert mesh.n_points == pv_mesh.n_points
-        assert mesh.n_faces == pv_mesh.n_cells
+        assert mesh.n_cells == pv_mesh.n_cells
         assert mesh.points.dtype == torch.float32
-        assert mesh.faces.dtype == torch.long
+        assert mesh.cells.dtype == torch.long
 
     def test_airplane_mesh_explicit_dim(self):
         """Test explicit manifold_dim specification."""
@@ -41,17 +41,17 @@ class TestFromPyvista2D:
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
         
         assert mesh.n_manifold_dims == 2
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
 
     def test_automatic_triangulation(self):
         """Test that non-triangular meshes are automatically triangulated."""
-        # Create a plane with quad faces
+        # Create a plane with quad cells
         pv_mesh = pv.Plane(i_resolution=2, j_resolution=2)
         assert not pv_mesh.is_all_triangles
         
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
         
         # Should be automatically triangulated
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
         assert mesh.n_manifold_dims == 2
 

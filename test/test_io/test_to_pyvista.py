@@ -20,9 +20,9 @@ class TestToPyvista:
             [0.5, 1.0, 0.0],
             [1.5, 1.0, 0.0],
         ])
-        faces = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype=torch.long)
+        cells = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype=torch.long)
         
-        mesh = Mesh(points=points, faces=faces)
+        mesh = Mesh(points=points, cells=cells)
         pv_mesh = to_pyvista(mesh)
         
         # Verify it's PolyData
@@ -43,9 +43,9 @@ class TestToPyvista:
             [0.0, 1.0, 0.0],
             [0.0, 0.0, 1.0],
         ])
-        faces = torch.tensor([[0, 1, 2, 3]], dtype=torch.long)
+        cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.long)
         
-        mesh = Mesh(points=points, faces=faces)
+        mesh = Mesh(points=points, cells=cells)
         pv_mesh = to_pyvista(mesh)
         
         # Verify it's UnstructuredGrid
@@ -55,7 +55,7 @@ class TestToPyvista:
         assert list(pv_mesh.cells_dict.keys()) == [pv.CellType.TETRA]
         
         # Verify connectivity
-        assert np.array_equal(pv_mesh.cells_dict[pv.CellType.TETRA], faces.numpy())
+        assert np.array_equal(pv_mesh.cells_dict[pv.CellType.TETRA], cells.numpy())
 
     def test_1d_mesh_to_polydata(self):
         """Test converting 1D mesh to PolyData with lines."""
@@ -65,9 +65,9 @@ class TestToPyvista:
             [1.0, 0.0, 0.0],
             [2.0, 0.0, 0.0],
         ])
-        faces = torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
+        cells = torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
         
-        mesh = Mesh(points=points, faces=faces)
+        mesh = Mesh(points=points, cells=cells)
         pv_mesh = to_pyvista(mesh)
         
         # Verify it's PolyData
@@ -79,9 +79,9 @@ class TestToPyvista:
         """Test converting 0D mesh to PointSet."""
         np.random.seed(0)
         points = torch.from_numpy(np.random.rand(50, 3).astype(np.float32))
-        faces = torch.empty((0, 1), dtype=torch.long)
+        cells = torch.empty((0, 1), dtype=torch.long)
         
-        mesh = Mesh(points=points, faces=faces)
+        mesh = Mesh(points=points, cells=cells)
         pv_mesh = to_pyvista(mesh)
         
         # Verify it's PointSet
@@ -90,19 +90,19 @@ class TestToPyvista:
         assert np.allclose(pv_mesh.points, points.numpy())
 
     def test_data_preservation_to_pyvista(self):
-        """Test that point_data, face_data, and global_data are preserved."""
+        """Test that point_data, cell_data, and global_data are preserved."""
         np.random.seed(0)
         
         # Create a mesh with data
         points = torch.rand(10, 3)
-        faces = torch.tensor([[0, 1, 2], [2, 3, 4]], dtype=torch.long)
+        cells = torch.tensor([[0, 1, 2], [2, 3, 4]], dtype=torch.long)
         
-        mesh = Mesh(points=points, faces=faces)
+        mesh = Mesh(points=points, cells=cells)
         
         # Add data to the mesh
         mesh.point_data["temperature"] = torch.rand(10)
         mesh.point_data["velocity"] = torch.rand(10, 3)
-        mesh.face_data["pressure"] = torch.rand(2)
+        mesh.cell_data["pressure"] = torch.rand(2)
         mesh.global_data["time"] = torch.tensor([1.5])
         
         pv_mesh = to_pyvista(mesh)
@@ -120,6 +120,6 @@ class TestToPyvista:
         )
         assert np.allclose(
             pv_mesh.cell_data["pressure"],
-            mesh.face_data["pressure"].numpy()
+            mesh.cell_data["pressure"].numpy()
         )
 

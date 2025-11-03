@@ -22,9 +22,9 @@ class TestFromPyvista3D:
         
         assert mesh.n_manifold_dims == 3
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 4  # Tetrahedral cells
+        assert mesh.cells.shape[1] == 4  # Tetrahedral cells
         assert mesh.n_points == pv_mesh.n_points
-        assert mesh.n_faces == pv_mesh.n_cells
+        assert mesh.n_cells == pv_mesh.n_cells
 
     def test_tetbeam_mesh_explicit_dim(self):
         """Test explicit manifold_dim specification for 3D mesh."""
@@ -33,7 +33,7 @@ class TestFromPyvista3D:
         mesh = from_pyvista(pv_mesh, manifold_dim=3)
         
         assert mesh.n_manifold_dims == 3
-        assert mesh.faces.shape[1] == 4
+        assert mesh.cells.shape[1] == 4
 
     def test_hexbeam_mesh_tessellation(self):
         """Test automatic tessellation of hexahedral mesh to tetrahedral.
@@ -53,11 +53,11 @@ class TestFromPyvista3D:
         
         assert mesh.n_manifold_dims == 3
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 4  # Tetrahedral cells after tessellation
+        assert mesh.cells.shape[1] == 4  # Tetrahedral cells after tessellation
         # Tessellation may add points at cell centers
         assert mesh.n_points >= original_n_points
         # Each hexahedron is tessellated into at least 5 tetrahedra
-        assert mesh.n_faces >= 5 * pv_mesh.n_cells
+        assert mesh.n_cells >= 5 * pv_mesh.n_cells
 
     def test_simple_tetrahedron(self):
         """Test conversion of a single tetrahedron."""
@@ -75,10 +75,10 @@ class TestFromPyvista3D:
         
         assert mesh.n_manifold_dims == 3
         assert mesh.n_points == 4
-        assert mesh.n_faces == 1
-        assert mesh.faces.shape == (1, 4)
+        assert mesh.n_cells == 1
+        assert mesh.cells.shape == (1, 4)
         
         # Verify the face connectivity is correct
-        expected_faces = torch.tensor([[0, 1, 2, 3]], dtype=torch.long)
-        assert torch.equal(mesh.faces, expected_faces)
+        expected_cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.long)
+        assert torch.equal(mesh.cells, expected_cells)
 

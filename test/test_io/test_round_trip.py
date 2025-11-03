@@ -53,7 +53,7 @@ class TestRoundTrip:
         # Verify geometry is preserved
         assert pv_reconstructed.n_points == pv_original.n_points
         # Line count matches (spline has 1 polyline, we convert to N-1 segments)
-        assert pv_reconstructed.n_lines == mesh.n_faces
+        assert pv_reconstructed.n_lines == mesh.n_cells
 
     def test_round_trip_0d_pointset(self):
         """Test round-trip conversion for 0D mesh."""

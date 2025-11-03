@@ -27,11 +27,11 @@ class TestDataArrayShapes:
         
         # Verify scalar data
         assert "temperature" in mesh.point_data
-        assert "pressure" in mesh.face_data
+        assert "pressure" in mesh.cell_data
         temp_tensor = mesh.point_data["temperature"]
         assert isinstance(temp_tensor, torch.Tensor)
         assert temp_tensor.shape == (mesh.n_points,)
-        assert mesh.face_data["pressure"].shape == (mesh.n_faces,)
+        assert mesh.cell_data["pressure"].shape == (mesh.n_cells,)
         assert torch.allclose(
             temp_tensor,
             torch.from_numpy(point_scalars),
@@ -54,11 +54,11 @@ class TestDataArrayShapes:
         
         # Verify vector data
         assert "velocity" in mesh.point_data
-        assert "gradient" in mesh.face_data
+        assert "gradient" in mesh.cell_data
         vel_tensor = mesh.point_data["velocity"]
         assert isinstance(vel_tensor, torch.Tensor)
         assert vel_tensor.shape == (mesh.n_points, 3)
-        assert mesh.face_data["gradient"].shape == (mesh.n_faces, 3)
+        assert mesh.cell_data["gradient"].shape == (mesh.n_cells, 3)
         assert torch.allclose(
             vel_tensor,
             torch.from_numpy(point_vectors),
@@ -87,11 +87,11 @@ class TestDataArrayShapes:
         
         # Verify tensor data is preserved
         assert "stress" in mesh.point_data
-        assert "strain" in mesh.face_data
+        assert "strain" in mesh.cell_data
         stress_tensor = mesh.point_data["stress"]
         assert isinstance(stress_tensor, torch.Tensor)
         assert stress_tensor.shape == (mesh.n_points, 9)
-        assert mesh.face_data["strain"].shape == (mesh.n_faces, 9)
+        assert mesh.cell_data["strain"].shape == (mesh.n_cells, 9)
         
         # Verify values match
         assert torch.allclose(
@@ -121,11 +121,11 @@ class TestDataArrayShapes:
         
         # Verify large 2D arrays are preserved
         assert "tensor_24" in mesh.point_data
-        assert "tensor_10" in mesh.face_data
+        assert "tensor_10" in mesh.cell_data
         tensor_24_result = mesh.point_data["tensor_24"]
         assert isinstance(tensor_24_result, torch.Tensor)
         assert tensor_24_result.shape == (mesh.n_points, 24)
-        assert mesh.face_data["tensor_10"].shape == (mesh.n_faces, 10)
+        assert mesh.cell_data["tensor_10"].shape == (mesh.n_cells, 10)
         assert torch.allclose(
             tensor_24_result,
             torch.from_numpy(point_24d),
@@ -156,7 +156,7 @@ class TestDataArrayShapes:
         
         # Verify all data types are preserved
         assert len(mesh.point_data.keys()) == 4
-        assert len(mesh.face_data.keys()) == 2
+        assert len(mesh.cell_data.keys()) == 2
         assert len(mesh.global_data.keys()) == 2
         
         # Verify dtypes are preserved
@@ -180,6 +180,6 @@ class TestDataArrayShapes:
         
         # Should have empty data dicts
         assert len(mesh.point_data.keys()) == 0
-        assert len(mesh.face_data.keys()) == 0
+        assert len(mesh.cell_data.keys()) == 0
         assert len(mesh.global_data.keys()) == 0
 

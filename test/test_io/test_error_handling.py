@@ -23,7 +23,7 @@ class TestErrorHandling:
 
     def test_mixed_geometry_error(self):
         """Test that meshes with mixed geometry types raise error."""
-        # Create a mesh with both lines and faces (if possible)
+        # Create a mesh with both lines and cells (if possible)
         # This is tricky with PyVista; skip if not easily testable
         pass
 
@@ -35,6 +35,6 @@ class TestErrorHandling:
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
         
         assert mesh.n_points == 0
-        assert mesh.n_faces == 0
+        assert mesh.n_cells == 0
         assert mesh.n_manifold_dims == 0
 

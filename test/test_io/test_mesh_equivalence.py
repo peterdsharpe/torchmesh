@@ -20,14 +20,14 @@ class TestMeshEquivalence:
         # Direct construction (as in examples.py)
         mesh_direct = Mesh(
             points=pv_mesh.points,
-            faces=pv_mesh.regular_faces,
+            cells=pv_mesh.regular_faces,
             point_data=pv_mesh.point_data,
-            face_data=pv_mesh.cell_data,
+            cell_data=pv_mesh.cell_data,
             global_data=pv_mesh.field_data,
         )
         
         assert torch.equal(mesh_from_pv.points, mesh_direct.points)
-        assert torch.equal(mesh_from_pv.faces, mesh_direct.faces)
+        assert torch.equal(mesh_from_pv.cells, mesh_direct.cells)
 
     def test_tetbeam_equivalence(self):
         """Test that from_pyvista produces same result as direct construction for tetbeam."""
@@ -39,12 +39,12 @@ class TestMeshEquivalence:
         # Direct construction (as in examples.py)
         mesh_direct = Mesh(
             points=pv_mesh.points,
-            faces=pv_mesh.cells_dict[pv.CellType.TETRA],
+            cells=pv_mesh.cells_dict[pv.CellType.TETRA],
             point_data=pv_mesh.point_data,
-            face_data=pv_mesh.cell_data,
+            cell_data=pv_mesh.cell_data,
             global_data=pv_mesh.field_data,
         )
         
         assert torch.equal(mesh_from_pv.points, mesh_direct.points)
-        assert torch.equal(mesh_from_pv.faces, mesh_direct.faces)
+        assert torch.equal(mesh_from_pv.cells, mesh_direct.cells)
 

@@ -24,8 +24,8 @@ class TestFromPyvista0D:
         assert mesh.n_manifold_dims == 0
         assert mesh.n_spatial_dims == 3
         assert mesh.n_points == 100
-        assert mesh.n_faces == 0
-        assert mesh.faces.shape == (0, 1)
+        assert mesh.n_cells == 0
+        assert mesh.cells.shape == (0, 1)
         
         # Verify points are preserved correctly
         assert torch.allclose(
@@ -44,10 +44,10 @@ class TestFromPyvista0D:
         
         assert mesh.n_manifold_dims == 0
         assert mesh.n_points == 50
-        assert mesh.faces.shape == (0, 1)
+        assert mesh.cells.shape == (0, 1)
 
     def test_polydata_points_only(self):
-        """Test PolyData with only points (no lines or faces).
+        """Test PolyData with only points (no lines or cells).
         
         PolyData can represent point clouds using vertex cells.
         """
@@ -55,7 +55,7 @@ class TestFromPyvista0D:
         points = np.random.rand(25, 3).astype(np.float32)
         pv_mesh = pv.PolyData(points)
         
-        # Verify it has vertex cells but no lines or polygon faces
+        # Verify it has vertex cells but no lines or polygon cells
         assert pv_mesh.n_verts == 25
         assert pv_mesh.n_lines == 0
         
@@ -63,6 +63,6 @@ class TestFromPyvista0D:
         
         assert mesh.n_manifold_dims == 0
         assert mesh.n_points == 25
-        assert mesh.n_faces == 0
-        assert mesh.faces.shape == (0, 1)
+        assert mesh.n_cells == 0
+        assert mesh.cells.shape == (0, 1)
 

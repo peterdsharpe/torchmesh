@@ -45,7 +45,7 @@ class TestDataPreservation:
         )
 
     def test_cell_data_preserved(self):
-        """Test that cell_data is preserved as face_data."""
+        """Test that cell_data is preserved as cell_data."""
         np.random.seed(0)
         pv_mesh = pv.Sphere()
         
@@ -58,20 +58,20 @@ class TestDataPreservation:
         mesh = from_pyvista(pv_mesh)
         
         # Verify data is preserved
-        assert "cell_ids" in mesh.face_data
-        assert "quality" in mesh.face_data
-        assert mesh.face_data["cell_ids"].shape == (mesh.n_faces,)
-        assert mesh.face_data["quality"].shape == (mesh.n_faces,)
-        assert isinstance(mesh.face_data["cell_ids"], torch.Tensor)
-        assert isinstance(mesh.face_data["quality"], torch.Tensor)
+        assert "cell_ids" in mesh.cell_data
+        assert "quality" in mesh.cell_data
+        assert mesh.cell_data["cell_ids"].shape == (mesh.n_cells,)
+        assert mesh.cell_data["quality"].shape == (mesh.n_cells,)
+        assert isinstance(mesh.cell_data["cell_ids"], torch.Tensor)
+        assert isinstance(mesh.cell_data["quality"], torch.Tensor)
         
         # Verify values are correct
         assert torch.equal(
-            mesh.face_data["cell_ids"],
+            mesh.cell_data["cell_ids"],
             torch.from_numpy(cell_ids_data)
         )
         assert torch.allclose(
-            mesh.face_data["quality"],
+            mesh.cell_data["quality"],
             torch.from_numpy(quality_data),
             atol=1e-6
         )

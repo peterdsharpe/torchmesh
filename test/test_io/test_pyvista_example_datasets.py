@@ -10,11 +10,11 @@ from torchmesh.mesh import Mesh
 class TestPyVistaExampleDatasets:
     """Tests for various PyVista example datasets covering edge cases."""
 
-    def test_cow_mesh_mixed_faces(self):
-        """Test cow mesh which has a mix of triangular and quad faces.
+    def test_cow_mesh_mixed_cells(self):
+        """Test cow mesh which has a mix of triangular and quad cells.
         
         The cow mesh is a classic test case that contains both triangular
-        and quadrilateral faces, requiring automatic triangulation.
+        and quadrilateral cells, requiring automatic triangulation.
         """
         pv_mesh = pv.examples.download_cow()
         
@@ -26,9 +26,9 @@ class TestPyVistaExampleDatasets:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3  # All triangulated
-        # After triangulation, should have more or equal faces
-        assert mesh.n_faces >= pv_mesh.n_cells
+        assert mesh.cells.shape[1] == 3  # All triangulated
+        # After triangulation, should have more or equal cells
+        assert mesh.n_cells >= pv_mesh.n_cells
         assert mesh.n_points == pv_mesh.n_points
 
     def test_bunny_mesh(self):
@@ -39,7 +39,7 @@ class TestPyVistaExampleDatasets:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
         assert mesh.n_points == pv_mesh.n_points
 
     def test_frog_tissues_3d(self):
@@ -58,7 +58,7 @@ class TestPyVistaExampleDatasets:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
         # Should have a reasonable number of points
         assert mesh.n_points > 100
 
@@ -73,7 +73,7 @@ class TestPyVistaExampleDatasets:
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
         
         assert mesh.n_manifold_dims == 2
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
 
     def test_ant_mesh(self):
         """Test ant mesh from examples."""
@@ -83,7 +83,7 @@ class TestPyVistaExampleDatasets:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
 
     def test_globe_mesh(self):
         """Test globe mesh (sphere with texture coordinates)."""
@@ -92,7 +92,7 @@ class TestPyVistaExampleDatasets:
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
         
         assert mesh.n_manifold_dims == 2
-        assert mesh.faces.shape[1] == 3
+        assert mesh.cells.shape[1] == 3
 
     def test_drill_scan_mesh(self):
         """Test drill scan mesh (high-resolution surface scan).
@@ -109,10 +109,10 @@ class TestPyVistaExampleDatasets:
         
         assert mesh.n_manifold_dims == 2
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 3  # Triangular surface mesh
+        assert mesh.cells.shape[1] == 3  # Triangular surface mesh
         assert mesh.n_points == pv_mesh.n_points
         
         # Drill scan should have a reasonable number of points
         assert mesh.n_points > 1000
-        assert mesh.n_faces > 1000
+        assert mesh.n_cells > 1000
 

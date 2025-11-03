@@ -18,8 +18,8 @@ def from_pyvista(
         pyvista_mesh: Input PyVista mesh (PolyData, UnstructuredGrid, or PointSet)
         manifold_dim: Manifold dimension (0, 1, 2, or 3), or "auto" to detect automatically.
             - 0: Point cloud (vertices only)
-            - 1: Line mesh (edges)
-            - 2: Surface mesh (triangular faces)
+            - 1: Line mesh (edge cells)
+            - 2: Surface mesh (triangular cells)
             - 3: Volume mesh (tetrahedral cells)
             
     Returns:
@@ -124,10 +124,10 @@ def from_pyvista(
     # Points
     points = torch.from_numpy(pyvista_mesh.points).float()
     
-    # Faces/Cells
+    # Cells
     if manifold_dim == 0:
         # Point cloud - no connectivity
-        faces = torch.empty((0, 1), dtype=torch.long)
+        cells = torch.empty((0, 1), dtype=torch.long)
     
     elif manifold_dim == 1:
         # Lines - extract from PyVista lines format
@@ -136,10 +136,10 @@ def from_pyvista(
         # For a manifold 1D mesh, we convert polylines to line segments
         lines_raw = pyvista_mesh.lines
         if lines_raw is None or len(lines_raw) == 0:
-            faces = torch.empty((0, 2), dtype=torch.long)
+            cells = torch.empty((0, 2), dtype=torch.long)
         else:
             # Parse the lines array and convert to line segments
-            faces_list = []
+            cells_list = []
             i = 0
             while i < len(lines_raw):
                 n_points = lines_raw[i]
@@ -147,20 +147,20 @@ def from_pyvista(
                 
                 # Convert polyline to line segments (consecutive pairs)
                 for j in range(len(point_ids) - 1):
-                    faces_list.append([point_ids[j], point_ids[j + 1]])
+                    cells_list.append([point_ids[j], point_ids[j + 1]])
                 
                 i += n_points + 1
             
-            if faces_list:
-                faces = torch.from_numpy(np.array(faces_list)).long()
+            if cells_list:
+                cells = torch.from_numpy(np.array(cells_list)).long()
             else:
-                faces = torch.empty((0, 2), dtype=torch.long)
+                cells = torch.empty((0, 2), dtype=torch.long)
     
     elif manifold_dim == 2:
-        # Triangular faces - use regular_faces property
-        # After triangulation, regular_faces returns n_faces × 3 array
+        # Triangular cells - use regular_faces property
+        # After triangulation, regular_faces returns n_cells × 3 array
         regular_faces = pyvista_mesh.regular_faces
-        faces = torch.from_numpy(regular_faces).long()
+        cells = torch.from_numpy(regular_faces).long()
     
     elif manifold_dim == 3:
         # Tetrahedral cells - extract from cells
@@ -171,14 +171,14 @@ def from_pyvista(
                 f"Expected tetrahedral cells after tessellation, but got {list(cells_dict.keys())}"
             )
         tetra_cells = cells_dict[CellType.TETRA]
-        faces = torch.from_numpy(tetra_cells)
+        cells = torch.from_numpy(tetra_cells)
 
     ### Return Mesh object
     return Mesh(
         points=points,
-        faces=faces,
+        cells=cells,
         point_data=pyvista_mesh.point_data,  # type: ignore[arg-type]
-        face_data=pyvista_mesh.cell_data,  # type: ignore[arg-type]
+        cell_data=pyvista_mesh.cell_data,  # type: ignore[arg-type]
         global_data=pyvista_mesh.field_data,  # type: ignore[arg-type]
     )
 
@@ -206,44 +206,44 @@ def to_pyvista(mesh: Mesh) -> pv.PolyData | pv.UnstructuredGrid | pv.PointSet:
     elif mesh.n_manifold_dims == 1:
         # Line mesh - create PolyData with lines
         # Convert line segments to PyVista format: [n_points, id0, id1, ...]
-        faces_np = mesh.faces.cpu().numpy()
+        cells_np = mesh.cells.cpu().numpy()
         
-        if mesh.n_faces == 0:
+        if mesh.n_cells == 0:
             # Empty lines
             pv_mesh = pv.PolyData(points_np)
         else:
             # Each line segment has 2 points
             # PyVista format: [2, i0, i1, 2, j0, j1, ...]
             lines_list = []
-            for face in faces_np:
+            for cell in cells_np:
                 lines_list.append(2)  # Number of points in this line
-                lines_list.extend(face)
+                lines_list.extend(cell)
             lines_array = np.array(lines_list, dtype=np.int64)
             
             pv_mesh = pv.PolyData(points_np, lines=lines_array)
     
     elif mesh.n_manifold_dims == 2:
-        # Surface mesh - create PolyData with triangular faces
-        faces_np = mesh.faces.cpu().numpy()
+        # Surface mesh - create PolyData with triangular cells
+        cells_np = mesh.cells.cpu().numpy()
         
-        if mesh.n_faces == 0:
-            # Empty faces
+        if mesh.n_cells == 0:
+            # Empty cells
             pv_mesh = pv.PolyData(points_np)
         else:
-            # PyVista format for faces: [3, i0, i1, i2, 3, j0, j1, j2, ...]
-            faces_list = []
-            for face in faces_np:
-                faces_list.append(3)  # Number of points in this triangle
-                faces_list.extend(face)
-            faces_array = np.array(faces_list, dtype=np.int64)
+            # PyVista format for cells: [3, i0, i1, i2, 3, j0, j1, j2, ...]
+            cells_list = []
+            for cell in cells_np:
+                cells_list.append(3)  # Number of points in this triangle
+                cells_list.extend(cell)
+            cells_array = np.array(cells_list, dtype=np.int64)
             
-            pv_mesh = pv.PolyData(points_np, faces=faces_array)
+            pv_mesh = pv.PolyData(points_np, faces=cells_array)
     
     elif mesh.n_manifold_dims == 3:
         # Volume mesh - create UnstructuredGrid with tetrahedral cells
-        faces_np = mesh.faces.cpu().numpy()
+        cells_np = mesh.cells.cpu().numpy()
         
-        if mesh.n_faces == 0:
+        if mesh.n_cells == 0:
             # Empty cells - create UnstructuredGrid with no cells
             cells = np.array([], dtype=np.int64)
             celltypes = np.array([], dtype=np.uint8)
@@ -251,13 +251,13 @@ def to_pyvista(mesh: Mesh) -> pv.PolyData | pv.UnstructuredGrid | pv.PointSet:
         else:
             # PyVista format for cells: [4, i0, i1, i2, i3, 4, j0, j1, j2, j3, ...]
             cells_list = []
-            for face in faces_np:
+            for cell in cells_np:
                 cells_list.append(4)  # Number of points in this tetrahedron
-                cells_list.extend(face)
+                cells_list.extend(cell)
             cells_array = np.array(cells_list, dtype=np.int64)
             
             # All cells are tetrahedra
-            celltypes = np.full(mesh.n_faces, CellType.TETRA, dtype=np.uint8)
+            celltypes = np.full(mesh.n_cells, CellType.TETRA, dtype=np.uint8)
             
             pv_mesh = pv.UnstructuredGrid(cells_array, celltypes, points_np)
     
@@ -272,9 +272,9 @@ def to_pyvista(mesh: Mesh) -> pv.PolyData | pv.UnstructuredGrid | pv.PointSet:
         tensor = mesh.point_data[key]
         pv_mesh.point_data[key] = tensor.cpu().numpy()  # type: ignore[index]
     
-    # Cell/Face data
-    for key in mesh.face_data.keys():
-        tensor = mesh.face_data[key]
+    # Cell data
+    for key in mesh.cell_data.keys():
+        tensor = mesh.cell_data[key]
         pv_mesh.cell_data[key] = tensor.cpu().numpy()  # type: ignore[index]
     
     # Field/Global data

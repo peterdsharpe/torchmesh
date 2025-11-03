@@ -2122,6 +2122,7 @@ dependencies = [
     { name = "torch", version = "2.10.0.dev20251030+cu126", source = { registry = "https://download.pytorch.org/whl/nightly/cu126" }, marker = "extra == 'extra-9-torchmesh-cu126' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "torch", version = "2.10.0.dev20251030+cu128", source = { registry = "https://download.pytorch.org/whl/nightly/cu128" }, marker = "extra == 'extra-9-torchmesh-cu128' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "torch", version = "2.10.0.dev20251030+cu130", source = { registry = "https://download.pytorch.org/whl/nightly/cu130" }, marker = "(sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "triton" },
 ]
 
 [package.optional-dependencies]
@@ -2161,6 +2162,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cu126'", index = "https://download.pytorch.org/whl/nightly/cu126", conflict = { package = "torchmesh", extra = "cu126" } },
     { name = "torch", marker = "extra == 'cu128'", index = "https://download.pytorch.org/whl/nightly/cu128", conflict = { package = "torchmesh", extra = "cu128" } },
     { name = "torch", marker = "extra == 'cu130'", index = "https://download.pytorch.org/whl/nightly/cu130", conflict = { package = "torchmesh", extra = "cu130" } },
+    { name = "triton", specifier = ">=3.5.0" },
 ]
 provides-extras = ["cu130", "cu128", "cu126", "cpu"]
 
@@ -2254,6 +2256,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bc/94/7e536b0bada379962268499e2051f5ce49ad1c2b2fd9ac58ae78a63b5f55/trame_server-3.8.1.tar.gz", hash = "sha256:88a2ab18d48664df903f2ef2c93734b96aa0ff51170b93aa3b218be80b70529a", size = 39422, upload-time = "2025-10-30T16:46:01.649Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/14/d99c5a66cef93c4f8f149cd6781dd5c30472bc9350c28a9cee31a1b7d7c8/trame_server-3.8.1-py3-none-any.whl", hash = "sha256:b2a461432c36fcfc0f2d1805a7e766fff59b18155b5c6a1a43e1ab112c5eb2f3", size = 44160, upload-time = "2025-10-30T16:45:59.957Z" },
+]
+
+[[package]]
+name = "triton"
+version = "3.5.0"
+source = { registry = "https://download.pytorch.org/whl/" }
+wheels = [
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp313-cp313t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp314-cp314t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://download.pytorch.org/whl/triton-3.5.0-cp314-cp314t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
 ]
 
 [[package]]

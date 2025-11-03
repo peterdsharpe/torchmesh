@@ -34,13 +34,13 @@ class TestFromPyvista1D:
         
         assert mesh.n_manifold_dims == 1
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 2  # Line segments
-        assert mesh.n_faces == 3  # Three line segments
+        assert mesh.cells.shape[1] == 2  # Line segments
+        assert mesh.n_cells == 3  # Three line segments
         assert mesh.n_points == 4
         
         # Verify connectivity is correct
-        expected_faces = torch.tensor([[0, 1], [1, 2], [2, 3]], dtype=torch.long)
-        assert torch.equal(mesh.faces, expected_faces)
+        expected_cells = torch.tensor([[0, 1], [1, 2], [2, 3]], dtype=torch.long)
+        assert torch.equal(mesh.cells, expected_cells)
 
     def test_line_mesh_explicit_dim(self):
         """Test explicit manifold_dim specification for 1D mesh."""
@@ -51,8 +51,8 @@ class TestFromPyvista1D:
         mesh = from_pyvista(pv_mesh, manifold_dim=1)
         
         assert mesh.n_manifold_dims == 1
-        assert mesh.n_faces == 1
-        assert torch.equal(mesh.faces, torch.tensor([[0, 1]], dtype=torch.long))
+        assert mesh.n_cells == 1
+        assert torch.equal(mesh.cells, torch.tensor([[0, 1]], dtype=torch.long))
 
     def test_spline_from_examples(self):
         """Test conversion of the example spline (polyline curve).
@@ -70,15 +70,15 @@ class TestFromPyvista1D:
         
         assert mesh.n_manifold_dims == 1
         assert mesh.n_spatial_dims == 3
-        assert mesh.faces.shape[1] == 2  # Line segments
+        assert mesh.cells.shape[1] == 2  # Line segments
         assert mesh.n_points == n_points_in_spline
         # A polyline with N points becomes N-1 line segments
-        assert mesh.n_faces == n_points_in_spline - 1
+        assert mesh.n_cells == n_points_in_spline - 1
         
         # Verify segments are consecutive
-        for i in range(mesh.n_faces):
-            assert mesh.faces[i, 0] == i
-            assert mesh.faces[i, 1] == i + 1
+        for i in range(mesh.n_cells):
+            assert mesh.cells[i, 0] == i
+            assert mesh.cells[i, 1] == i + 1
 
     def test_spline_constructed(self):
         """Test conversion of a constructed spline using pv.Spline.
@@ -104,11 +104,11 @@ class TestFromPyvista1D:
         
         assert mesh.n_manifold_dims == 1
         assert mesh.n_points == 20
-        assert mesh.n_faces == 19  # 20 points -> 19 segments
-        assert mesh.faces.shape == (19, 2)
+        assert mesh.n_cells == 19  # 20 points -> 19 segments
+        assert mesh.cells.shape == (19, 2)
         
         # Verify all segments connect consecutively
         for i in range(19):
-            assert mesh.faces[i, 0] == i
-            assert mesh.faces[i, 1] == i + 1
+            assert mesh.cells[i, 0] == i
+            assert mesh.cells[i, 1] == i + 1
 
