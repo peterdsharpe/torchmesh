@@ -80,3 +80,10 @@ url = "https://download.pytorch.org/whl/nightly/cu126"
 [[tool.uv.index]]
 name = "pytorch-nightly-cpu"
 url = "https://download.pytorch.org/whl/nightly/cpu"
+
+[tool.ruff]
+target-version = "py313"
+
+# Allow unused imports (F401) only in __init__.py files
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
