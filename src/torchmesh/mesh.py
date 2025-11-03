@@ -1,5 +1,4 @@
-from dataclasses import fields
-from typing import Any, Sequence, Literal
+from typing import Sequence, Literal
 
 import torch
 import torch.nn.functional as F
@@ -294,10 +293,11 @@ class Mesh:
         Args:
             indices: Indices or mask to select points.
         """
+        new_point_data: TensorDict = self.point_data[indices]  # type: ignore
         return Mesh(
             points=self.points[indices],
             cells=self.cells,
-            point_data=self.point_data[indices],
+            point_data=new_point_data,
             cell_data=self.cell_data,
             global_data=self.global_data,
         )
@@ -308,11 +308,12 @@ class Mesh:
         Args:
             indices: Indices or mask to select cells.
         """
+        new_cell_data: TensorDict = self.cell_data[indices]  # type: ignore 
         return Mesh(
             points=self.points,
             cells=self.cells[indices],
             point_data=self.point_data,
-            cell_data=self.cell_data[indices],
+            cell_data=new_cell_data,
             global_data=self.global_data,
         )
 
