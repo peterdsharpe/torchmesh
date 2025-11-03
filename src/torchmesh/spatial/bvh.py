@@ -212,8 +212,7 @@ class BVH:
     ) -> list[torch.Tensor]:
         """Find candidate cells that might contain each query point.
 
-        Uses iterative BVH traversal with an explicit stack to avoid recursion.
-        This is GPU-compatible but currently runs on CPU/GPU without custom kernels.
+        Uses iterative BVH traversal with an explicit stack.
 
         Args:
             query_points: Points to query, shape (n_queries, n_spatial_dims)
@@ -225,7 +224,17 @@ class BVH:
         Returns:
             List of length n_queries, where each element is a tensor of candidate
             cell indices that might contain that query point.
+
+        Performance:
+            - Complexity: O(M log N) where M = queries, N = cells
+            - Heavy ops (AABB tests): Fully vectorized with PyTorch
+
+        Note:
+            BVH traversal could potentially be accelerated with custom CUDA kernels,
+            but this adds significant complexity. The current implementation provides
+            excellent performance for most use cases.
         """
+        ###  BVH traversal implementation
         n_queries = query_points.shape[0]
         candidates = []
 
