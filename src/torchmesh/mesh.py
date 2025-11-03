@@ -308,7 +308,7 @@ class Mesh:
         Args:
             indices: Indices or mask to select cells.
         """
-        new_cell_data: TensorDict = self.cell_data[indices]  # type: ignore 
+        new_cell_data: TensorDict = self.cell_data[indices]  # type: ignore
         return Mesh(
             points=self.points,
             cells=self.cells[indices],
@@ -317,15 +317,25 @@ class Mesh:
             global_data=self.global_data,
         )
 
-    def sample_random_points_on_cells(self, alpha: float = 1.0) -> torch.Tensor:
-        """Sample random points uniformly distributed on each cell of the mesh.
+    def sample_random_points_on_cells(
+        self,
+        cell_indices: Sequence[int] | torch.Tensor | None = None,
+        alpha: float = 1.0,
+    ) -> torch.Tensor:
+        """Sample random points on specified cells of the mesh.
 
         Uses a Dirichlet distribution to generate barycentric coordinates, which are
         then used to compute random points as weighted combinations of cell vertices.
         The concentration parameter alpha controls the distribution of samples within
         each cell (simplex).
 
+        This is a convenience method that delegates to torchmesh.sampling.sample_random_points_on_cells.
+
         Args:
+            cell_indices: Indices of cells to sample from. Can be a Sequence or tensor.
+                Allows repeated indices to sample multiple points from the same cell.
+                If None, samples one point from each cell (equivalent to arange(n_cells)).
+                Shape: (n_samples,) where n_samples is the number of points to sample.
             alpha: Concentration parameter for the Dirichlet distribution. Controls how
                 samples are distributed within each cell:
                 - alpha = 1.0: Uniform distribution over the simplex (default)
@@ -333,90 +343,317 @@ class Mesh:
                 - alpha < 1.0: Concentrates samples toward vertices and edges
 
         Returns:
-            Random points on cells, shape (n_cells, n_spatial_dims). Each point lies
-            within its corresponding cell.
+            Random points on cells, shape (n_samples, n_spatial_dims). Each point lies
+            within its corresponding cell. If cell_indices is None, n_samples = n_cells.
 
         Raises:
             NotImplementedError: If alpha != 1.0 and torch.compile is being used.
                 This is due to a PyTorch limitation with Gamma distributions under torch.compile.
+            IndexError: If any cell_indices are out of bounds.
 
         Example:
-            >>> # Generate random points uniformly distributed on cells
-            >>> random_centers = mesh.sample_random_points_on_cells(alpha=1.0)
-            >>> # Generate points concentrated toward cell centers
-            >>> centered_points = mesh.sample_random_points_on_cells(alpha=3.0)
+            >>> # Sample one point from each cell uniformly
+            >>> points = mesh.sample_random_points_on_cells()
+            >>>
+            >>> # Sample points from specific cells (with repeats allowed)
+            >>> cell_indices = torch.tensor([0, 0, 1, 5, 5, 5])
+            >>> points = mesh.sample_random_points_on_cells(cell_indices=cell_indices)
+            >>>
+            >>> # Sample with concentration toward cell centers
+            >>> points = mesh.sample_random_points_on_cells(alpha=3.0)
         """
-        ### Sample from Gamma(alpha, 1) distribution and normalize to get Dirichlet
-        # When alpha=1, Gamma(1,1) is equivalent to Exponential(1), which is more efficient
-        if alpha == 1.0:
-            distribution = torch.distributions.Exponential(
-                rate=torch.tensor(1.0, device=self.points.device),
-            )
-        else:
-            if torch.compiler.is_compiling():
-                raise NotImplementedError(
-                    f"alpha={alpha!r} is not supported under torch.compile.\n"
-                    f"PyTorch does not yet support sampling from a Gamma distribution\n"
-                    f"when using torch.compile. Use alpha=1.0 (uniform distribution) instead, or disable torch.compile.\n"
-                    f"See https://github.com/pytorch/pytorch/issues/165751."
-                )
-            distribution = torch.distributions.Gamma(
-                concentration=torch.tensor(alpha, device=self.points.device),
-                rate=torch.tensor(1.0, device=self.points.device),
-            )
-        raw_barycentric_coords = distribution.sample(
-            (self.n_cells, self.n_manifold_dims + 1)
+        from torchmesh.sampling import sample_random_points_on_cells
+
+        return sample_random_points_on_cells(
+            mesh=self,
+            cell_indices=cell_indices,
+            alpha=alpha,
         )
 
-        ### Normalize so they sum to 1
-        barycentric_coords = F.normalize(raw_barycentric_coords, p=1, dim=-1)
+    def sample_data_at_points(
+        self,
+        query_points: torch.Tensor,
+        data_source: Literal["cells", "points"] = "cells",
+        multiple_cells_strategy: Literal["mean", "nan"] = "mean",
+        project_onto_nearest_cell: bool = False,
+        tolerance: float = 1e-6,
+    ) -> "TensorDict":
+        """Sample mesh data at query points in space.
 
-        ### Compute weighted combination of cell vertices
-        return (barycentric_coords.unsqueeze(-1) * self.points[self.cells]).sum(dim=1)
+        For each query point, finds the containing cell and returns interpolated data.
+
+        This is a convenience method that delegates to torchmesh.sampling.sample_data_at_points.
+
+        Args:
+            query_points: Query point locations, shape (n_queries, n_spatial_dims)
+            data_source: How to sample data:
+                - "cells": Use cell data directly (no interpolation)
+                - "points": Interpolate point data using barycentric coordinates
+            multiple_cells_strategy: How to handle query points in multiple cells:
+                - "mean": Return arithmetic mean of values from all containing cells
+                - "nan": Return NaN for ambiguous points
+            project_onto_nearest_cell: If True, projects each query point onto the
+                nearest cell before sampling. Useful for codimension != 0 manifolds.
+            tolerance: Tolerance for considering a point inside a cell.
+
+        Returns:
+            TensorDict containing sampled data for each query point. Values are NaN
+            for query points outside the mesh (unless project_onto_nearest_cell=True).
+
+        Example:
+            >>> # Sample cell data at specific points
+            >>> query_pts = torch.tensor([[0.5, 0.5], [1.0, 1.0]])
+            >>> sampled_data = mesh.sample_data_at_points(query_pts, data_source="cells")
+            >>>
+            >>> # Interpolate point data
+            >>> sampled_data = mesh.sample_data_at_points(query_pts, data_source="points")
+        """
+        from torchmesh.sampling import sample_data_at_points
+
+        return sample_data_at_points(
+            mesh=self,
+            query_points=query_points,
+            data_source=data_source,
+            multiple_cells_strategy=multiple_cells_strategy,
+            project_onto_nearest_cell=project_onto_nearest_cell,
+            tolerance=tolerance,
+        )
+
+    def cell_data_to_point_data(self, overwrite_keys: bool = False) -> "Mesh":
+        """Convert cell data to point data by averaging.
+
+        For each point, computes the average of the cell data values from all cells
+        that contain that point. The resulting point data is added to the mesh's
+        point_data dictionary. Original cell data is preserved.
+
+        Args:
+            overwrite_keys: If True, silently overwrite any existing point_data keys.
+                If False (default), raise an error if a key already exists in point_data.
+
+        Returns:
+            New Mesh with converted data added to point_data. Original cell_data is preserved.
+
+        Raises:
+            ValueError: If a cell_data key already exists in point_data and overwrite_keys=False.
+
+        Example:
+            >>> mesh = Mesh(points, cells, cell_data={"pressure": cell_pressures})
+            >>> mesh_with_point_data = mesh.cell_data_to_point_data()
+            >>> # Now mesh has both cell_data["pressure"] and point_data["pressure"]
+        """
+        ### Check for key conflicts
+        if not overwrite_keys:
+            for key in self.cell_data.keys():
+                if isinstance(key, str) and key.startswith("_"):
+                    continue  # Skip cached properties
+                if key in self.point_data.keys():
+                    raise ValueError(
+                        f"Key {key!r} already exists in point_data. "
+                        f"Set overwrite_keys=True to overwrite."
+                    )
+
+        ### Convert each cell data field to point data
+        new_point_data = self.point_data.clone()
+
+        for key, cell_values in self.cell_data.items():
+            # Skip cached properties
+            if isinstance(key, str) and key.startswith("_"):
+                continue
+
+            ### Vectorized approach: use scatter operations to accumulate
+            # For each cell, we need to add its value to all its vertices
+            # Then divide by the count of cells touching each vertex
+
+            # Get flat list of point indices and corresponding cell indices
+            # self.cells shape: (n_cells, n_vertices_per_cell)
+            n_vertices_per_cell = self.cells.shape[1]
+
+            # Flatten: all point indices that appear in cells
+            # Shape: (n_cells * n_vertices_per_cell,)
+            point_indices = self.cells.flatten()
+
+            # Corresponding cell index for each point
+            # Shape: (n_cells * n_vertices_per_cell,)
+            cell_indices = torch.arange(
+                self.n_cells, device=self.points.device
+            ).repeat_interleave(n_vertices_per_cell)
+
+            ### Accumulate sum of cell values at each point
+            if cell_values.ndim == 1:
+                # Scalar data: shape (n_cells,)
+                point_sum = torch.zeros(
+                    self.n_points, dtype=cell_values.dtype, device=self.points.device
+                )
+                # Add each cell's value to all its points
+                point_sum.scatter_add_(
+                    0,  # dim
+                    point_indices,  # index
+                    cell_values[cell_indices],  # src
+                )
+            else:
+                # Multi-dimensional data: shape (n_cells, ...)
+                point_sum = torch.zeros(
+                    (self.n_points,) + cell_values.shape[1:],
+                    dtype=cell_values.dtype,
+                    device=self.points.device,
+                )
+                # Expand indices for multi-dimensional scatter
+                # Need to broadcast cell_indices to match the shape
+                expanded_shape = [len(point_indices)] + [1] * (cell_values.ndim - 1)
+                expanded_indices = point_indices.view(expanded_shape).expand(
+                    -1, *cell_values.shape[1:]
+                )
+                point_sum.scatter_add_(
+                    0,  # dim
+                    expanded_indices,  # index
+                    cell_values[cell_indices],  # src
+                )
+
+            ### Count how many cells contribute to each point
+            point_count = torch.zeros(
+                self.n_points, dtype=torch.float32, device=self.points.device
+            )
+            point_count.scatter_add_(
+                0,
+                point_indices,
+                torch.ones_like(point_indices, dtype=torch.float32),
+            )
+
+            ### Average: divide sum by count
+            # Avoid division by zero (though shouldn't happen for valid meshes)
+            point_count = point_count.clamp(min=1.0)
+
+            if cell_values.ndim == 1:
+                point_values = point_sum / point_count
+            else:
+                # Broadcast count for multi-dimensional data
+                point_values = point_sum / point_count.view(
+                    -1, *([1] * (cell_values.ndim - 1))
+                )
+
+            new_point_data[key] = point_values
+
+        ### Return new mesh with updated point data
+        return Mesh(
+            points=self.points,
+            cells=self.cells,
+            point_data=new_point_data,
+            cell_data=self.cell_data,
+            global_data=self.global_data,
+        )
+
+    def point_data_to_cell_data(self, overwrite_keys: bool = False) -> "Mesh":
+        """Convert point data to cell data by averaging.
+
+        For each cell, computes the average of the point data values from all points
+        (vertices) that define that cell. The resulting cell data is added to the mesh's
+        cell_data dictionary. Original point data is preserved.
+
+        Args:
+            overwrite_keys: If True, silently overwrite any existing cell_data keys.
+                If False (default), raise an error if a key already exists in cell_data.
+
+        Returns:
+            New Mesh with converted data added to cell_data. Original point_data is preserved.
+
+        Raises:
+            ValueError: If a point_data key already exists in cell_data and overwrite_keys=False.
+
+        Example:
+            >>> mesh = Mesh(points, cells, point_data={"temperature": point_temps})
+            >>> mesh_with_cell_data = mesh.point_data_to_cell_data()
+            >>> # Now mesh has both point_data["temperature"] and cell_data["temperature"]
+        """
+        ### Check for key conflicts
+        if not overwrite_keys:
+            for key in self.point_data.keys():
+                if key.startswith("_"):
+                    continue  # Skip cached properties
+                if key in self.cell_data.keys():
+                    raise ValueError(
+                        f"Key {key!r} already exists in cell_data. "
+                        f"Set overwrite_keys=True to overwrite."
+                    )
+
+        ### Convert each point data field to cell data
+        new_cell_data = self.cell_data.clone()
+
+        for key, point_values in self.point_data.items():
+            # Skip cached properties
+            if key.startswith("_"):
+                continue
+
+            # Get point values for each cell and average
+            # cell_point_values shape: (n_cells, n_vertices_per_cell, ...)
+            cell_point_values = point_values[self.cells]
+
+            # Average over vertices dimension (dim=1)
+            cell_values = cell_point_values.mean(dim=1)
+
+            new_cell_data[key] = cell_values
+
+        ### Return new mesh with updated cell data
+        return Mesh(
+            points=self.points,
+            cells=self.cells,
+            point_data=self.point_data,
+            cell_data=new_cell_data,
+            global_data=self.global_data,
+        )
 
     def get_facet_mesh(
         self,
+        manifold_codimension: int = 1,
         data_source: Literal["points", "cells"] = "cells",
         data_aggregation: Literal["mean", "area_weighted", "inverse_distance"] = "mean",
     ) -> "Mesh":
-        """Extract (n-1)-cell mesh from n-simplicial mesh.
+        """Extract k-codimension facet mesh from this n-dimensional mesh.
 
-        Extracts all (n-1)-simplices from the current n-simplicial mesh. For example:
-        - Triangle mesh (2-simplices) → edge mesh (1-simplices)
-        - Tetrahedral mesh (3-simplices) → triangular cell mesh (2-simplices)
-        - Edge mesh (1-simplices) → point mesh (0-simplices)
+        Extracts all (n-k)-simplices from the current n-simplicial mesh. For example:
+        - Triangle mesh (2-simplices) → edge mesh (1-simplices) [codimension=1, default]
+        - Triangle mesh (2-simplices) → vertex mesh (0-simplices) [codimension=2]
+        - Tetrahedral mesh (3-simplices) → triangular facet mesh (2-simplices) [codimension=1, default]
+        - Tetrahedral mesh (3-simplices) → edge mesh (1-simplices) [codimension=2]
 
         The resulting mesh shares the same vertex positions but has connectivity
         representing the lower-dimensional simplices. Data can be inherited from
         either the parent cells or the boundary points.
 
         Args:
+            manifold_codimension: Codimension of extracted mesh relative to parent.
+                - 1: Extract (n-1)-facets (default, immediate boundaries of all cells)
+                - 2: Extract (n-2)-facets (e.g., edges from tets, vertices from triangles)
+                - k: Extract (n-k)-facets
             data_source: Source of data inheritance:
-                - "cells": Edges inherit from parent cells they bound. When multiple
-                  cells share an edge, data is aggregated according to data_aggregation.
-                - "points": Edges inherit from their boundary vertices. Data from
+                - "cells": Facets inherit from parent cells they bound. When multiple
+                  cells share a facet, data is aggregated according to data_aggregation.
+                - "points": Facets inherit from their boundary vertices. Data from
                   multiple boundary points is averaged.
             data_aggregation: Strategy for aggregating data from multiple sources
                 (only applies when data_source="cells"):
                 - "mean": Simple arithmetic mean
                 - "area_weighted": Weighted by parent cell areas
-                - "inverse_distance": Weighted by inverse distance from edge centroid
+                - "inverse_distance": Weighted by inverse distance from facet centroid
                   to parent cell centroids
 
         Returns:
-            New Mesh with n_manifold_dims = self.n_manifold_dims - 1, embedded in
-            the same spatial dimension. The mesh shares the same points array but
-            has new cells connectivity and aggregated cell_data.
+            New Mesh with n_manifold_dims = self.n_manifold_dims - manifold_codimension,
+            embedded in the same spatial dimension. The mesh shares the same points array
+            but has new cells connectivity and aggregated cell_data.
 
         Raises:
-            ValueError: If n_manifold_dims == 0 (cannot extract (n-1)-simplices from
-                point clouds, as (-1)-simplices are not geometrically defined).
+            ValueError: If manifold_codimension is too large for this mesh
+                (would result in negative manifold dimension).
 
         Example:
-            >>> # Extract edges from a triangle mesh
+            >>> # Extract edges from a triangle mesh (codimension 1)
             >>> triangle_mesh = Mesh(points, triangular_cells)
-            >>> facet_mesh = triangle_mesh.get_facet_mesh()
-            >>> facet_mesh.n_manifold_dims  # 1 (edges)
+            >>> edge_mesh = triangle_mesh.get_facet_mesh(manifold_codimension=1)
+            >>> edge_mesh.n_manifold_dims  # 1 (edges)
+            >>>
+            >>> # Extract vertices from a triangle mesh (codimension 2)
+            >>> vertex_mesh = triangle_mesh.get_facet_mesh(manifold_codimension=2)
+            >>> vertex_mesh.n_manifold_dims  # 0 (vertices)
             >>>
             >>> # Extract with area-weighted data aggregation
             >>> facet_mesh = triangle_mesh.get_facet_mesh(
@@ -425,45 +662,30 @@ class Mesh:
             ... )
         """
         ### Validate that extraction is possible
-        if self.n_manifold_dims == 0:
+        new_manifold_dims = self.n_manifold_dims - manifold_codimension
+        if new_manifold_dims < 0:
             raise ValueError(
-                "Cannot extract edge mesh from point cloud (n_manifold_dims=0).\n"
-                "(-1)-simplices are not geometrically defined."
+                f"Cannot extract facet mesh with {manifold_codimension=} from mesh with {self.n_manifold_dims=}.\n"
+                f"Would result in negative manifold dimension ({new_manifold_dims=}).\n"
+                f"Maximum allowed codimension is {self.n_manifold_dims}."
             )
 
-        ### Compute parent cell areas and centroids if needed for aggregation
-        parent_cell_areas = None
-        parent_cell_centroids = None
-
-        if data_source == "cells" and data_aggregation in [
-            "area_weighted",
-            "inverse_distance",
-        ]:
-            if data_aggregation == "area_weighted":
-                parent_cell_areas = self.cell_areas
-            if data_aggregation == "inverse_distance":
-                parent_cell_centroids = self.cell_centroids
-
-        ### Call kernel to extract edge mesh data
+        ### Call kernel to extract facet mesh data
         from torchmesh.kernels import extract_facet_mesh_data
 
-        edge_cells, edge_cell_data = extract_facet_mesh_data(
-            cells=self.cells,
-            points=self.points,
-            cell_data=self.cell_data,
-            point_data=self.point_data,
+        facet_cells, facet_cell_data = extract_facet_mesh_data(
+            parent_mesh=self,
+            manifold_codimension=manifold_codimension,
             data_source=data_source,
             data_aggregation=data_aggregation,
-            parent_cell_areas=parent_cell_areas,
-            parent_cell_centroids=parent_cell_centroids,
         )
 
         ### Create and return new Mesh
         return Mesh(
             points=self.points,  # Share the same points
-            cells=edge_cells,  # New connectivity for (n-1)-cells
+            cells=facet_cells,  # New connectivity for sub-simplices
             point_data=self.point_data,  # Share point data
-            cell_data=edge_cell_data,  # Aggregated cell data
+            cell_data=facet_cell_data,  # Aggregated cell data
             global_data=self.global_data,  # Share global data
         )
 
@@ -522,11 +744,11 @@ class Mesh:
         return self.__class__(
             points=_pad_by_tiling_last(self.points, target_n_points),
             cells=_pad_with_value(self.cells, target_n_cells, self.n_points - 1),
-            point_data=self.point_data.apply(
+            point_data=self.point_data.apply(  # type: ignore
                 lambda x: _pad_with_value(x, target_n_points, data_padding_value),
                 batch_size=torch.Size([target_n_points]),
             ),
-            cell_data=self.cell_data.apply(
+            cell_data=self.cell_data.apply(  # type: ignore
                 lambda x: _pad_with_value(x, target_n_cells, data_padding_value),
                 batch_size=torch.Size([target_n_cells]),
             ),
