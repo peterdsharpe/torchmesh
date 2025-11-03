@@ -580,7 +580,7 @@ class Mesh:
 
         for key, point_values in self.point_data.items():
             # Skip cached properties
-            if key.startswith("_"):
+            if isinstance(key, str) and key.startswith("_"):
                 continue
 
             # Get point values for each cell and average
