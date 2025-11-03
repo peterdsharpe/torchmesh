@@ -10,15 +10,9 @@ from tensordict import TensorDict, tensorclass
 class Mesh:
     points: torch.Tensor  # shape: (n_points, n_spatial_dimensions)
     cells: torch.Tensor  # shape: (n_cells, n_manifold_dimensions + 1)
-    point_data: TensorDict | dict[str, torch.Tensor] | None = (
-        None  # initialized in __post_init__
-    )
-    cell_data: TensorDict | dict[str, torch.Tensor] | None = (
-        None  # initialized in __post_init__
-    )
-    global_data: TensorDict | dict[str, torch.Tensor] | None = (
-        None  # initialized in __post_init__
-    )
+    point_data: TensorDict = None  # accepts dict/None, converted to TensorDict in __post_init__  # ty: ignore
+    cell_data: TensorDict = None  # accepts dict/None, converted to TensorDict in __post_init__  # ty: ignore
+    global_data: TensorDict = None  # accepts dict/None, converted to TensorDict in __post_init__  # ty: ignore
 
     def __post_init__(self):
         ### Validate shapes
