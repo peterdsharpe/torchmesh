@@ -149,7 +149,9 @@ class TestBasicEdgeExtraction:
 
         mesh = Mesh(points=points, cells=cells)
 
-        with pytest.raises(ValueError, match="Cannot extract edge mesh from point cloud"):
+        with pytest.raises(
+            ValueError, match="Would result in negative manifold dimension"
+        ):
             mesh.get_facet_mesh()
 
 
@@ -228,9 +230,7 @@ class TestDataInheritance:
 
         ### Compute expected value
         areas = mesh.cell_areas
-        expected_value = (
-            1.0 * areas[0] + 2.0 * areas[1]
-        ) / (areas[0] + areas[1])
+        expected_value = (1.0 * areas[0] + 2.0 * areas[1]) / (areas[0] + areas[1])
 
         assert torch.isclose(
             facet_mesh.cell_data["value"][shared_edge_idx[0]],
@@ -268,29 +268,29 @@ class TestDataInheritance:
         ### Manually compute expected value for shared edge [1, 2]
         # Edge [1, 2] midpoint: ([1.0, 0.0] + [0.5, 1.0]) / 2 = [0.75, 0.5]
         edge_12_centroid = torch.tensor([0.75, 0.5])
-        
+
         # Triangle 1 centroid: ([0.0, 0.0] + [1.0, 0.0] + [0.5, 1.0]) / 3 = [0.5, 1/3]
-        tri1_centroid = torch.tensor([0.5, 1.0/3.0])
-        
+        tri1_centroid = torch.tensor([0.5, 1.0 / 3.0])
+
         # Triangle 2 centroid: ([1.0, 0.0] + [1.5, 0.5] + [0.5, 1.0]) / 3 = [1.0, 0.5]
         tri2_centroid = torch.tensor([1.0, 0.5])
-        
+
         # Distances
         dist1 = torch.norm(edge_12_centroid - tri1_centroid)
         dist2 = torch.norm(edge_12_centroid - tri2_centroid)
-        
+
         # Weights (inverse distance)
         weight1 = 1.0 / dist1
         weight2 = 1.0 / dist2
-        
+
         # Expected weighted average
         expected_value = (1.0 * weight1 + 2.0 * weight2) / (weight1 + weight2)
-        
+
         shared_edge_idx = torch.where(
             (facet_mesh.cells[:, 0] == 1) & (facet_mesh.cells[:, 1] == 2)
         )[0]
         assert len(shared_edge_idx) == 1
-        
+
         actual_value = facet_mesh.cell_data["value"][shared_edge_idx[0]]
         assert torch.isclose(actual_value, expected_value, rtol=1e-5)
 
@@ -489,10 +489,10 @@ class TestRigorousAggregation:
         ### Create three triangles sharing edge [1, 2]
         points = torch.tensor(
             [
-                [0.0, 0.0],   # 0
-                [1.0, 0.0],   # 1
-                [0.5, 1.0],   # 2
-                [1.5, 0.5],   # 3
+                [0.0, 0.0],  # 0
+                [1.0, 0.0],  # 1
+                [0.5, 1.0],  # 2
+                [1.5, 0.5],  # 3
                 [0.5, -1.0],  # 4
             ]
         )
@@ -516,7 +516,7 @@ class TestRigorousAggregation:
             (facet_mesh.cells[:, 0] == 1) & (facet_mesh.cells[:, 1] == 2)
         )[0]
         assert len(shared_edge_idx) == 1
-        
+
         expected_mean = (10.0 + 20.0 + 30.0) / 3.0
         assert torch.isclose(
             facet_mesh.cell_data["value"][shared_edge_idx[0]],
@@ -550,12 +550,12 @@ class TestRigorousAggregation:
         }
 
         mesh = Mesh(points=points, cells=cells, cell_data=cell_data)
-        
+
         ### Verify our area calculation matches expected values
         areas = mesh.cell_areas
         assert torch.isclose(areas[0], torch.tensor(0.5), rtol=1e-5)
         assert torch.isclose(areas[1], torch.tensor(2.0), rtol=1e-5)
-        
+
         ### For this test, we need triangles that share an edge
         # Let me create a better configuration with shared edge
         points2 = torch.tensor(
@@ -572,18 +572,18 @@ class TestRigorousAggregation:
                 [1, 3, 2],  # Triangle 2: area = 2.0, shares edge [1,2]
             ]
         )
-        
+
         cell_data2 = {
             "temperature": torch.tensor([100.0, 300.0]),
         }
-        
+
         mesh2 = Mesh(points=points2, cells=cells2, cell_data=cell_data2)
-        
+
         ### Verify areas
         areas2 = mesh2.cell_areas
         assert torch.isclose(areas2[0], torch.tensor(1.0), rtol=1e-5)
         assert torch.isclose(areas2[1], torch.tensor(2.0), rtol=1e-5)
-        
+
         facet_mesh = mesh2.get_facet_mesh(
             data_source="cells", data_aggregation="area_weighted"
         )
@@ -592,10 +592,10 @@ class TestRigorousAggregation:
         shared_edge_idx = torch.where(
             (facet_mesh.cells[:, 0] == 1) & (facet_mesh.cells[:, 1] == 2)
         )[0]
-        
+
         # Expected: (100.0 * 1.0 + 300.0 * 2.0) / (1.0 + 2.0) = 700 / 3 = 233.333...
         expected_temp = (100.0 * 1.0 + 300.0 * 2.0) / (1.0 + 2.0)
-        
+
         assert torch.isclose(
             facet_mesh.cell_data["temperature"][shared_edge_idx[0]],
             torch.tensor(expected_temp),
@@ -741,10 +741,10 @@ class TestRigorousAggregation:
         """Test two tetrahedra sharing a triangular face."""
         points = torch.tensor(
             [
-                [0.0, 0.0, 0.0],   # 0
-                [1.0, 0.0, 0.0],   # 1
-                [0.0, 1.0, 0.0],   # 2
-                [0.0, 0.0, 1.0],   # 3
+                [0.0, 0.0, 0.0],  # 0
+                [1.0, 0.0, 0.0],  # 1
+                [0.0, 1.0, 0.0],  # 2
+                [0.0, 0.0, 1.0],  # 3
                 [0.0, 0.0, -1.0],  # 4
             ]
         )
@@ -1049,6 +1049,206 @@ class TestNestedTensorDicts:
         )
 
 
+class TestHigherCodimension:
+    """Test extraction of higher-codimension meshes."""
+
+    def test_triangle_to_vertices_codim2(self):
+        """Extract vertices (codimension 2) from a triangle mesh."""
+        points = torch.tensor(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+            ]
+        )
+        # Two triangles
+        cells = torch.tensor([[0, 1, 2], [1, 3, 2]])
+
+        mesh = Mesh(points=points, cells=cells)
+        vertex_mesh = mesh.get_facet_mesh(manifold_codimension=2)
+
+        ### Should extract 4 unique vertices from 6 candidates (3 per triangle)
+        assert vertex_mesh.n_manifold_dims == 0
+        assert vertex_mesh.n_cells == 4
+        assert vertex_mesh.cells.shape == (4, 1)
+
+        ### Vertices should be sorted and unique
+        expected_vertices = torch.tensor([[0], [1], [2], [3]])
+        assert torch.equal(
+            torch.sort(vertex_mesh.cells, dim=0)[0],
+            expected_vertices,
+        )
+
+    def test_tetrahedron_to_edges_codim2(self):
+        """Extract edges (codimension 2) from a tetrahedral mesh."""
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+        cells = torch.tensor([[0, 1, 2, 3]])  # Single tetrahedron
+
+        mesh = Mesh(points=points, cells=cells)
+        edge_mesh = mesh.get_facet_mesh(manifold_codimension=2)
+
+        ### A tetrahedron has C(4,2) = 6 edges
+        assert edge_mesh.n_manifold_dims == 1
+        assert edge_mesh.n_cells == 6
+        assert edge_mesh.cells.shape == (6, 2)
+
+        ### All 6 edges should be present (convert to set for comparison)
+        expected_edges = {(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)}
+        actual_edges = {tuple(edge.tolist()) for edge in edge_mesh.cells}
+        assert actual_edges == expected_edges
+
+    def test_tetrahedron_to_vertices_codim3(self):
+        """Extract vertices (codimension 3) from a tetrahedral mesh."""
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+        cells = torch.tensor([[0, 1, 2, 3]])  # Single tetrahedron
+
+        mesh = Mesh(points=points, cells=cells)
+        vertex_mesh = mesh.get_facet_mesh(manifold_codimension=3)
+
+        ### A tetrahedron has 4 vertices
+        assert vertex_mesh.n_manifold_dims == 0
+        assert vertex_mesh.n_cells == 4
+        assert vertex_mesh.cells.shape == (4, 1)
+
+    def test_codimension_too_large_raises_error(self):
+        """Test that requesting too high a codimension raises an error."""
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+        cells = torch.tensor([[0, 1, 2]])  # Triangle (n_manifold_dims = 2)
+
+        mesh = Mesh(points=points, cells=cells)
+
+        ### Codimension 3 would give manifold_dims = -1, should raise
+        with pytest.raises(
+            ValueError, match="Would result in negative manifold dimension"
+        ):
+            mesh.get_facet_mesh(manifold_codimension=3)
+
+    def test_data_inheritance_with_codim2(self):
+        """Test that data inheritance works correctly with higher codimension."""
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+        cells = torch.tensor([[0, 1, 2, 3]])  # Single tetrahedron
+
+        ### Add some cell data
+        cell_data = {"pressure": torch.tensor([100.0])}
+
+        mesh = Mesh(points=points, cells=cells, cell_data=cell_data)
+        edge_mesh = mesh.get_facet_mesh(
+            manifold_codimension=2, data_source="cells", data_aggregation="mean"
+        )
+
+        ### All edges should inherit the same pressure value
+        assert "pressure" in edge_mesh.cell_data
+        assert torch.allclose(
+            edge_mesh.cell_data["pressure"],
+            torch.tensor([100.0] * 6),
+        )
+
+    def test_codim2_multiple_cells_shared_edge(self):
+        """Test codimension 2 extraction with multiple tets sharing edges."""
+        ### Create two tetrahedra sharing edge [1, 2]
+        # First tet: [0, 1, 2, 3]
+        # Second tet: [1, 2, 4, 5]
+        # They share edge [1, 2]
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],  # 0
+                [1.0, 0.0, 0.0],  # 1 - shared
+                [0.5, 1.0, 0.0],  # 2 - shared
+                [0.5, 0.5, 1.0],  # 3
+                [1.5, 0.5, 0.5],  # 4
+                [1.0, 1.0, 1.0],  # 5
+            ]
+        )
+        cells = torch.tensor(
+            [
+                [0, 1, 2, 3],  # First tetrahedron
+                [1, 2, 4, 5],  # Second tetrahedron (shares edge [1,2])
+            ]
+        )
+
+        ### Add different pressure values to each tet
+        cell_data = {
+            "pressure": torch.tensor([100.0, 200.0]),
+            "temperature": torch.tensor([300.0, 500.0]),
+        }
+
+        mesh = Mesh(points=points, cells=cells, cell_data=cell_data)
+        edge_mesh = mesh.get_facet_mesh(
+            manifold_codimension=2, data_source="cells", data_aggregation="mean"
+        )
+
+        ### First tet has C(4,2)=6 edges, second tet has 6 edges
+        ### They share edge [1,2], so total unique edges = 6 + 6 - 1 = 11
+        assert edge_mesh.n_cells == 11
+        assert "pressure" in edge_mesh.cell_data
+        assert "temperature" in edge_mesh.cell_data
+
+        ### Find the shared edge [1, 2]
+        shared_edge_idx = torch.where(
+            (edge_mesh.cells[:, 0] == 1) & (edge_mesh.cells[:, 1] == 2)
+        )[0]
+        assert len(shared_edge_idx) == 1, "Shared edge should be deduplicated"
+
+        ### Shared edge should have mean of both parent cell values
+        # pressure: (100 + 200) / 2 = 150
+        # temperature: (300 + 500) / 2 = 400
+        assert torch.isclose(
+            edge_mesh.cell_data["pressure"][shared_edge_idx[0]],
+            torch.tensor(150.0),
+            rtol=1e-5,
+        )
+        assert torch.isclose(
+            edge_mesh.cell_data["temperature"][shared_edge_idx[0]],
+            torch.tensor(400.0),
+            rtol=1e-5,
+        )
+
+        ### Edges belonging to only one tet should have that tet's value
+        # Edge [0, 1] belongs only to first tet
+        edge_01_idx = torch.where(
+            (edge_mesh.cells[:, 0] == 0) & (edge_mesh.cells[:, 1] == 1)
+        )[0]
+        assert len(edge_01_idx) == 1
+        assert torch.isclose(
+            edge_mesh.cell_data["pressure"][edge_01_idx[0]],
+            torch.tensor(100.0),
+            rtol=1e-5,
+        )
+
+        # Edge [4, 5] belongs only to second tet
+        edge_45_idx = torch.where(
+            (edge_mesh.cells[:, 0] == 4) & (edge_mesh.cells[:, 1] == 5)
+        )[0]
+        assert len(edge_45_idx) == 1
+        assert torch.isclose(
+            edge_mesh.cell_data["pressure"][edge_45_idx[0]],
+            torch.tensor(200.0),
+            rtol=1e-5,
+        )
+
+
 class TestDifferentDevices:
     """Test edge extraction on different devices."""
 
@@ -1067,4 +1267,3 @@ class TestDifferentDevices:
         assert facet_mesh.points.device.type == "cuda"
         assert facet_mesh.cells.device.type == "cuda"
         assert facet_mesh.n_cells == 3
-

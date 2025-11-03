@@ -5,7 +5,6 @@ import pyvista as pv
 import pytest
 
 from torchmesh.io import from_pyvista
-from torchmesh.mesh import Mesh
 
 
 class TestErrorHandling:
@@ -14,10 +13,10 @@ class TestErrorHandling:
     def test_invalid_manifold_dim(self):
         """Test that invalid manifold_dim raises ValueError."""
         pv_mesh = pv.Sphere()
-        
+
         with pytest.raises(ValueError, match="Invalid manifold_dim"):
             from_pyvista(pv_mesh, manifold_dim=4)
-        
+
         with pytest.raises(ValueError, match="Invalid manifold_dim"):
             from_pyvista(pv_mesh, manifold_dim=-1)
 
@@ -31,10 +30,9 @@ class TestErrorHandling:
         """Test conversion of empty mesh."""
         points = np.empty((0, 3), dtype=np.float32)
         pv_mesh = pv.PolyData(points)
-        
+
         mesh = from_pyvista(pv_mesh, manifold_dim="auto")
-        
+
         assert mesh.n_points == 0
         assert mesh.n_cells == 0
         assert mesh.n_manifold_dims == 0
-
