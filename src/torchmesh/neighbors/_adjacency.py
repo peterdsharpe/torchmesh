@@ -44,6 +44,33 @@ class Adjacency:
     offsets: torch.Tensor  # shape: (n_sources + 1,), dtype: int64
     indices: torch.Tensor  # shape: (total_neighbors,), dtype: int64
 
+    def __post_init__(self):
+        if not torch.compiler.is_compiling():
+            ### Validate offsets is non-empty
+            # Offsets must have length (n_sources + 1), so minimum length is 1 (for n_sources=0)
+            if len(self.offsets) < 1:
+                raise ValueError(
+                    f"Offsets array must have length >= 1 (n_sources + 1), but got {len(self.offsets)=}. "
+                    f"Even for 0 sources, offsets should be [0]."
+                )
+
+            ### Validate offsets starts at 0
+            if self.offsets[0].item() != 0:
+                raise ValueError(
+                    f"First offset must be 0, but got {self.offsets[0].item()=}. "
+                    f"The offset-indices encoding requires offsets[0] == 0."
+                )
+
+            ### Validate last offset equals length of indices
+            last_offset = self.offsets[-1].item()
+            indices_length = len(self.indices)
+            if last_offset != indices_length:
+                raise ValueError(
+                    f"Last offset must equal length of indices, but got "
+                    f"{last_offset=} != {indices_length=}. "
+                    f"The offset-indices encoding requires offsets[-1] == len(indices)."
+                )
+
     def to_list(self) -> list[list[int]]:
         """Convert adjacency to a ragged list-of-lists representation.
 
