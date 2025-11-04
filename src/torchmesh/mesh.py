@@ -813,6 +813,106 @@ class Mesh:
             data_padding_value=data_padding_value,
         )
 
+    def draw(
+        self,
+        backend: Literal["matplotlib", "pyvista", "auto"] = "auto",
+        show: bool = True,
+        point_scalars: None | torch.Tensor | str | tuple[str, ...] = None,
+        cell_scalars: None | torch.Tensor | str | tuple[str, ...] = None,
+        cmap: str = "viridis",
+        vmin: float | None = None,
+        vmax: float | None = None,
+        alpha_points: float = 1.0,
+        alpha_cells: float = 0.6,
+        alpha_edges: float = 0.8,
+        show_edges: bool = True,
+        ax=None,
+        **kwargs,
+    ):
+        """Draw the mesh using matplotlib or PyVista backend.
+
+        Provides interactive 3D or 2D visualization with support for scalar data
+        coloring, transparency control, and automatic backend selection.
+
+        Args:
+            backend: Visualization backend to use:
+                - "auto": Automatically select based on n_spatial_dims
+                  (matplotlib for 0D/1D/2D, PyVista for 3D)
+                - "matplotlib": Force matplotlib backend (supports 3D via mplot3d)
+                - "pyvista": Force PyVista backend (requires n_spatial_dims <= 3)
+            show: Whether to display the plot immediately (calls plt.show() or
+                plotter.show()). If False, returns the plotter/axes for further
+                customization before display.
+            point_scalars: Scalar data to color points. Mutually exclusive with
+                cell_scalars. Can be:
+                - None: Points use neutral color (black)
+                - torch.Tensor: Direct scalar values, shape (n_points,) or
+                  (n_points, ...) where trailing dimensions are L2-normed
+                - str or tuple[str, ...]: Key to lookup in mesh.point_data
+            cell_scalars: Scalar data to color cells. Mutually exclusive with
+                point_scalars. Can be:
+                - None: Cells use neutral color (lightblue if no scalars,
+                  lightgray if point_scalars active)
+                - torch.Tensor: Direct scalar values, shape (n_cells,) or
+                  (n_cells, ...) where trailing dimensions are L2-normed
+                - str or tuple[str, ...]: Key to lookup in mesh.cell_data
+            cmap: Colormap name for scalar visualization (default: "viridis")
+            vmin: Minimum value for colormap normalization. If None, uses data min.
+            vmax: Maximum value for colormap normalization. If None, uses data max.
+            alpha_points: Opacity for points, range [0, 1] (default: 1.0)
+            alpha_cells: Opacity for cells/faces, range [0, 1] (default: 0.3)
+            alpha_edges: Opacity for cell edges, range [0, 1] (default: 0.7)
+            show_edges: Whether to draw cell edges (default: True)
+            ax: (matplotlib only) Existing matplotlib axes to plot on. If None,
+                creates new figure and axes.
+            **kwargs: Additional backend-specific keyword arguments
+
+        Returns:
+            - matplotlib backend: matplotlib.axes.Axes object
+            - PyVista backend: pyvista.Plotter object
+
+        Raises:
+            ValueError: If both point_scalars and cell_scalars are specified,
+                or if n_spatial_dims is not supported by the chosen backend.
+
+        Example:
+            >>> # Draw mesh with automatic backend selection
+            >>> mesh.draw()
+            >>>
+            >>> # Color cells by pressure data
+            >>> mesh.draw(cell_scalars="pressure", cmap="coolwarm")
+            >>>
+            >>> # Color points by velocity magnitude (computing norm of vector field)
+            >>> mesh.draw(point_scalars="velocity")  # velocity is (n_points, 3)
+            >>>
+            >>> # Use nested TensorDict key
+            >>> mesh.draw(cell_scalars=("flow", "temperature"))
+            >>>
+            >>> # Customize and display later
+            >>> ax = mesh.draw(show=False, backend="matplotlib")
+            >>> ax.set_title("My Mesh")
+            >>> import matplotlib.pyplot as plt
+            >>> plt.show()
+        """
+        from torchmesh.visualization import draw_mesh
+
+        return draw_mesh(
+            mesh=self,
+            backend=backend,
+            show=show,
+            point_scalars=point_scalars,
+            cell_scalars=cell_scalars,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            alpha_points=alpha_points,
+            alpha_cells=alpha_cells,
+            alpha_edges=alpha_edges,
+            show_edges=show_edges,
+            ax=ax,
+            **kwargs,
+        )
+
 
 if __name__ == "__main__":
     import pyvista as pv

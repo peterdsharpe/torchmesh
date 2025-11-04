@@ -22,6 +22,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 io = [
+    "matplotlib>=3.10.7",
     "numpy>=2.3.4",
     "pyvista>=0.46.4",
 ]
@@ -32,6 +33,7 @@ dev = [
     "numpy>=2.3.4",
     "pyvista>=0.46.4",
     "trame>=3.12.0",
+    "matplotlib>=3.10.7",
 ]
 
 [tool.uv]

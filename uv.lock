@@ -2144,12 +2144,14 @@ cu130 = [
 dev = [
     { name = "ipykernel" },
     { name = "ipython" },
+    { name = "matplotlib" },
     { name = "numpy" },
     { name = "pytest" },
     { name = "pyvista" },
     { name = "trame" },
 ]
 io = [
+    { name = "matplotlib" },
     { name = "numpy" },
     { name = "pyvista" },
 ]
@@ -2170,12 +2172,14 @@ provides-extras = ["cu130", "cu128", "cu126", "cpu"]
 dev = [
     { name = "ipykernel", specifier = ">=7.1.0" },
     { name = "ipython", specifier = ">=9.6.0" },
+    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pyvista", specifier = ">=0.46.4" },
     { name = "trame", specifier = ">=3.12.0" },
 ]
 io = [
+    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "pyvista", specifier = ">=0.46.4" },
 ]
