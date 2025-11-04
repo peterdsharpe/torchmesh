@@ -337,8 +337,19 @@ def transform(
                 return value  # Skip cached properties
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
-                return value  # Skip scalars or incompatible shapes
+            
+            # Skip scalars (no spatial structure to transform)
+            if len(shape) == 0:
+                return value
+            
+            # Check if field is transformable
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:  # Vector
                 return value @ matrix.T
@@ -363,8 +374,19 @@ def transform(
                 return value  # Already handled in cache logic
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
+            
+            # Skip scalars
+            if len(shape) == 0:
                 return value
+            
+            # Check if field is transformable
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:
                 return value @ matrix.T
@@ -372,7 +394,7 @@ def transform(
                 return _transform_higher_order_tensor(value, matrix)
             else:
                 raise ValueError(
-                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
                     f"Expected all dimensions after batch to be {mesh.n_spatial_dims}, "
                     f"but got shape[1:] = {shape}"
                 )
@@ -566,8 +588,19 @@ def rotate(
                 return value
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
+            
+            # Skip scalars
+            if len(shape) == 0:
                 return value
+            
+            # Check first dimension matches
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform point_data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:
                 return value @ rotation_matrix.T
@@ -575,7 +608,7 @@ def rotate(
                 return _transform_higher_order_tensor(value, rotation_matrix)
             else:
                 raise ValueError(
-                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"Cannot transform point_data field {key!r} with shape {value.shape}. "
                     f"Expected all dimensions after batch to be {mesh.n_spatial_dims}, "
                     f"but got shape[1:] = {shape}"
                 )
@@ -591,8 +624,19 @@ def rotate(
                 return value
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
+            
+            # Skip scalars
+            if len(shape) == 0:
                 return value
+            
+            # Check first dimension matches
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:
                 return value @ rotation_matrix.T
@@ -600,7 +644,7 @@ def rotate(
                 return _transform_higher_order_tensor(value, rotation_matrix)
             else:
                 raise ValueError(
-                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
                     f"Expected all dimensions after batch to be {mesh.n_spatial_dims}, "
                     f"but got shape[1:] = {shape}"
                 )
@@ -739,8 +783,19 @@ def scale(
                 return value
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
+            
+            # Skip scalars
+            if len(shape) == 0:
                 return value
+            
+            # Check first dimension matches
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform point_data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:
                 return value @ scale_matrix.T
@@ -748,7 +803,7 @@ def scale(
                 return _transform_higher_order_tensor(value, scale_matrix)
             else:
                 raise ValueError(
-                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"Cannot transform point_data field {key!r} with shape {value.shape}. "
                     f"Expected all dimensions after batch to be {mesh.n_spatial_dims}, "
                     f"but got shape[1:] = {shape}"
                 )
@@ -764,8 +819,19 @@ def scale(
                 return value
             
             shape = value.shape[1:]
-            if len(shape) == 0 or shape[0] != mesh.n_spatial_dims:
+            
+            # Skip scalars
+            if len(shape) == 0:
                 return value
+            
+            # Check first dimension matches
+            if shape[0] != mesh.n_spatial_dims:
+                raise ValueError(
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
+                    f"First dimension after batch must be {mesh.n_spatial_dims}, "
+                    f"but got shape[1] = {shape[0]}. "
+                    f"Set transform_data=False to skip data transformation."
+                )
             
             if len(shape) == 1:
                 return value @ scale_matrix.T
@@ -773,7 +839,7 @@ def scale(
                 return _transform_higher_order_tensor(value, scale_matrix)
             else:
                 raise ValueError(
-                    f"Cannot transform data field {key!r} with shape {value.shape}. "
+                    f"Cannot transform cell_data field {key!r} with shape {value.shape}. "
                     f"Expected all dimensions after batch to be {mesh.n_spatial_dims}, "
                     f"but got shape[1:] = {shape}"
                 )
