@@ -1,5 +1,10 @@
-"""Tests for spatial sampling functionality."""
+"""Tests for spatial sampling functionality.
 
+Tests validate barycentric coordinate computation and data sampling
+across spatial dimensions and compute backends.
+"""
+
+import pytest
 import torch
 
 from torchmesh.mesh import Mesh
@@ -9,6 +14,34 @@ from torchmesh.sampling import (
     find_all_containing_cells,
     compute_barycentric_coordinates,
 )
+
+
+### Helper Functions ###
+
+
+def get_available_devices() -> list[str]:
+    """Get list of available compute devices for testing."""
+    devices = ["cpu"]
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    return devices
+
+
+def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
+    """Assert tensor is on expected device."""
+    actual_device = tensor.device.type
+    assert actual_device == expected_device, (
+        f"Device mismatch: tensor is on {actual_device!r}, expected {expected_device!r}"
+    )
+
+
+### Test Fixtures ###
+
+
+@pytest.fixture(params=get_available_devices())
+def device(request):
+    """Parametrize over all available devices."""
+    return request.param
 
 
 class TestBarycentricCoordinates:
@@ -427,3 +460,67 @@ class TestProjectionOntoNearestCell:
         ### Should get a value (not NaN) because of projection
         assert not torch.isnan(result["temperature"][0])
         assert torch.allclose(result["temperature"][0], torch.tensor(100.0))
+
+
+### Parametrized Tests for Exhaustive Coverage ###
+
+
+class TestSamplingParametrized:
+    """Parametrized tests for sampling across dimensions and backends."""
+
+    @pytest.mark.parametrize("n_spatial_dims", [2, 3])
+    def test_barycentric_coords_parametrized(self, n_spatial_dims, device):
+        """Test barycentric coordinate computation across dimensions."""
+        # Create simple simplex
+        n_verts = n_spatial_dims + 1
+        vertices = torch.eye(n_verts, n_spatial_dims, device=device)
+        vertices = vertices.unsqueeze(0)  # Add batch dimension
+        
+        # Query at centroid
+        query = torch.ones(1, n_spatial_dims, device=device) / n_verts
+        
+        bary = compute_barycentric_coordinates(query, vertices)
+        
+        # All coords should be approximately 1/n_verts
+        expected = torch.ones(1, 1, n_verts, device=device) / n_verts
+        assert torch.allclose(bary, expected, atol=1e-5)
+        
+        # Verify device
+        assert_on_device(bary, device)
+
+    @pytest.mark.parametrize("n_spatial_dims", [2, 3])
+    def test_data_sampling_parametrized(self, n_spatial_dims, device):
+        """Test data sampling across dimensions."""
+        if n_spatial_dims == 2:
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
+            query = torch.tensor([[0.33, 0.33]], device=device)
+        else:
+            points = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                ],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2, 3]], device=device, dtype=torch.int64)
+            query = torch.tensor([[0.25, 0.25, 0.25]], device=device)
+        
+        mesh = Mesh(
+            points=points,
+            cells=cells,
+            cell_data={"value": torch.tensor([100.0], device=device)},
+        )
+        
+        result = sample_data_at_points(mesh, query, data_source="cells")
+        
+        # Verify result
+        assert "value" in result
+        assert_on_device(result["value"], device)
+        assert not torch.isnan(result["value"][0])
+

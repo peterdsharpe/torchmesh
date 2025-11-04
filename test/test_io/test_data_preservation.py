@@ -1,10 +1,44 @@
-"""Tests for torchmesh.io module - data preservation."""
+"""Tests for torchmesh.io module - data preservation.
+
+Tests validate that all data (point_data, cell_data, field_data) is correctly
+preserved during PyVista → torchmesh conversion across backends.
+"""
 
 import numpy as np
 import pyvista as pv
+import pytest
 import torch
 
 from torchmesh.io import from_pyvista
+from torchmesh.mesh import Mesh
+
+
+### Helper Functions ###
+
+
+def get_available_devices() -> list[str]:
+    """Get list of available compute devices for testing."""
+    devices = ["cpu"]
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    return devices
+
+
+def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
+    """Assert tensor is on expected device."""
+    actual_device = tensor.device.type
+    assert actual_device == expected_device, (
+        f"Device mismatch: tensor is on {actual_device!r}, expected {expected_device!r}"
+    )
+
+
+### Test Fixtures ###
+
+
+@pytest.fixture(params=get_available_devices())
+def device(request):
+    """Parametrize over all available devices."""
+    return request.param
 
 
 class TestDataPreservation:
@@ -114,3 +148,56 @@ class TestDataPreservation:
         assert isinstance(normals_tensor, torch.Tensor)
         assert normals_tensor.shape == (mesh.n_points, 3)
         assert torch.allclose(normals_tensor, torch.from_numpy(normals_data), atol=1e-6)
+
+
+### Parametrized Tests for Device Handling ###
+
+
+class TestDataPreservationParametrized:
+    """Parametrized tests for data preservation across backends."""
+
+    def test_data_preservation_with_device_transfer(self, device):
+        """Test that data is preserved when transferring to different device."""
+        pv_mesh = pv.Sphere(theta_resolution=5, phi_resolution=5)
+        pv_mesh.point_data["temp"] = np.random.rand(pv_mesh.n_points).astype(np.float32)
+        pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(np.float32)
+        pv_mesh.field_data["time"] = np.array([1.5], dtype=np.float32)
+        
+        # Convert to mesh
+        mesh_cpu = from_pyvista(pv_mesh)
+        
+        # Transfer to device
+        mesh = Mesh(
+            points=mesh_cpu.points.to(device),
+            cells=mesh_cpu.cells.to(device),
+            point_data=mesh_cpu.point_data,
+            cell_data=mesh_cpu.cell_data,
+            global_data=mesh_cpu.global_data,
+        )
+        
+        # Verify geometry on device
+        assert_on_device(mesh.points, device)
+        assert_on_device(mesh.cells, device)
+        
+        # Verify all data preserved (as CPU tensors in TensorDict)
+        assert "temp" in mesh.point_data
+        assert "pressure" in mesh.cell_data
+        assert "time" in mesh.global_data
+        
+        # Values should match original
+        assert torch.allclose(
+            mesh.point_data["temp"],
+            torch.from_numpy(pv_mesh.point_data["temp"]),
+            atol=1e-6,
+        )
+        assert torch.allclose(
+            mesh.cell_data["pressure"],
+            torch.from_numpy(pv_mesh.cell_data["pressure"]),
+            atol=1e-6,
+        )
+        assert torch.allclose(
+            mesh.global_data["time"],
+            torch.from_numpy(pv_mesh.field_data["time"]),
+            atol=1e-6,
+        )
+

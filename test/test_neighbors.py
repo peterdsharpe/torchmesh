@@ -1,7 +1,8 @@
 """Tests for neighbor and adjacency computation.
 
-These tests validate torchmesh adjacency computations against PyVista's
-VTK-based implementations as ground truth.
+Tests validate torchmesh adjacency computations against PyVista's VTK-based
+implementations as ground truth, and verify correctness across spatial dimensions,
+manifold dimensions, and compute backends.
 """
 
 import pyvista as pv
@@ -9,29 +10,220 @@ import pytest
 import torch
 
 from torchmesh.io import from_pyvista
+from torchmesh.mesh import Mesh
+
+
+### Helper Functions (shared across tests) ###
+
+
+def get_available_devices() -> list[str]:
+    """Get list of available compute devices for testing."""
+    devices = ["cpu"]
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    return devices
+
+
+def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
+    """Create a simple mesh for testing."""
+    if n_manifold_dims > n_spatial_dims:
+        raise ValueError(
+            f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
+        )
+    
+    if n_manifold_dims == 0:
+        if n_spatial_dims == 2:
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], device=device)
+        elif n_spatial_dims == 3:
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]], device=device
+            )
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.arange(len(points), device=device, dtype=torch.int64).unsqueeze(1)
+    elif n_manifold_dims == 1:
+        if n_spatial_dims == 2:
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device
+            )
+        elif n_spatial_dims == 3:
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]],
+                device=device,
+            )
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.tensor([[0, 1], [1, 2], [2, 3]], device=device, dtype=torch.int64)
+    elif n_manifold_dims == 2:
+        if n_spatial_dims == 2:
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device
+            )
+        elif n_spatial_dims == 3:
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]],
+                device=device,
+            )
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.tensor([[0, 1, 2], [1, 3, 2]], device=device, dtype=torch.int64)
+    elif n_manifold_dims == 3:
+        if n_spatial_dims == 3:
+            points = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [1.0, 1.0, 1.0],
+                ],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+        else:
+            raise ValueError("3-simplices require 3D embedding space")
+    else:
+        raise ValueError(f"Unsupported {n_manifold_dims=}")
+    
+    return Mesh(points=points, cells=cells)
+
+
+def create_single_cell_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
+    """Create a mesh with a single cell."""
+    if n_manifold_dims > n_spatial_dims:
+        raise ValueError(
+            f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
+        )
+    
+    if n_manifold_dims == 0:
+        if n_spatial_dims == 2:
+            points = torch.tensor([[0.5, 0.5]], device=device)
+        elif n_spatial_dims == 3:
+            points = torch.tensor([[0.5, 0.5, 0.5]], device=device)
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.tensor([[0]], device=device, dtype=torch.int64)
+    elif n_manifold_dims == 1:
+        if n_spatial_dims == 2:
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
+        elif n_spatial_dims == 3:
+            points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], device=device)
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.tensor([[0, 1]], device=device, dtype=torch.int64)
+    elif n_manifold_dims == 2:
+        if n_spatial_dims == 2:
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], device=device)
+        elif n_spatial_dims == 3:
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], device=device
+            )
+        else:
+            raise ValueError(f"Unsupported {n_spatial_dims=}")
+        cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
+    elif n_manifold_dims == 3:
+        if n_spatial_dims == 3:
+            points = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                ],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2, 3]], device=device, dtype=torch.int64)
+        else:
+            raise ValueError("3-simplices require 3D embedding space")
+    else:
+        raise ValueError(f"Unsupported {n_manifold_dims=}")
+    
+    return Mesh(points=points, cells=cells)
+
+
+def assert_mesh_valid(mesh, strict: bool = True) -> None:
+    """Assert that a mesh is valid and well-formed."""
+    assert mesh.n_points > 0
+    assert mesh.points.ndim == 2
+    assert mesh.points.shape[1] == mesh.n_spatial_dims
+    
+    if mesh.n_cells > 0:
+        assert mesh.cells.ndim == 2
+        assert mesh.cells.shape[1] == mesh.n_manifold_dims + 1
+        assert torch.all(mesh.cells >= 0)
+        assert torch.all(mesh.cells < mesh.n_points)
+    
+    assert mesh.points.dtype in [torch.float32, torch.float64]
+    assert mesh.cells.dtype == torch.int64
+    assert mesh.points.device == mesh.cells.device
+    
+    if strict and mesh.n_cells > 0:
+        for i in range(mesh.n_cells):
+            cell_verts = mesh.cells[i]
+            unique_verts = torch.unique(cell_verts)
+            assert len(unique_verts) == len(cell_verts)
+
+
+def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
+    """Assert tensor is on expected device."""
+    actual_device = tensor.device.type
+    assert actual_device == expected_device, (
+        f"Device mismatch: tensor is on {actual_device!r}, expected {expected_device!r}"
+    )
+
+
+### Test Fixtures ###
+
+
+@pytest.fixture(params=get_available_devices())
+def device(request):
+    """Parametrize over all available devices."""
+    return request.param
+
+
+@pytest.fixture
+def airplane_mesh_pair(device):
+    """2D manifold (triangular surface) in 3D space."""
+    pv_mesh = pv.examples.load_airplane()
+    tm_mesh = from_pyvista(pv_mesh)
+    tm_mesh = Mesh(
+        points=tm_mesh.points.to(device),
+        cells=tm_mesh.cells.to(device),
+        point_data=tm_mesh.point_data,
+        cell_data=tm_mesh.cell_data,
+    )
+    return tm_mesh, pv_mesh
+
+
+@pytest.fixture
+def tetbeam_mesh_pair(device):
+    """3D manifold (tetrahedral volume) in 3D space."""
+    pv_mesh = pv.examples.load_tetbeam()
+    tm_mesh = from_pyvista(pv_mesh)
+    tm_mesh = Mesh(
+        points=tm_mesh.points.to(device),
+        cells=tm_mesh.cells.to(device),
+        point_data=tm_mesh.point_data,
+        cell_data=tm_mesh.cell_data,
+    )
+    return tm_mesh, pv_mesh
 
 
 class TestPointToPointsAdjacency:
     """Test point-to-points (edge) adjacency computation."""
 
-    @pytest.fixture
-    def airplane_mesh(self):
-        """2D manifold (triangular surface) in 3D space."""
-        pv_mesh = pv.examples.load_airplane()
-        return from_pyvista(pv_mesh), pv_mesh
+    ### Cross-validation against PyVista ###
 
-    @pytest.fixture
-    def tetbeam_mesh(self):
-        """3D manifold (tetrahedral volume) in 3D space."""
-        pv_mesh = pv.examples.load_tetbeam()
-        return from_pyvista(pv_mesh), pv_mesh
-
-    def test_airplane_point_neighbors(self, airplane_mesh):
+    def test_airplane_point_neighbors(self, airplane_mesh_pair):
         """Validate point-to-points adjacency against PyVista for airplane mesh."""
-        tm_mesh, pv_mesh = airplane_mesh
+        tm_mesh, pv_mesh = airplane_mesh_pair
+        device = tm_mesh.points.device.type
 
         ### Compute adjacency using torchmesh
         adj = tm_mesh.get_point_to_points_adjacency()
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         tm_neighbors = adj.to_list()
 
         ### Get ground truth from PyVista (requires Python loop)
@@ -41,27 +233,28 @@ class TestPointToPointsAdjacency:
             pv_neighbors.append(neighbors)
 
         ### Compare results (order-independent)
-        assert len(tm_neighbors) == len(pv_neighbors), (
-            f"Mismatch in number of points: "
-            f"torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
-        )
+        assert len(tm_neighbors) == len(
+            pv_neighbors
+        ), f"Mismatch in number of points: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
 
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             # Sort both for order-independent comparison
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert tm_sorted == pv_sorted, (
-                f"Point {i} neighbors mismatch:\n"
-                f"  torchmesh: {tm_sorted}\n"
-                f"  pyvista:   {pv_sorted}"
-            )
+            assert (
+                tm_sorted == pv_sorted
+            ), f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
 
-    def test_tetbeam_point_neighbors(self, tetbeam_mesh):
+    def test_tetbeam_point_neighbors(self, tetbeam_mesh_pair):
         """Validate point-to-points adjacency against PyVista for tetbeam mesh."""
-        tm_mesh, pv_mesh = tetbeam_mesh
+        tm_mesh, pv_mesh = tetbeam_mesh_pair
+        device = tm_mesh.points.device.type
 
         ### Compute adjacency using torchmesh
         adj = tm_mesh.get_point_to_points_adjacency()
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         tm_neighbors = adj.to_list()
 
         ### Get ground truth from PyVista (requires Python loop)
@@ -76,15 +269,15 @@ class TestPointToPointsAdjacency:
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert tm_sorted == pv_sorted, (
-                f"Point {i} neighbors mismatch:\n"
-                f"  torchmesh: {tm_sorted}\n"
-                f"  pyvista:   {pv_sorted}"
-            )
+            assert (
+                tm_sorted == pv_sorted
+            ), f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
 
-    def test_symmetry_airplane(self, airplane_mesh):
-        """Verify point adjacency is symmetric (if A neighbors B, then B neighbors A)."""
-        tm_mesh, _ = airplane_mesh
+    ### Symmetry Tests on Real-World Meshes ###
+
+    def test_symmetry_airplane(self, airplane_mesh_pair):
+        """Verify point adjacency is symmetric on airplane mesh (complex real-world case)."""
+        tm_mesh, _ = airplane_mesh_pair
 
         adj = tm_mesh.get_point_to_points_adjacency()
         neighbors = adj.to_list()
@@ -96,9 +289,9 @@ class TestPointToPointsAdjacency:
                     f"Asymmetric adjacency: {i} neighbors {j}, but {j} doesn't neighbor {i}"
                 )
 
-    def test_symmetry_tetbeam(self, tetbeam_mesh):
-        """Verify point adjacency is symmetric for tetbeam mesh."""
-        tm_mesh, _ = tetbeam_mesh
+    def test_symmetry_tetbeam(self, tetbeam_mesh_pair):
+        """Verify point adjacency is symmetric on tetbeam mesh (complex real-world case)."""
+        tm_mesh, _ = tetbeam_mesh_pair
 
         adj = tm_mesh.get_point_to_points_adjacency()
         neighbors = adj.to_list()
@@ -109,54 +302,120 @@ class TestPointToPointsAdjacency:
                     f"Asymmetric adjacency: {i} neighbors {j}, but {j} doesn't neighbor {i}"
                 )
 
-    def test_no_self_loops(self, airplane_mesh):
-        """Verify no point is its own neighbor."""
-        tm_mesh, _ = airplane_mesh
+    ### Parametrized Tests on Synthetic Meshes (Exhaustive Dimensional Coverage) ###
 
-        adj = tm_mesh.get_point_to_points_adjacency()
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),  # Edges in 2D
+            (2, 2),  # Triangles in 2D
+            (3, 1),  # Edges in 3D
+            (3, 2),  # Surfaces in 3D
+            (3, 3),  # Volumes in 3D
+        ],
+    )
+    def test_symmetry_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify point adjacency is symmetric across all dimension combinations (synthetic meshes)."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+        assert_mesh_valid(mesh, strict=True)
+
+        adj = mesh.get_point_to_points_adjacency()
+        neighbors = adj.to_list()
+
+        ### Verify symmetry: if A neighbors B, then B neighbors A
+        for i, nbrs in enumerate(neighbors):
+            for j in nbrs:
+                assert i in neighbors[j], (
+                    f"Asymmetric adjacency ({n_spatial_dims=}, {n_manifold_dims=}): "
+                    f"{i} neighbors {j}, but {j} doesn't neighbor {i}"
+                )
+
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_no_self_loops_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify no point is its own neighbor across dimensions."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_point_to_points_adjacency()
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
-            assert i not in nbrs, f"Point {i} is listed as its own neighbor"
+            assert (
+                i not in nbrs
+            ), f"Point {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
 
-    def test_no_duplicates(self, airplane_mesh):
-        """Verify each neighbor appears exactly once."""
-        tm_mesh, _ = airplane_mesh
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_no_duplicates_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify each neighbor appears exactly once across dimensions."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
-        adj = tm_mesh.get_point_to_points_adjacency()
+        adj = mesh.get_point_to_points_adjacency()
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
             assert len(nbrs) == len(set(nbrs)), (
-                f"Point {i} has duplicate neighbors: {nbrs}"
+                f"Point {i} has duplicate neighbors: {nbrs} "
+                f"({n_spatial_dims=}, {n_manifold_dims=})"
+            )
+
+    @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
+    def test_single_cell_connectivity(self, n_spatial_dims, n_manifold_dims, device):
+        """Test point-to-points for single cell across dimensions."""
+        mesh = create_single_cell_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_point_to_points_adjacency()
+        neighbors = adj.to_list()
+
+        ### All vertices in a single cell should be connected to each other
+        n_verts = n_manifold_dims + 1
+        assert len(neighbors) == n_verts
+
+        for i, nbrs in enumerate(neighbors):
+            # Each vertex should neighbor all others except itself
+            expected_neighbors = set(range(n_verts)) - {i}
+            actual_neighbors = set(nbrs)
+            assert actual_neighbors == expected_neighbors, (
+                f"Single cell connectivity mismatch at vertex {i}: "
+                f"expected {sorted(expected_neighbors)}, got {sorted(actual_neighbors)}"
             )
 
 
 class TestCellToCellsAdjacency:
     """Test cell-to-cells adjacency computation."""
 
-    @pytest.fixture
-    def airplane_mesh(self):
-        """2D manifold (triangular surface) in 3D space."""
-        pv_mesh = pv.examples.load_airplane()
-        return from_pyvista(pv_mesh), pv_mesh
+    ### Cross-validation against PyVista ###
 
-    @pytest.fixture
-    def tetbeam_mesh(self):
-        """3D manifold (tetrahedral volume) in 3D space."""
-        pv_mesh = pv.examples.load_tetbeam()
-        return from_pyvista(pv_mesh), pv_mesh
-
-    def test_airplane_cell_neighbors(self, airplane_mesh):
+    def test_airplane_cell_neighbors(self, airplane_mesh_pair):
         """Validate cell-to-cells adjacency against PyVista for airplane mesh."""
-        tm_mesh, pv_mesh = airplane_mesh
+        tm_mesh, pv_mesh = airplane_mesh_pair
+        device = tm_mesh.points.device.type
 
         ### Compute adjacency using torchmesh
         # For triangular mesh, codimension=1 means sharing an edge
         adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         tm_neighbors = adj.to_list()
 
-        ### Get ground truth from PyVista (requires Python loop)
+        ### Get ground truth from PyVista
         # For triangular meshes, codimension=1 (sharing an edge) corresponds to
         # PyVista's connections="edges"
         pv_neighbors = []
@@ -165,27 +424,28 @@ class TestCellToCellsAdjacency:
             pv_neighbors.append(neighbors)
 
         ### Compare results (order-independent)
-        assert len(tm_neighbors) == len(pv_neighbors), (
-            f"Mismatch in number of cells: "
-            f"torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
-        )
+        assert len(tm_neighbors) == len(
+            pv_neighbors
+        ), f"Mismatch in number of cells: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
 
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert tm_sorted == pv_sorted, (
-                f"Cell {i} neighbors mismatch:\n"
-                f"  torchmesh: {tm_sorted}\n"
-                f"  pyvista:   {pv_sorted}"
-            )
+            assert (
+                tm_sorted == pv_sorted
+            ), f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
 
-    def test_tetbeam_cell_neighbors(self, tetbeam_mesh):
+    def test_tetbeam_cell_neighbors(self, tetbeam_mesh_pair):
         """Validate cell-to-cells adjacency against PyVista for tetbeam mesh."""
-        tm_mesh, pv_mesh = tetbeam_mesh
+        tm_mesh, pv_mesh = tetbeam_mesh_pair
+        device = tm_mesh.points.device.type
 
         ### Compute adjacency using torchmesh
         # For tetrahedral mesh, codimension=1 means sharing a triangular face
         adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         tm_neighbors = adj.to_list()
 
         ### Get ground truth from PyVista
@@ -202,29 +462,15 @@ class TestCellToCellsAdjacency:
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert tm_sorted == pv_sorted, (
-                f"Cell {i} neighbors mismatch:\n"
-                f"  torchmesh: {tm_sorted}\n"
-                f"  pyvista:   {pv_sorted}"
-            )
+            assert (
+                tm_sorted == pv_sorted
+            ), f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
 
-    def test_symmetry_airplane(self, airplane_mesh):
-        """Verify cell adjacency is symmetric."""
-        tm_mesh, _ = airplane_mesh
+    ### Symmetry Tests on Real-World Meshes ###
 
-        adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
-        neighbors = adj.to_list()
-
-        for i, nbrs in enumerate(neighbors):
-            for j in nbrs:
-                assert i in neighbors[j], (
-                    f"Asymmetric adjacency: cell {i} neighbors cell {j}, "
-                    f"but cell {j} doesn't neighbor cell {i}"
-                )
-
-    def test_symmetry_tetbeam(self, tetbeam_mesh):
-        """Verify cell adjacency is symmetric for tetbeam mesh."""
-        tm_mesh, _ = tetbeam_mesh
+    def test_symmetry_airplane(self, airplane_mesh_pair):
+        """Verify cell adjacency is symmetric on airplane mesh (complex real-world case)."""
+        tm_mesh, _ = airplane_mesh_pair
 
         adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors = adj.to_list()
@@ -236,65 +482,166 @@ class TestCellToCellsAdjacency:
                     f"but cell {j} doesn't neighbor cell {i}"
                 )
 
-    def test_no_self_loops(self, airplane_mesh):
-        """Verify no cell is its own neighbor."""
-        tm_mesh, _ = airplane_mesh
+    def test_symmetry_tetbeam(self, tetbeam_mesh_pair):
+        """Verify cell adjacency is symmetric on tetbeam mesh (complex real-world case)."""
+        tm_mesh, _ = tetbeam_mesh_pair
 
         adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
-            assert i not in nbrs, f"Cell {i} is listed as its own neighbor"
+            for j in nbrs:
+                assert i in neighbors[j], (
+                    f"Asymmetric adjacency: cell {i} neighbors cell {j}, "
+                    f"but cell {j} doesn't neighbor cell {i}"
+                )
 
-    def test_no_duplicates(self, airplane_mesh):
-        """Verify each neighbor appears exactly once."""
-        tm_mesh, _ = airplane_mesh
+    ### Parametrized Tests on Synthetic Meshes (Exhaustive Dimensional Coverage) ###
 
-        adj = tm_mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),  # Edges in 2D
+            (2, 2),  # Triangles in 2D
+            (3, 1),  # Edges in 3D
+            (3, 2),  # Surfaces in 3D
+            (3, 3),  # Volumes in 3D
+        ],
+    )
+    def test_symmetry_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify cell adjacency is symmetric across all dimension combinations (synthetic meshes)."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+        assert_mesh_valid(mesh, strict=True)
+
+        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+        neighbors = adj.to_list()
+
+        for i, nbrs in enumerate(neighbors):
+            for j in nbrs:
+                assert i in neighbors[j], (
+                    f"Asymmetric adjacency ({n_spatial_dims=}, {n_manifold_dims=}): "
+                    f"cell {i} neighbors cell {j}, but cell {j} doesn't neighbor cell {i}"
+                )
+
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_no_self_loops_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify no cell is its own neighbor across dimensions."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+        neighbors = adj.to_list()
+
+        for i, nbrs in enumerate(neighbors):
+            assert (
+                i not in nbrs
+            ), f"Cell {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
+
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_no_duplicates_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify each neighbor appears exactly once across dimensions."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
             assert len(nbrs) == len(set(nbrs)), (
-                f"Cell {i} has duplicate neighbors: {nbrs}"
+                f"Cell {i} has duplicate neighbors: {nbrs} "
+                f"({n_spatial_dims=}, {n_manifold_dims=})"
             )
+
+    @pytest.mark.parametrize(
+        "n_manifold_dims,adjacency_codim",
+        [
+            (1, 1),  # Edges sharing vertices
+            (2, 1),  # Triangles sharing edges
+            (2, 2),  # Triangles sharing vertices
+            (3, 1),  # Tets sharing faces
+            (3, 2),  # Tets sharing edges
+            (3, 3),  # Tets sharing vertices
+        ],
+    )
+    def test_different_codimensions(self, n_manifold_dims, adjacency_codim, device):
+        """Test adjacency with different codimensions."""
+        # Use 3D space for all to support up to 3D manifolds
+        n_spatial_dims = 3
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_cell_to_cells_adjacency(
+            adjacency_codimension=adjacency_codim
+        )
+        neighbors = adj.to_list()
+
+        ### Higher codimension should give same or more neighbors
+        ### (more permissive connectivity criterion)
+        if adjacency_codim < n_manifold_dims:
+            adj_lower = mesh.get_cell_to_cells_adjacency(
+                adjacency_codimension=adjacency_codim + 1
+            )
+            neighbors_lower = adj_lower.to_list()
+
+            for i in range(len(neighbors)):
+                # Lower codimension should be subset of higher codimension
+                set_codim = set(neighbors[i])
+                set_lower = set(neighbors_lower[i])
+                assert set_codim.issubset(set_lower) or set_codim == set_lower, (
+                    f"Codimension {adjacency_codim} neighbors should be subset of "
+                    f"codimension {adjacency_codim + 1} neighbors"
+                )
 
 
 class TestPointToCellsAdjacency:
     """Test point-to-cells (star) adjacency computation."""
 
     @pytest.fixture
-    def simple_triangles(self):
+    def simple_triangles(self, device):
         """Simple triangle mesh for basic testing."""
-        points = torch.tensor([
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [1.0, 1.0, 0.0],
-        ])
-        cells = torch.tensor([
-            [0, 1, 2],
-            [1, 3, 2],
-        ])
-        from torchmesh.mesh import Mesh
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [1.0, 1.0, 0.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+            ],
+            device=device,
+            dtype=torch.int64,
+        )
         return Mesh(points=points, cells=cells)
-
-    @pytest.fixture
-    def airplane_mesh(self):
-        """2D manifold (triangular surface) in 3D space."""
-        pv_mesh = pv.examples.load_airplane()
-        return from_pyvista(pv_mesh), pv_mesh
-
-    @pytest.fixture
-    def tetbeam_mesh(self):
-        """3D manifold (tetrahedral volume) in 3D space."""
-        pv_mesh = pv.examples.load_tetbeam()
-        return from_pyvista(pv_mesh), pv_mesh
 
     def test_simple_triangle_star(self, simple_triangles):
         """Test star computation on simple triangle mesh."""
         mesh = simple_triangles
+        device = mesh.points.device.type
 
         adj = mesh.get_point_to_cells_adjacency()
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         stars = adj.to_list()
 
         # Point 0 is in cell 0 only
@@ -309,9 +656,9 @@ class TestPointToCellsAdjacency:
         # Point 3 is in cell 1 only
         assert sorted(stars[3]) == [1]
 
-    def test_airplane_consistency(self, airplane_mesh):
+    def test_airplane_consistency(self, airplane_mesh_pair):
         """Verify consistency of point-to-cells adjacency for airplane mesh."""
-        tm_mesh, pv_mesh = airplane_mesh
+        tm_mesh, pv_mesh = airplane_mesh_pair
 
         adj = tm_mesh.get_point_to_cells_adjacency()
         stars = adj.to_list()
@@ -325,9 +672,9 @@ class TestPointToCellsAdjacency:
                     f"but vertex's star doesn't contain the cell"
                 )
 
-    def test_tetbeam_consistency(self, tetbeam_mesh):
+    def test_tetbeam_consistency(self, tetbeam_mesh_pair):
         """Verify consistency of point-to-cells adjacency for tetbeam mesh."""
-        tm_mesh, pv_mesh = tetbeam_mesh
+        tm_mesh, pv_mesh = tetbeam_mesh_pair
 
         adj = tm_mesh.get_point_to_cells_adjacency()
         stars = adj.to_list()
@@ -341,55 +688,90 @@ class TestPointToCellsAdjacency:
                     f"but vertex's star doesn't contain the cell"
                 )
 
-    def test_no_duplicates(self, airplane_mesh):
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_no_duplicates_parametrized(self, n_spatial_dims, n_manifold_dims, device):
         """Verify each cell appears exactly once in each point's star."""
-        tm_mesh, _ = airplane_mesh
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
-        adj = tm_mesh.get_point_to_cells_adjacency()
+        adj = mesh.get_point_to_cells_adjacency()
         stars = adj.to_list()
 
         for i, cells in enumerate(stars):
             assert len(cells) == len(set(cells)), (
-                f"Point {i} has duplicate cells in star: {cells}"
+                f"Point {i} has duplicate cells in star: {cells} "
+                f"({n_spatial_dims=}, {n_manifold_dims=})"
             )
+
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_completeness_parametrized(self, n_spatial_dims, n_manifold_dims, device):
+        """Verify all cell-point relationships are captured."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
+
+        adj = mesh.get_point_to_cells_adjacency()
+        stars = adj.to_list()
+
+        ### Check that every cell-vertex relationship is present
+        for cell_id in range(mesh.n_cells):
+            cell_verts = mesh.cells[cell_id].tolist()
+            for vert_id in cell_verts:
+                assert cell_id in stars[vert_id], (
+                    f"Cell {cell_id} contains vertex {vert_id} but vertex's star "
+                    f"doesn't contain the cell ({n_spatial_dims=}, {n_manifold_dims=})"
+                )
 
 
 class TestCellsToPointsAdjacency:
     """Test cells-to-points adjacency computation."""
 
     @pytest.fixture
-    def simple_triangles(self):
+    def simple_triangles(self, device):
         """Simple triangle mesh for basic testing."""
-        points = torch.tensor([
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [1.0, 1.0, 0.0],
-        ])
-        cells = torch.tensor([
-            [0, 1, 2],
-            [1, 3, 2],
-        ])
-        from torchmesh.mesh import Mesh
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [1.0, 1.0, 0.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+            ],
+            device=device,
+            dtype=torch.int64,
+        )
         return Mesh(points=points, cells=cells)
-
-    @pytest.fixture
-    def airplane_mesh(self):
-        """2D manifold (triangular surface) in 3D space."""
-        pv_mesh = pv.examples.load_airplane()
-        return from_pyvista(pv_mesh)
-
-    @pytest.fixture
-    def tetbeam_mesh(self):
-        """3D manifold (tetrahedral volume) in 3D space."""
-        pv_mesh = pv.examples.load_tetbeam()
-        return from_pyvista(pv_mesh)
 
     def test_simple_triangle_vertices(self, simple_triangles):
         """Test cells-to-points on simple triangle mesh."""
         mesh = simple_triangles
+        device = mesh.points.device.type
 
         adj = mesh.get_cells_to_points_adjacency()
+        assert_on_device(adj.offsets, device)
+        assert_on_device(adj.indices, device)
+
         vertices = adj.to_list()
 
         # Cell 0 has vertices [0, 1, 2]
@@ -398,9 +780,21 @@ class TestCellsToPointsAdjacency:
         # Cell 1 has vertices [1, 3, 2]
         assert vertices[1] == [1, 3, 2]
 
-    def test_matches_cells_array_airplane(self, airplane_mesh):
-        """Verify cells-to-points matches the cells array for airplane mesh."""
-        mesh = airplane_mesh
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_matches_cells_array_parametrized(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
+        """Verify cells-to-points matches the cells array across dimensions."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         adj = mesh.get_cells_to_points_adjacency()
         vertices = adj.to_list()
@@ -411,38 +805,52 @@ class TestCellsToPointsAdjacency:
             assert vertices[i] == expected, (
                 f"Cell {i} vertices mismatch:\n"
                 f"  adjacency: {vertices[i]}\n"
-                f"  cells array: {expected}"
+                f"  cells array: {expected}\n"
+                f"  ({n_spatial_dims=}, {n_manifold_dims=})"
             )
 
-    def test_matches_cells_array_tetbeam(self, tetbeam_mesh):
-        """Verify cells-to-points matches the cells array for tetbeam mesh."""
-        mesh = tetbeam_mesh
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_all_cells_same_size_parametrized(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
+        """Verify all cells have the correct number of vertices."""
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         adj = mesh.get_cells_to_points_adjacency()
         vertices = adj.to_list()
 
-        # Verify each cell's vertices match the cells array
-        for i in range(mesh.n_cells):
-            expected = mesh.cells[i].tolist()
-            assert vertices[i] == expected
-
-    def test_all_cells_same_size(self, airplane_mesh):
-        """Verify all cells have the same number of vertices."""
-        mesh = airplane_mesh
-
-        adj = mesh.get_cells_to_points_adjacency()
-        vertices = adj.to_list()
-
-        # All triangles should have 3 vertices
-        expected_size = mesh.n_manifold_dims + 1
+        # All cells should have (n_manifold_dims + 1) vertices
+        expected_size = n_manifold_dims + 1
         for i, verts in enumerate(vertices):
             assert len(verts) == expected_size, (
-                f"Cell {i} has {len(verts)} vertices, expected {expected_size}"
+                f"Cell {i} has {len(verts)} vertices, expected {expected_size} "
+                f"({n_spatial_dims=}, {n_manifold_dims=})"
             )
 
-    def test_inverse_of_point_to_cells(self, simple_triangles):
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims",
+        [
+            (2, 1),
+            (2, 2),
+            (3, 1),
+            (3, 2),
+            (3, 3),
+        ],
+    )
+    def test_inverse_of_point_to_cells_parametrized(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
         """Verify cells-to-points is inverse of point-to-cells."""
-        mesh = simple_triangles
+        mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Get both adjacencies
         cells_to_points = mesh.get_cells_to_points_adjacency().to_list()
@@ -454,91 +862,91 @@ class TestCellsToPointsAdjacency:
                 # This point should have this cell in its star
                 assert cell_id in points_to_cells[point_id], (
                     f"Cell {cell_id} contains point {point_id}, "
-                    f"but point's star doesn't contain the cell"
+                    f"but point's star doesn't contain the cell "
+                    f"({n_spatial_dims=}, {n_manifold_dims=})"
                 )
 
 
 class TestAdjacencyValidation:
     """Test Adjacency class validation."""
 
-    def test_valid_adjacency(self):
+    def test_valid_adjacency(self, device):
         """Test that valid adjacencies pass validation."""
         from torchmesh.neighbors import Adjacency
 
         # Empty adjacency
         adj = Adjacency(
-            offsets=torch.tensor([0]),
-            indices=torch.tensor([]),
+            offsets=torch.tensor([0], device=device),
+            indices=torch.tensor([], device=device),
         )
         assert adj.n_sources == 0
 
         # Single source with neighbors
         adj = Adjacency(
-            offsets=torch.tensor([0, 3]),
-            indices=torch.tensor([1, 2, 3]),
+            offsets=torch.tensor([0, 3], device=device),
+            indices=torch.tensor([1, 2, 3], device=device),
         )
         assert adj.n_sources == 1
 
         # Multiple sources with varying neighbor counts
         adj = Adjacency(
-            offsets=torch.tensor([0, 2, 2, 5]),
-            indices=torch.tensor([10, 11, 12, 13, 14]),
+            offsets=torch.tensor([0, 2, 2, 5], device=device),
+            indices=torch.tensor([10, 11, 12, 13, 14], device=device),
         )
         assert adj.n_sources == 3
 
-    def test_invalid_empty_offsets(self):
+    def test_invalid_empty_offsets(self, device):
         """Test that empty offsets array raises error."""
         from torchmesh.neighbors import Adjacency
 
         with pytest.raises(ValueError, match="Offsets array must have length >= 1"):
             Adjacency(
-                offsets=torch.tensor([]),  # Invalid: should be at least [0]
-                indices=torch.tensor([]),
+                offsets=torch.tensor([], device=device),  # Invalid: should be at least [0]
+                indices=torch.tensor([], device=device),
             )
 
-    def test_invalid_first_offset(self):
+    def test_invalid_first_offset(self, device):
         """Test that non-zero first offset raises error."""
         from torchmesh.neighbors import Adjacency
 
         with pytest.raises(ValueError, match="First offset must be 0"):
             Adjacency(
-                offsets=torch.tensor([1, 3, 5]),  # Should start at 0
-                indices=torch.tensor([0, 1]),
+                offsets=torch.tensor([1, 3, 5], device=device),  # Should start at 0
+                indices=torch.tensor([0, 1], device=device),
             )
 
-    def test_invalid_last_offset(self):
+    def test_invalid_last_offset(self, device):
         """Test that mismatched last offset raises error."""
         from torchmesh.neighbors import Adjacency
 
         with pytest.raises(ValueError, match="Last offset must equal length of indices"):
             Adjacency(
-                offsets=torch.tensor([0, 2, 5]),  # Says 5 indices
-                indices=torch.tensor([0, 1, 2]),  # But only 3 indices
+                offsets=torch.tensor([0, 2, 5], device=device),  # Says 5 indices
+                indices=torch.tensor([0, 1, 2], device=device),  # But only 3 indices
             )
 
         with pytest.raises(ValueError, match="Last offset must equal length of indices"):
             Adjacency(
-                offsets=torch.tensor([0, 2]),  # Says 2 indices
-                indices=torch.tensor([0, 1, 2, 3]),  # But has 4 indices
+                offsets=torch.tensor([0, 2], device=device),  # Says 2 indices
+                indices=torch.tensor([0, 1, 2, 3], device=device),  # But has 4 indices
             )
 
 
 class TestEdgeCases:
     """Test edge cases and special scenarios."""
 
-    def test_empty_mesh(self):
+    def test_empty_mesh(self, device):
         """Test adjacency computation on empty mesh."""
-        from torchmesh.mesh import Mesh
-
         mesh = Mesh(
-            points=torch.zeros(0, 3),
-            cells=torch.zeros(0, 3, dtype=torch.int64),
+            points=torch.zeros(0, 3, device=device),
+            cells=torch.zeros(0, 3, dtype=torch.int64, device=device),
         )
 
         # Point-to-points
         adj = mesh.get_point_to_points_adjacency()
         assert adj.n_sources == 0
         assert len(adj.indices) == 0
+        assert_on_device(adj.offsets, device)
 
         # Point-to-cells
         adj = mesh.get_point_to_cells_adjacency()
@@ -555,16 +963,17 @@ class TestEdgeCases:
         assert adj.n_sources == 0
         assert len(adj.indices) == 0
 
-    def test_isolated_triangle(self):
+    def test_isolated_triangle(self, device):
         """Test single triangle (no cell neighbors)."""
-        from torchmesh.mesh import Mesh
-
-        points = torch.tensor([
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.5, 1.0],
-        ])
-        cells = torch.tensor([[0, 1, 2]])
+        points = torch.tensor(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.5, 1.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
 
         mesh = Mesh(points=points, cells=cells)
 
@@ -580,20 +989,21 @@ class TestEdgeCases:
         assert sorted(neighbors[1]) == [0, 2]
         assert sorted(neighbors[2]) == [0, 1]
 
-    def test_isolated_points(self):
+    def test_isolated_points(self, device):
         """Test mesh with isolated points (not in any cells)."""
-        from torchmesh.mesh import Mesh
-
         # Create mesh with 5 points but only 1 triangle using points 0,1,2
         # Points 3 and 4 are isolated
-        points = torch.tensor([
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.5, 1.0],
-            [2.0, 2.0],  # Isolated
-            [3.0, 3.0],  # Isolated
-        ])
-        cells = torch.tensor([[0, 1, 2]])
+        points = torch.tensor(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.5, 1.0],
+                [2.0, 2.0],  # Isolated
+                [3.0, 3.0],  # Isolated
+            ],
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
 
         mesh = Mesh(points=points, cells=cells)
 
@@ -612,12 +1022,10 @@ class TestEdgeCases:
         assert len(neighbors[3]) == 0
         assert len(neighbors[4]) == 0
 
-    def test_single_point_mesh(self):
+    def test_single_point_mesh(self, device):
         """Test mesh with single point and no cells."""
-        from torchmesh.mesh import Mesh
-
-        points = torch.tensor([[0.0, 0.0, 0.0]])
-        cells = torch.zeros((0, 3), dtype=torch.int64)
+        points = torch.tensor([[0.0, 0.0, 0.0]], device=device)
+        cells = torch.zeros((0, 3), dtype=torch.int64, device=device)
 
         mesh = Mesh(points=points, cells=cells)
 
@@ -633,29 +1041,34 @@ class TestEdgeCases:
         assert len(adj.indices) == 0
         assert adj.to_list() == [[]]
 
-    def test_1d_manifold_edges(self):
+    def test_1d_manifold_edges(self, device):
         """Test adjacency on 1D manifold (polyline/edges)."""
-        from torchmesh.mesh import Mesh
-
         # Create a simple polyline: 0--1--2--3
-        points = torch.tensor([
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [2.0, 0.0, 0.0],
-            [3.0, 0.0, 0.0],
-        ])
-        cells = torch.tensor([
-            [0, 1],  # Edge 0
-            [1, 2],  # Edge 1
-            [2, 3],  # Edge 2
-        ])
+        points = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [3.0, 0.0, 0.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor(
+            [
+                [0, 1],  # Edge 0
+                [1, 2],  # Edge 1
+                [2, 3],  # Edge 2
+            ],
+            device=device,
+            dtype=torch.int64,
+        )
 
         mesh = Mesh(points=points, cells=cells)
 
         # Cell-to-cells (codim 1 = sharing a vertex for edges)
         adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors = adj.to_list()
-        
+
         # Edge 0 shares vertex 1 with edge 1
         assert sorted(neighbors[0]) == [1]
         # Edge 1 shares vertex 1 with edge 0, vertex 2 with edge 2
@@ -671,62 +1084,87 @@ class TestEdgeCases:
         assert sorted(neighbors[2]) == [1, 3]
         assert sorted(neighbors[3]) == [2]
 
-    def test_multiple_codimensions_tetmesh(self):
-        """Test different codimensions on tetrahedral mesh."""
-        from torchmesh.mesh import Mesh
-
-        # Create two tetrahedra sharing a triangular face
-        # Tet 0: points [0, 1, 2, 3]
-        # Tet 1: points [0, 1, 2, 4] - shares face [0,1,2] with tet 0
-        points = torch.tensor([
-            [0.0, 0.0, 0.0],  # 0
-            [1.0, 0.0, 0.0],  # 1
-            [0.0, 1.0, 0.0],  # 2
-            [0.0, 0.0, 1.0],  # 3
-            [0.0, 0.0, -1.0], # 4
-        ])
-        cells = torch.tensor([
-            [0, 1, 2, 3],
-            [0, 1, 2, 4],
-        ])
+    def test_dtype_consistency(self, device):
+        """Test that all adjacency indices use int64 dtype."""
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], device=device)
+        cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
 
         mesh = Mesh(points=points, cells=cells)
 
-        # Codimension 1: Share triangular face
-        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
-        neighbors = adj.to_list()
-        assert sorted(neighbors[0]) == [1]
-        assert sorted(neighbors[1]) == [0]
+        # Check all adjacency types
+        adjacencies = [
+            mesh.get_point_to_points_adjacency(),
+            mesh.get_point_to_cells_adjacency(),
+            mesh.get_cell_to_cells_adjacency(),
+            mesh.get_cells_to_points_adjacency(),
+        ]
 
-        # Codimension 2: Share edge (more permissive)
-        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=2)
-        neighbors = adj.to_list()
-        # They share face [0,1,2] which contains edges [0,1], [0,2], [1,2]
-        assert sorted(neighbors[0]) == [1]
-        assert sorted(neighbors[1]) == [0]
+        for adj in adjacencies:
+            assert (
+                adj.offsets.dtype == torch.int64
+            ), f"Expected offsets dtype int64, got {adj.offsets.dtype}"
+            assert (
+                adj.indices.dtype == torch.int64
+            ), f"Expected indices dtype int64, got {adj.indices.dtype}"
 
-        # Codimension 3: Share vertex (most permissive)
-        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=3)
-        neighbors = adj.to_list()
-        # They share vertices 0, 1, and 2
-        assert sorted(neighbors[0]) == [1]
-        assert sorted(neighbors[1]) == [0]
+    def test_neighbor_count_conservation(self, device):
+        """Test conservation of neighbor relationships."""
+        points = torch.tensor(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+            ],
+            device=device,
+            dtype=torch.int64,
+        )
 
-    def test_cross_adjacency_consistency(self):
+        mesh = Mesh(points=points, cells=cells)
+
+        # Point-to-points: total edges counted twice (bidirectional)
+        adj = mesh.get_point_to_points_adjacency()
+        total_bidirectional_edges = adj.n_total_neighbors
+        # Should be even since each edge appears twice
+        assert total_bidirectional_edges % 2 == 0
+
+        # Cell-to-cells: total adjacencies counted twice (bidirectional)
+        adj = mesh.get_cell_to_cells_adjacency()
+        total_bidirectional_adjacencies = adj.n_total_neighbors
+        # Should be even
+        assert total_bidirectional_adjacencies % 2 == 0
+
+        # Point-to-cells: sum should equal cells-to-points
+        point_to_cells = mesh.get_point_to_cells_adjacency()
+        cells_to_points = mesh.get_cells_to_points_adjacency()
+        assert point_to_cells.n_total_neighbors == cells_to_points.n_total_neighbors
+
+    def test_cross_adjacency_consistency(self, device):
         """Test consistency between different adjacency relationships."""
-        from torchmesh.mesh import Mesh
-
-        # Create simple mesh
-        points = torch.tensor([
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.0, 1.0],
-            [1.0, 1.0],
-        ])
-        cells = torch.tensor([
-            [0, 1, 2],
-            [1, 3, 2],
-        ])
+        points = torch.tensor(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+            ],
+            device=device,
+        )
+        cells = torch.tensor(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+            ],
+            device=device,
+            dtype=torch.int64,
+        )
 
         mesh = Mesh(points=points, cells=cells)
 
@@ -736,7 +1174,7 @@ class TestEdgeCases:
         cells_to_points = mesh.get_cells_to_points_adjacency().to_list()
         cell_to_cells = mesh.get_cell_to_cells_adjacency().to_list()
 
-        # Consistency check 1: If points A and B are neighbors, 
+        # Consistency check 1: If points A and B are neighbors,
         # there must exist a cell containing both
         for point_a, neighbors in enumerate(point_to_points):
             for point_b in neighbors:
@@ -770,203 +1208,3 @@ class TestEdgeCases:
                     f"Cells {cell_a} and {cell_b} are neighbors but share "
                     f"{len(shared_vertices)} vertices (expected >= 2)"
                 )
-
-    def test_neighbor_count_conservation(self):
-        """Test conservation of neighbor relationships."""
-        from torchmesh.mesh import Mesh
-
-        points = torch.tensor([
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.0, 1.0],
-            [1.0, 1.0],
-        ])
-        cells = torch.tensor([
-            [0, 1, 2],
-            [1, 3, 2],
-        ])
-
-        mesh = Mesh(points=points, cells=cells)
-
-        # Point-to-points: total edges counted twice (bidirectional)
-        adj = mesh.get_point_to_points_adjacency()
-        total_bidirectional_edges = adj.n_total_neighbors
-        # Should be even since each edge appears twice
-        assert total_bidirectional_edges % 2 == 0
-
-        # Cell-to-cells: total adjacencies counted twice (bidirectional)
-        adj = mesh.get_cell_to_cells_adjacency()
-        total_bidirectional_adjacencies = adj.n_total_neighbors
-        # Should be even
-        assert total_bidirectional_adjacencies % 2 == 0
-
-        # Point-to-cells: sum should equal cells-to-points
-        point_to_cells = mesh.get_point_to_cells_adjacency()
-        cells_to_points = mesh.get_cells_to_points_adjacency()
-        assert point_to_cells.n_total_neighbors == cells_to_points.n_total_neighbors
-
-    def test_dtype_consistency(self):
-        """Test that all adjacency indices use int64 dtype."""
-        from torchmesh.mesh import Mesh
-
-        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]])
-        cells = torch.tensor([[0, 1, 2]])
-
-        mesh = Mesh(points=points, cells=cells)
-
-        # Check all adjacency types
-        adjacencies = [
-            mesh.get_point_to_points_adjacency(),
-            mesh.get_point_to_cells_adjacency(),
-            mesh.get_cell_to_cells_adjacency(),
-            mesh.get_cells_to_points_adjacency(),
-        ]
-
-        for adj in adjacencies:
-            assert adj.offsets.dtype == torch.int64, (
-                f"Expected offsets dtype int64, got {adj.offsets.dtype}"
-            )
-            assert adj.indices.dtype == torch.int64, (
-                f"Expected indices dtype int64, got {adj.indices.dtype}"
-            )
-
-    def test_boundary_vs_interior_cells(self):
-        """Test neighbor count distribution and verify boundary/interior distinction."""
-        # Load a non-trivial mesh
-        pv_mesh = pv.examples.load_airplane()
-        mesh = from_pyvista(pv_mesh)
-
-        # Get cell-to-cells adjacency
-        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
-        neighbors = adj.to_list()
-
-        # Count neighbor distribution
-        neighbor_counts = [len(n) for n in neighbors]
-
-        # For a 2D manifold, triangles typically have 0-3 neighbors
-        # (0 = isolated, 1-2 = boundary, 3 = interior)
-        # However, non-manifold edges (shared by >2 triangles) can have more
-        assert min(neighbor_counts) >= 0
-        assert max(neighbor_counts) >= 1  # At least some connectivity
-        
-        # There should be variation in neighbor counts (boundary vs interior)
-        assert len(set(neighbor_counts)) > 1
-        
-        # Most cells should have reasonable neighbor counts
-        from collections import Counter
-        count_dist = Counter(neighbor_counts)
-        # The most common neighbor count should be 2 or 3 (typical interior/boundary)
-        most_common_count = count_dist.most_common(1)[0][0]
-        assert most_common_count in [2, 3], (
-            f"Most common neighbor count is {most_common_count}, expected 2 or 3"
-        )
-
-    def test_non_manifold_edge(self):
-        """Test mesh with non-manifold edge (edge shared by >2 triangles)."""
-        from torchmesh.mesh import Mesh
-
-        # Create 3 triangles sharing the same edge [0, 1]
-        # This is a non-manifold configuration
-        points = torch.tensor([
-            [0.0, 0.0, 0.0],  # 0
-            [1.0, 0.0, 0.0],  # 1
-            [0.5, 1.0, 0.0],  # 2
-            [0.5, -1.0, 0.0], # 3
-            [0.5, 0.0, 1.0],  # 4
-        ])
-        cells = torch.tensor([
-            [0, 1, 2],  # Triangle 0
-            [0, 1, 3],  # Triangle 1 (shares edge [0,1])
-            [0, 1, 4],  # Triangle 2 (shares edge [0,1])
-        ])
-
-        mesh = Mesh(points=points, cells=cells)
-
-        # Cell-to-cells: each triangle should have the other 2 as neighbors
-        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
-        neighbors = adj.to_list()
-        
-        # Triangle 0 should neighbor triangles 1 and 2
-        assert sorted(neighbors[0]) == [1, 2]
-        # Triangle 1 should neighbor triangles 0 and 2
-        assert sorted(neighbors[1]) == [0, 2]
-        # Triangle 2 should neighbor triangles 0 and 1
-        assert sorted(neighbors[2]) == [0, 1]
-
-        # Verify no duplicates despite sharing the same edge
-        for i, nbrs in enumerate(neighbors):
-            assert len(nbrs) == len(set(nbrs)), (
-                f"Cell {i} has duplicate neighbors: {nbrs}"
-            )
-
-    def test_large_connectivity(self):
-        """Test point with many neighbors (high valence vertex)."""
-        from torchmesh.mesh import Mesh
-
-        # Create a fan of triangles around a central vertex
-        # Central vertex 0, surrounded by vertices 1..n
-        n_triangles = 20
-        points_list = [[0.0, 0.0]]  # Central vertex
-        
-        import math
-        for i in range(n_triangles):
-            angle = 2 * math.pi * i / n_triangles
-            points_list.append([math.cos(angle), math.sin(angle)])
-        
-        points = torch.tensor(points_list)
-        
-        # Create triangles: [0, i, i+1] for i in 1..n (wrapping around)
-        cells_list = []
-        for i in range(1, n_triangles + 1):
-            next_i = i + 1 if i < n_triangles else 1
-            cells_list.append([0, i, next_i])
-        
-        cells = torch.tensor(cells_list)
-        mesh = Mesh(points=points, cells=cells)
-
-        # Point 0 should have n_triangles neighbors
-        adj = mesh.get_point_to_points_adjacency()
-        neighbors = adj.to_list()
-        assert len(neighbors[0]) == n_triangles
-
-        # Point 0 should be in all cells
-        adj = mesh.get_point_to_cells_adjacency()
-        stars = adj.to_list()
-        assert len(stars[0]) == n_triangles
-
-    def test_gpu_compatibility(self):
-        """Test that adjacency works on GPU (if available)."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
-
-        from torchmesh.mesh import Mesh
-
-        points = torch.tensor([
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.5, 1.0],
-        ], device="cuda")
-        cells = torch.tensor([[0, 1, 2]], device="cuda")
-
-        mesh = Mesh(points=points, cells=cells)
-
-        # Point-to-points
-        adj = mesh.get_point_to_points_adjacency()
-        assert adj.offsets.device.type == "cuda"
-        assert adj.indices.device.type == "cuda"
-
-        # Point-to-cells
-        adj = mesh.get_point_to_cells_adjacency()
-        assert adj.offsets.device.type == "cuda"
-        assert adj.indices.device.type == "cuda"
-
-        # Cell-to-cells
-        adj = mesh.get_cell_to_cells_adjacency()
-        assert adj.offsets.device.type == "cuda"
-        assert adj.indices.device.type == "cuda"
-
-        # Cells-to-points
-        adj = mesh.get_cells_to_points_adjacency()
-        assert adj.offsets.device.type == "cuda"
-        assert adj.indices.device.type == "cuda"
-

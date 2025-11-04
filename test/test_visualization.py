@@ -1,4 +1,8 @@
-"""Tests for mesh visualization functionality."""
+"""Tests for mesh visualization functionality.
+
+Tests validate visualization across different mesh configurations, spatial dimensions,
+and visualization backends (matplotlib, PyVista).
+"""
 
 import pytest
 import torch
@@ -9,6 +13,26 @@ import matplotlib.pyplot as plt
 matplotlib.use("Agg")  # Use non-interactive backend for testing
 
 from torchmesh import Mesh
+
+
+### Helper Functions ###
+
+
+def get_available_devices() -> list[str]:
+    """Get list of available compute devices for testing."""
+    devices = ["cpu"]
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    return devices
+
+
+### Test Fixtures ###
+
+
+@pytest.fixture(params=get_available_devices())
+def device(request):
+    """Parametrize over all available devices."""
+    return request.param
 
 
 ### Helper functions for creating test meshes
@@ -443,6 +467,95 @@ def test_tetrahedral_mesh_visualization():
     plotter = mesh.draw(show=False)
     assert isinstance(plotter, pv.Plotter)
     plotter.close()
+
+
+### Parametrized Tests for Exhaustive Configuration Coverage ###
+
+
+class TestVisualizationParametrized:
+    """Parametrized tests for visualization across configurations."""
+
+    @pytest.mark.parametrize(
+        "n_spatial_dims,n_manifold_dims,backend",
+        [
+            (2, 1, "matplotlib"),
+            (2, 2, "matplotlib"),
+            (3, 1, "matplotlib"),
+            (3, 2, "matplotlib"),
+            (3, 2, "pyvista"),
+            (3, 3, "pyvista"),
+        ],
+    )
+    def test_basic_visualization_parametrized(
+        self, n_spatial_dims, n_manifold_dims, backend
+    ):
+        """Test basic visualization across dimensions and backends."""
+        # Create simple mesh
+        if n_manifold_dims == 1 and n_spatial_dims == 2:
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0]])
+            cells = torch.tensor([[0, 1]], dtype=torch.int64)
+        elif n_manifold_dims == 2 and n_spatial_dims == 2:
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+            cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
+        elif n_manifold_dims == 1 and n_spatial_dims == 3:
+            points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+            cells = torch.tensor([[0, 1]], dtype=torch.int64)
+        elif n_manifold_dims == 2 and n_spatial_dims == 3:
+            points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+            cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
+        elif n_manifold_dims == 3 and n_spatial_dims == 3:
+            points = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                ]
+            )
+            cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.int64)
+        else:
+            pytest.skip(f"Unsupported combination: {n_spatial_dims=}, {n_manifold_dims=}")
+        
+        mesh = Mesh(points=points, cells=cells)
+        
+        # Draw
+        result = mesh.draw(show=False, backend=backend)
+        
+        # Verify result type based on backend
+        if backend == "matplotlib":
+            assert isinstance(result, matplotlib.axes.Axes)
+            plt.close("all")
+        elif backend == "pyvista":
+            import pyvista as pv
+            assert isinstance(result, pv.Plotter)
+            result.close()
+
+    @pytest.mark.parametrize("backend", ["matplotlib", "pyvista"])
+    def test_visualization_with_scalars_parametrized(self, backend):
+        """Test visualization with scalar data across backends."""
+        if backend == "pyvista":
+            # Use 3D mesh for PyVista
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
+            )
+            cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
+        else:
+            # Use 2D mesh for matplotlib
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+            cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
+        
+        mesh = Mesh(points=points, cells=cells)
+        mesh.cell_data["value"] = torch.rand(mesh.n_cells)
+        
+        result = mesh.draw(show=False, backend=backend, cell_scalars="value")
+        
+        if backend == "matplotlib":
+            assert isinstance(result, matplotlib.axes.Axes)
+            plt.close("all")
+        elif backend == "pyvista":
+            import pyvista as pv
+            assert isinstance(result, pv.Plotter)
+            result.close()
 
 
 if __name__ == "__main__":

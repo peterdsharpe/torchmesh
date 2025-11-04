@@ -1,6 +1,7 @@
 """Test suite for performance optimizations.
 
-Verifies that all optimizations produce correct results and maintain backward compatibility.
+Verifies that all optimizations produce correct results and maintain backward compatibility
+across compute backends (CPU, CUDA).
 """
 
 import pytest
@@ -12,6 +13,34 @@ from torchmesh.sampling.sample_data import (
     compute_barycentric_coordinates_pairwise,
 )
 from torchmesh.spatial import BVH
+
+
+### Helper Functions ###
+
+
+def get_available_devices() -> list[str]:
+    """Get list of available compute devices for testing."""
+    devices = ["cpu"]
+    if torch.cuda.is_available():
+        devices.append("cuda")
+    return devices
+
+
+def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
+    """Assert tensor is on expected device."""
+    actual_device = tensor.device.type
+    assert actual_device == expected_device, (
+        f"Device mismatch: tensor is on {actual_device!r}, expected {expected_device!r}"
+    )
+
+
+### Test Fixtures ###
+
+
+@pytest.fixture(params=get_available_devices())
+def device(request):
+    """Parametrize over all available devices."""
+    return request.param
 
 
 class TestBarycentricOptimizations:
@@ -434,6 +463,94 @@ class TestHierarchicalSampling:
         torch.testing.assert_close(
             result["temperature"], torch.tensor([100.0]), rtol=1e-5, atol=1e-7
         )
+
+
+### Parametrized Tests for Exhaustive Backend Coverage ###
+
+
+class TestOptimizationsParametrized:
+    """Parametrized tests for optimizations across backends."""
+
+    @pytest.mark.parametrize("n_queries,n_spatial_dims", [(10, 2), (20, 3)])
+    def test_barycentric_pairwise_parametrized(self, n_queries, n_spatial_dims, device):
+        """Test pairwise barycentric across backends and dimensions."""
+        # Create query points and cell vertices
+        query_points = torch.rand(n_queries, n_spatial_dims, device=device)
+        cell_vertices = torch.rand(n_queries, n_spatial_dims + 1, n_spatial_dims, device=device)
+        
+        # Compute pairwise
+        bary = compute_barycentric_coordinates_pairwise(query_points, cell_vertices)
+        
+        # Verify shape
+        assert bary.shape == (n_queries, n_spatial_dims + 1)
+        
+        # Verify device
+        assert_on_device(bary, device)
+        
+        # Verify barycentric coords sum to 1
+        sums = bary.sum(dim=1)
+        assert torch.allclose(sums, torch.ones(n_queries, device=device), rtol=1e-4)
+
+    @pytest.mark.parametrize("n_manifold_dims", [2, 3])
+    def test_cell_areas_computation_parametrized(self, n_manifold_dims, device):
+        """Test cell area computation across backends."""
+        n_spatial_dims = 3
+        
+        if n_manifold_dims == 2:
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
+        else:
+            points = torch.tensor(
+                [
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                ],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2, 3]], device=device, dtype=torch.int64)
+        
+        mesh = Mesh(points=points, cells=cells)
+        areas = mesh.cell_areas
+        
+        # Verify device
+        assert_on_device(areas, device)
+        
+        # Verify areas are positive
+        assert torch.all(areas > 0), "All areas should be positive"
+
+    @pytest.mark.parametrize("n_manifold_dims", [1, 2])
+    def test_cell_normals_computation_parametrized(self, n_manifold_dims, device):
+        """Test cell normals computation across backends (codimension-1 only)."""
+        if n_manifold_dims == 1:
+            n_spatial_dims = 2
+            points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
+            cells = torch.tensor([[0, 1]], device=device, dtype=torch.int64)
+        else:
+            n_spatial_dims = 3
+            points = torch.tensor(
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                device=device,
+            )
+            cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
+        
+        mesh = Mesh(points=points, cells=cells)
+        normals = mesh.cell_normals
+        
+        # Verify device
+        assert_on_device(normals, device)
+        
+        # Verify unit length
+        lengths = torch.norm(normals, dim=1)
+        assert torch.allclose(
+            lengths,
+            torch.ones(mesh.n_cells, device=device),
+            rtol=1e-5,
+        ), "Normals should be unit length"
 
 
 if __name__ == "__main__":
