@@ -1,5 +1,6 @@
 # User-added
 .cursor/
+.coverage
 
 # Python-generated files
 __pycache__/
