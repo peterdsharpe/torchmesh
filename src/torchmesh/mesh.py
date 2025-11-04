@@ -23,6 +23,10 @@ class Mesh:
             raise ValueError(
                 f"`cells` must have shape (n_cells, n_manifold_dimensions + 1), but got {self.cells.shape=}."
             )
+        if self.n_manifold_dims > self.n_spatial_dims:
+            raise ValueError(
+                f"`n_manifold_dims` must be <= `n_spatial_dims`, but got {self.n_manifold_dims=} > {self.n_spatial_dims=}."
+            )
 
         ### Validate dtypes
         if torch.is_floating_point(self.cells):
