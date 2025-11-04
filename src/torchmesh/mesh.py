@@ -693,6 +693,94 @@ class Mesh:
             global_data=self.global_data,  # Share global data
         )
 
+    def get_point_to_cells_adjacency(self):
+        """Compute the star of each vertex (all cells containing each point).
+
+        For each point in the mesh, finds all cells that contain that point. This
+        is the graph-theoretic "star" operation on vertices.
+
+        Returns:
+            Adjacency where adjacency.to_list()[i] contains all cell indices that
+            contain point i. Isolated points (not in any cells) have empty lists.
+
+        Example:
+            >>> mesh = from_pyvista(pv.examples.load_airplane())
+            >>> adj = mesh.get_point_to_cells_adjacency()
+            >>> # Get cells containing point 0
+            >>> cells_of_point_0 = adj.to_list()[0]
+        """
+        from torchmesh.neighbors import get_point_to_cells_adjacency
+
+        return get_point_to_cells_adjacency(self)
+
+    def get_point_to_points_adjacency(self):
+        """Compute point-to-point adjacency (graph edges of the mesh).
+
+        For each point, finds all other points that share a cell with it. In simplicial
+        meshes, this is equivalent to finding all points connected by an edge.
+
+        Returns:
+            Adjacency where adjacency.to_list()[i] contains all point indices that
+            share a cell (edge) with point i. Isolated points have empty lists.
+
+        Example:
+            >>> mesh = from_pyvista(pv.examples.load_airplane())
+            >>> adj = mesh.get_point_to_points_adjacency()
+            >>> # Get neighbors of point 0
+            >>> neighbors_of_point_0 = adj.to_list()[0]
+        """
+        from torchmesh.neighbors import get_point_to_points_adjacency
+
+        return get_point_to_points_adjacency(self)
+
+    def get_cell_to_cells_adjacency(self, adjacency_codimension: int = 1):
+        """Compute cell-to-cells adjacency based on shared facets.
+
+        Two cells are considered adjacent if they share a k-codimension facet.
+
+        Args:
+            adjacency_codimension: Codimension of shared facets defining adjacency.
+                - 1 (default): Cells must share a codimension-1 facet (e.g., triangles
+                  sharing an edge, tetrahedra sharing a triangular face)
+                - 2: Cells must share a codimension-2 facet (e.g., tetrahedra sharing
+                  an edge)
+                - k: Cells must share a codimension-k facet
+
+        Returns:
+            Adjacency where adjacency.to_list()[i] contains all cell indices that
+            share a k-codimension facet with cell i.
+
+        Example:
+            >>> mesh = from_pyvista(pv.examples.load_tetbeam())
+            >>> adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+            >>> # Get cells sharing a face with cell 0
+            >>> neighbors_of_cell_0 = adj.to_list()[0]
+        """
+        from torchmesh.neighbors import get_cell_to_cells_adjacency
+
+        return get_cell_to_cells_adjacency(self, adjacency_codimension=adjacency_codimension)
+
+    def get_cells_to_points_adjacency(self):
+        """Get the vertices (points) that comprise each cell.
+
+        This is a simple wrapper around the cells array that returns it in the
+        standard Adjacency format for consistency with other neighbor queries.
+
+        Returns:
+            Adjacency where adjacency.to_list()[i] contains all point indices that
+            are vertices of cell i. For simplicial meshes, all cells have the same
+            number of vertices (n_manifold_dims + 1).
+
+        Example:
+            >>> mesh = from_pyvista(pv.examples.load_airplane())
+            >>> adj = mesh.get_cells_to_points_adjacency()
+            >>> # Get vertices of cell 0
+            >>> vertices_of_cell_0 = adj.to_list()[0]
+        """
+        from torchmesh.neighbors import get_cells_to_points_adjacency
+
+        return get_cells_to_points_adjacency(self)
+
     def pad(
         self,
         target_n_points: int | None = None,
