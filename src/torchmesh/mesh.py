@@ -571,7 +571,7 @@ class Mesh:
         ### Check for key conflicts
         if not overwrite_keys:
             for key in self.point_data.keys():
-                if key.startswith("_"):
+                if isinstance(key, str) and key.startswith("_"):
                     continue  # Skip cached properties
                 if key in self.cell_data.keys():
                     raise ValueError(
@@ -1105,6 +1105,97 @@ class Mesh:
         from torchmesh.transformations import transform
         
         return transform(self, matrix, transform_data)
+
+    def compute_point_derivatives(
+        self,
+        keys: str | tuple[str, ...] | list[str | tuple[str, ...]] | None = None,
+        method: Literal["lsq", "dec"] = "lsq",
+        gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
+        order: int = 1,
+    ) -> "Mesh":
+        """Compute gradients of point_data fields.
+        
+        This is a convenience method that delegates to torchmesh.calculus.compute_point_derivatives.
+        
+        Args:
+            keys: Fields to compute gradients of. Options:
+                - None: All non-cached fields (not starting with "_")
+                - str: Single field name (e.g., "pressure")
+                - tuple: Nested path (e.g., ("flow", "temperature"))
+                - list: Multiple fields (e.g., ["pressure", "velocity"])
+            method: Discretization method:
+                - "lsq": Weighted least-squares reconstruction (default, CFD standard)
+                - "dec": Discrete Exterior Calculus (differential geometry)
+            gradient_type: Type of gradient:
+                - "intrinsic": Project onto manifold tangent space (default)
+                - "extrinsic": Full ambient space gradient  
+                - "both": Compute and store both
+            order: Accuracy order for LSQ method (ignored for DEC)
+        
+        Returns:
+            New Mesh with gradient fields added to point_data.
+            Field naming: "{field}_gradient" or "{field}_gradient_intrinsic/extrinsic"
+        
+        Side Effects:
+            Original mesh.point_data is modified in-place to cache intermediate results.
+        
+        Example:
+            >>> # Compute gradient of pressure
+            >>> mesh_grad = mesh.compute_point_derivatives(keys="pressure")
+            >>> grad_p = mesh_grad.point_data["pressure_gradient"]
+            >>>
+            >>> # Multiple fields with DEC method
+            >>> mesh_grad = mesh.compute_point_derivatives(
+            ...     keys=["pressure", "temperature"],
+            ...     method="dec"
+            ... )
+        """
+        from torchmesh.calculus import compute_point_derivatives
+        
+        return compute_point_derivatives(
+            mesh=self,
+            keys=keys,
+            method=method,
+            gradient_type=gradient_type,
+            order=order,
+        )
+
+    def compute_cell_derivatives(
+        self,
+        keys: str | tuple[str, ...] | list[str | tuple[str, ...]] | None = None,
+        method: Literal["lsq", "dec"] = "lsq",
+        gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
+        order: int = 1,
+    ) -> "Mesh":
+        """Compute gradients of cell_data fields.
+        
+        This is a convenience method that delegates to torchmesh.calculus.compute_cell_derivatives.
+        
+        Args:
+            keys: Fields to compute gradients of (same format as compute_point_derivatives)
+            method: "lsq" or "dec" (currently only "lsq" is fully supported for cells)
+            gradient_type: "intrinsic", "extrinsic", or "both"
+            order: Accuracy order for LSQ
+        
+        Returns:
+            New Mesh with gradient fields added to cell_data
+        
+        Side Effects:
+            Original mesh.cell_data is modified in-place to cache results.
+        
+        Example:
+            >>> # Compute gradient of cell-centered pressure
+            >>> mesh_grad = mesh.compute_cell_derivatives(keys="pressure")
+        """
+        from torchmesh.calculus import compute_cell_derivatives
+        
+        return compute_cell_derivatives(
+            mesh=self,
+            keys=keys,
+            method=method,
+            gradient_type=gradient_type,
+            order=order,
+        )
 
 
 if __name__ == "__main__":
