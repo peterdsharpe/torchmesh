@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING, Literal
 import torch
 from tensordict import TensorDict
 
-from torchmesh.sampling.sample_data import compute_barycentric_coordinates
+from torchmesh.sampling.sample_data import (
+    compute_barycentric_coordinates_pairwise,
+)
 from torchmesh.spatial import BVH
 
 if TYPE_CHECKING:
@@ -131,42 +133,12 @@ def sample_data_at_points(
             mesh.cells[cell_indices_candidates]
         ]  # (n_pairs, n_vertices, n_spatial_dims)
 
-        # Vectorized pairwise barycentric coordinate computation
-        # Compute using the full function but extract diagonal
-        # This computes all O(n_pairs^2) combinations, but we only need diagonal
-        # For efficiency with many pairs, compute in smaller batches
-        n_pairs = len(query_indices_candidates)
-
-        if n_pairs <= 1000:  # Small enough to compute all at once
-            bary_all = compute_barycentric_coordinates(
-                candidate_query_points,
-                candidate_cell_vertices,
-            )  # (n_pairs, n_pairs, n_vertices)
-            # Extract diagonal: we want bary_all[i, i, :] for each i
-            bary_coords_candidates = bary_all[
-                torch.arange(n_pairs, device=mesh.points.device),
-                torch.arange(n_pairs, device=mesh.points.device),
-                :,
-            ]  # (n_pairs, n_vertices)
-        else:
-            # For large number of pairs, compute in batches to avoid O(n_pairs^2) memory
-            batch_size = 100
-            bary_coords_list = []
-            for start in range(0, n_pairs, batch_size):
-                end = min(start + batch_size, n_pairs)
-                bary_batch = compute_barycentric_coordinates(
-                    candidate_query_points[start:end],
-                    candidate_cell_vertices[start:end],
-                )
-                # Extract diagonal for this batch
-                batch_len = end - start
-                bary_diagonal = bary_batch[
-                    torch.arange(batch_len, device=mesh.points.device),
-                    torch.arange(batch_len, device=mesh.points.device),
-                    :,
-                ]
-                bary_coords_list.append(bary_diagonal)
-            bary_coords_candidates = torch.cat(bary_coords_list, dim=0)
+        ### Use pairwise barycentric computation (O(n) instead of O(n²))
+        # This computes only the diagonal elements we need, avoiding massive memory allocation
+        bary_coords_candidates = compute_barycentric_coordinates_pairwise(
+            candidate_query_points,
+            candidate_cell_vertices,
+        )  # (n_pairs, n_vertices)
 
         ### Check which candidates actually contain their query point
         is_inside = (bary_coords_candidates >= -tolerance).all(dim=-1)  # (n_pairs,)

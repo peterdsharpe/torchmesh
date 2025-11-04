@@ -104,6 +104,83 @@ def compute_barycentric_coordinates(
     return barycentric_coords
 
 
+def compute_barycentric_coordinates_pairwise(
+    query_points: torch.Tensor,
+    cell_vertices: torch.Tensor,
+) -> torch.Tensor:
+    """Compute barycentric coordinates for paired queries and cells.
+
+    Unlike compute_barycentric_coordinates which computes all O(n_queries × n_cells)
+    combinations, this computes only n_pairs diagonal elements where each query point
+    is paired with exactly one cell. This uses O(n) memory instead of O(n²).
+
+    This is critical for performance when processing BVH candidate pairs, where we may
+    have thousands of pairs but don't need the full cartesian product.
+
+    Args:
+        query_points: Query point locations, shape (n_pairs, n_spatial_dims)
+        cell_vertices: Vertices of cells, shape (n_pairs, n_vertices_per_cell, n_spatial_dims)
+            where cell_vertices[i] is paired with query_points[i]
+
+    Returns:
+        Barycentric coordinates, shape (n_pairs, n_vertices_per_cell).
+        For each pair, the coordinates sum to 1.
+
+    Example:
+        >>> # For BVH results: each query has specific candidate cells
+        >>> n_pairs = 1000
+        >>> query_points = torch.randn(n_pairs, 3)
+        >>> cell_vertices = torch.randn(n_pairs, 3, 3)  # Triangles in 3D
+        >>> bary = compute_barycentric_coordinates_pairwise(query_points, cell_vertices)
+        >>> bary.shape  # (1000, 3) instead of (1000, 1000, 3) from full version
+    """
+    n_pairs = query_points.shape[0]
+    n_vertices_per_cell = cell_vertices.shape[1]
+    n_spatial_dims = query_points.shape[1]
+    n_manifold_dims = n_vertices_per_cell - 1
+
+    ### Compute relative vectors from first vertex to all others
+    # Shape: (n_pairs, n_manifold_dims, n_spatial_dims)
+    v0 = cell_vertices[:, 0, :]  # (n_pairs, n_spatial_dims)
+    relative_vectors = cell_vertices[:, 1:, :] - v0.unsqueeze(1)
+
+    ### Compute query points relative to v0
+    # Shape: (n_pairs, n_spatial_dims)
+    query_relative = query_points - v0
+
+    ### Solve the linear system for barycentric coordinates
+    # For each pair independently (no broadcasting across pairs)
+
+    if n_spatial_dims == n_manifold_dims:
+        ### Square system: use torch.linalg.solve
+        # A: (n_pairs, n_spatial_dims, n_manifold_dims)
+        # b: (n_pairs, n_spatial_dims, 1)
+        A = relative_vectors.transpose(-2, -1)
+        b = query_relative.unsqueeze(-1)
+
+        try:
+            weights_1_to_n = torch.linalg.solve(A, b).squeeze(-1)
+        except torch.linalg.LinAlgError:
+            # Singular matrix - use lstsq as fallback
+            weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
+
+    else:
+        ### Over-determined or under-determined system: use least squares
+        A = relative_vectors.transpose(-2, -1)
+        b = query_relative.unsqueeze(-1)
+        weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
+
+    ### Compute w_0 = 1 - sum(w_i for i=1..n)
+    # Shape: (n_pairs, 1)
+    w_0 = 1.0 - weights_1_to_n.sum(dim=-1, keepdim=True)
+
+    ### Concatenate to get all barycentric coordinates
+    # Shape: (n_pairs, n_vertices_per_cell)
+    barycentric_coords = torch.cat([w_0, weights_1_to_n], dim=-1)
+
+    return barycentric_coords
+
+
 def find_containing_cells(
     mesh: "Mesh",
     query_points: torch.Tensor,
