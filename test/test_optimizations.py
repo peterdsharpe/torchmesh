@@ -51,7 +51,9 @@ class TestBarycentricOptimizations:
         bary_full_diagonal = bary_full[:, 0, :]  # (n_queries, 3)
 
         # Verify they match
-        torch.testing.assert_close(bary_pairwise, bary_full_diagonal, rtol=1e-5, atol=1e-7)
+        torch.testing.assert_close(
+            bary_pairwise, bary_full_diagonal, rtol=1e-5, atol=1e-7
+        )
 
     def test_pairwise_vs_full_3d(self):
         """Verify pairwise barycentric matches diagonal of full computation (3D)."""
@@ -89,7 +91,9 @@ class TestBarycentricOptimizations:
         # Extract diagonal
         bary_full_diagonal = bary_full[:, 0, :]
 
-        torch.testing.assert_close(bary_pairwise, bary_full_diagonal, rtol=1e-5, atol=1e-7)
+        torch.testing.assert_close(
+            bary_pairwise, bary_full_diagonal, rtol=1e-5, atol=1e-7
+        )
 
     def test_pairwise_different_cells_per_query(self):
         """Test pairwise with different cells for each query."""
@@ -180,7 +184,9 @@ class TestCellNormalsOptimizations:
         # Create non-degenerate triangles (sequential indices to avoid duplicates)
         points = torch.randn(15, 3)
         # Use sequential indices to ensure non-degenerate triangles
-        cells = torch.tensor([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]])
+        cells = torch.tensor(
+            [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]]
+        )
 
         mesh = Mesh(points=points, cells=cells)
         normals = mesh.cell_normals
@@ -196,9 +202,7 @@ class TestGramMatrixOptimization:
     def test_cell_areas_correctness(self):
         """Verify cell area computation is still correct after optimization."""
         # Create a known triangle
-        points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1, 2]])
 
         mesh = Mesh(points=points, cells=cells)
@@ -206,7 +210,9 @@ class TestGramMatrixOptimization:
 
         # Right triangle with legs 1, area = 0.5
         expected_area = 0.5
-        torch.testing.assert_close(area, torch.tensor(expected_area), rtol=1e-5, atol=1e-7)
+        torch.testing.assert_close(
+            area, torch.tensor(expected_area), rtol=1e-5, atol=1e-7
+        )
 
     def test_3d_tetrahedron_volume(self):
         """Test tetrahedron volume computation."""
@@ -238,13 +244,21 @@ class TestMeshMergeOptimization:
     def test_merge_preserves_correctness(self):
         """Verify merge produces same result as before."""
         # Create two simple meshes
-        points1 = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
+        points1 = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32
+        )
         cells1 = torch.tensor([[0, 1, 2]])
-        mesh1 = Mesh(points=points1, cells=cells1, cell_data={"value": torch.tensor([1.0])})
+        mesh1 = Mesh(
+            points=points1, cells=cells1, cell_data={"value": torch.tensor([1.0])}
+        )
 
-        points2 = torch.tensor([[2.0, 0.0], [3.0, 0.0], [2.0, 1.0]], dtype=torch.float32)
+        points2 = torch.tensor(
+            [[2.0, 0.0], [3.0, 0.0], [2.0, 1.0]], dtype=torch.float32
+        )
         cells2 = torch.tensor([[0, 1, 2]])
-        mesh2 = Mesh(points=points2, cells=cells2, cell_data={"value": torch.tensor([2.0])})
+        mesh2 = Mesh(
+            points=points2, cells=cells2, cell_data={"value": torch.tensor([2.0])}
+        )
 
         # Merge
         merged = Mesh.merge([mesh1, mesh2])
@@ -315,7 +329,9 @@ class TestRandomSamplingOptimization:
         mesh = Mesh(points=points, cells=cells)
 
         # Sample points
-        sampled_points = mesh.sample_random_points_on_cells(cell_indices=[0, 0, 1, 1, 1])
+        sampled_points = mesh.sample_random_points_on_cells(
+            cell_indices=[0, 0, 1, 1, 1]
+        )
 
         assert sampled_points.shape == (5, 2)
         # Points should be within valid range
@@ -356,10 +372,10 @@ class TestBVHPerformance:
 
         # Should return candidates for all queries
         assert len(candidates) == 3
-        
+
         # Point inside first tet should find at least that cell
         assert len(candidates[0]) > 0
-        
+
         # Point outside should find no candidates
         assert len(candidates[2]) == 0
 
@@ -422,4 +438,3 @@ class TestHierarchicalSampling:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
