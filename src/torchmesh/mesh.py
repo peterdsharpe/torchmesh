@@ -1197,6 +1197,103 @@ class Mesh:
             order=order,
         )
 
+    def subdivide(
+        self,
+        levels: int = 1,
+        filter: Literal["linear", "butterfly", "loop"] = "linear",
+    ) -> "Mesh":
+        """Subdivide the mesh using iterative application of subdivision schemes.
+        
+        Subdivision refines the mesh by splitting each n-simplex into 2^n child
+        simplices. Multiple subdivision schemes are supported, each with different
+        geometric and smoothness properties.
+        
+        This method applies the chosen subdivision scheme iteratively for the
+        specified number of levels. Each level independently subdivides the
+        current mesh.
+        
+        Args:
+            levels: Number of subdivision iterations to perform. Each level
+                increases mesh resolution exponentially:
+                - 0: No subdivision (returns original mesh)
+                - 1: Each cell splits into 2^n children
+                - 2: Each cell splits into 4^n children
+                - k: Each cell splits into (2^k)^n children
+            filter: Subdivision scheme to use:
+                - "linear": Simple midpoint subdivision (interpolating).
+                  New vertices at exact edge midpoints. Works for any dimension.
+                  Preserves original vertices.
+                - "butterfly": Weighted stencil subdivision (interpolating).
+                  New vertices use weighted neighbor stencils for smoother results.
+                  Currently only supports 2D manifolds (triangular meshes).
+                  Preserves original vertices.
+                - "loop": Valence-based subdivision (approximating).
+                  Both old and new vertices are repositioned for C² smoothness.
+                  Currently only supports 2D manifolds (triangular meshes).
+                  Original vertices move to new positions.
+        
+        Returns:
+            Subdivided mesh with refined geometry and connectivity.
+            - Manifold and spatial dimensions are preserved
+            - Point data is interpolated to new vertices
+            - Cell data is propagated from parents to children
+            - Global data is preserved unchanged
+        
+        Raises:
+            ValueError: If levels < 0
+            ValueError: If filter is not one of the supported schemes
+            NotImplementedError: If butterfly/loop filter used with non-2D manifold
+        
+        Example:
+            >>> # Linear subdivision of triangular mesh
+            >>> mesh = create_triangle_mesh()
+            >>> refined = mesh.subdivide(levels=2, filter="linear")
+            >>> # Each triangle splits into 4, twice: 2 -> 8 -> 32 triangles
+            >>>
+            >>> # Smooth subdivision with Loop scheme
+            >>> smooth = mesh.subdivide(levels=3, filter="loop")
+            >>> # Produces smooth limit surface after 3 iterations
+            >>>
+            >>> # Butterfly for interpolating smooth subdivision
+            >>> butterfly = mesh.subdivide(levels=1, filter="butterfly")
+            >>> # Smoother than linear, preserves original vertices
+        
+        Note:
+            Multi-level subdivision is achieved by iterative application.
+            For levels=3, this is equivalent to:
+            ```python
+            mesh = mesh.subdivide(levels=1, filter=filter)
+            mesh = mesh.subdivide(levels=1, filter=filter)
+            mesh = mesh.subdivide(levels=1, filter=filter)
+            ```
+            This is the standard approach for all subdivision schemes.
+        """
+        from torchmesh.subdivision import (
+            subdivide_butterfly,
+            subdivide_linear,
+            subdivide_loop,
+        )
+        
+        ### Validate inputs
+        if levels < 0:
+            raise ValueError(f"levels must be >= 0, got {levels=}")
+        
+        ### Apply subdivision iteratively
+        mesh = self
+        for _ in range(levels):
+            if filter == "linear":
+                mesh = subdivide_linear(mesh)
+            elif filter == "butterfly":
+                mesh = subdivide_butterfly(mesh)
+            elif filter == "loop":
+                mesh = subdivide_loop(mesh)
+            else:
+                raise ValueError(
+                    f"Invalid {filter=}. Must be one of: 'linear', 'butterfly', 'loop'"
+                )
+        
+        return mesh
+
 
 if __name__ == "__main__":
     import pyvista as pv
