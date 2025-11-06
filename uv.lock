@@ -2226,6 +2226,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pyvista" },
     { name = "trame" },
+    { name = "vtk" },
 ]
 io = [
     { name = "matplotlib" },
@@ -2256,6 +2257,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pyvista", specifier = ">=0.46.4" },
     { name = "trame", specifier = ">=3.12.0" },
+    { name = "vtk", specifier = ">=9.5.2" },
 ]
 io = [
     { name = "matplotlib", specifier = ">=3.10.7" },
