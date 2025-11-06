@@ -355,6 +355,7 @@ class TestRandomSamplingOptimization:
 
     def test_barycentric_coords_sum_to_one(self):
         """Verify optimized normalization produces valid barycentric coords."""
+        torch.manual_seed(42)
         points = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]], dtype=torch.float32
         )

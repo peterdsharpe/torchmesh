@@ -100,6 +100,7 @@ class TestRandomSampling:
 
     def test_default_sampling_one_per_cell(self):
         """Test that default behavior samples one point per cell."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -125,6 +126,7 @@ class TestRandomSampling:
 
     def test_specific_cell_indices(self):
         """Test sampling from specific cells."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -151,6 +153,7 @@ class TestRandomSampling:
 
     def test_repeated_cell_indices(self):
         """Test that repeated indices sample multiple points from the same cell."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -176,6 +179,7 @@ class TestRandomSampling:
 
     def test_cell_indices_as_list(self):
         """Test that cell_indices can be passed as a Python list."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -202,6 +206,7 @@ class TestRandomSampling:
 
     def test_3d_mesh_sampling(self):
         """Test sampling from a 3D tetrahedral mesh."""
+        torch.manual_seed(42)
         ### Create a simple tetrahedron
         points = torch.tensor(
             [
@@ -222,6 +227,7 @@ class TestRandomSampling:
 
     def test_out_of_bounds_indices_raises_error(self):
         """Test that out-of-bounds indices raise an error."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -240,6 +246,7 @@ class TestRandomSampling:
 
     def test_negative_indices_raises_error(self):
         """Test that negative indices raise an error."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -258,6 +265,7 @@ class TestRandomSampling:
 
     def test_mesh_method_delegates_correctly(self):
         """Test that the Mesh.sample_random_points_on_cells method works correctly."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -286,6 +294,7 @@ class TestRandomSampling:
 
     def test_alpha_parameter_works(self):
         """Test that the alpha parameter is passed through correctly."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -306,6 +315,7 @@ class TestRandomSampling:
 
     def test_empty_cell_indices(self):
         """Test sampling with empty cell_indices."""
+        torch.manual_seed(42)
         ### Create a simple triangle mesh
         points = torch.tensor(
             [
@@ -326,6 +336,7 @@ class TestRandomSampling:
 
     def test_device_consistency(self):
         """Test that sampling preserves device."""
+        torch.manual_seed(42)
         if not torch.cuda.is_available():
             pytest.skip("CUDA not available")
 
@@ -368,6 +379,7 @@ class TestRandomSamplingParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test default sampling (one per cell) across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         sampled = sample_random_points_on_cells(mesh)
@@ -394,6 +406,7 @@ class TestRandomSamplingParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test sampling from specific cells across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Sample from specific cells (with repetition)
@@ -415,6 +428,7 @@ class TestRandomSamplingParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test repeated sampling from same cell across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Sample multiple times from first cell
@@ -445,6 +459,7 @@ class TestRandomSamplingParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test sampling with empty indices across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         cell_indices = torch.tensor([], dtype=torch.int64, device=device)
@@ -465,6 +480,7 @@ class TestRandomSamplingParametrized:
     )
     def test_mesh_method_parametrized(self, n_spatial_dims, n_manifold_dims, device):
         """Test Mesh.sample_random_points_on_cells method across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Test default
