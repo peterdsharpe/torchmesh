@@ -212,7 +212,8 @@ class BVH:
     ) -> list[torch.Tensor]:
         """Find candidate cells that might contain each query point.
 
-        Uses iterative BVH traversal with an explicit stack.
+        Uses batched iterative BVH traversal where all queries are processed
+        simultaneously in a vectorized manner.
 
         Args:
             query_points: Points to query, shape (n_queries, n_spatial_dims)
@@ -227,64 +228,123 @@ class BVH:
 
         Performance:
             - Complexity: O(M log N) where M = queries, N = cells
-            - Heavy ops (AABB tests): Fully vectorized with PyTorch
+            - All AABB tests and tree operations are fully vectorized across queries
+            - No Python-level loops over query points
 
         Note:
             BVH traversal could potentially be accelerated with custom CUDA kernels,
             but this adds significant complexity. The current implementation provides
             excellent performance for most use cases.
         """
-        ###  BVH traversal implementation
+        ### Batched BVH traversal implementation
         n_queries = query_points.shape[0]
-        candidates = []
 
-        ### Traverse for each query point
-        for i in range(n_queries):
-            query_point = query_points[i]
-            query_candidates = []
+        ### Initialize work queue with (query_idx, node_idx) pairs
+        # All queries start at the root node (index 0)
+        current_query_indices = torch.arange(n_queries, device=self.device)
+        current_node_indices = torch.zeros(n_queries, dtype=torch.long, device=self.device)
 
-            ### Iterative traversal with explicit stack
-            # Stack stores node indices to visit
-            stack = [0]  # Start at root (node 0)
+        ### Track how many candidates we've found per query
+        candidates_count = torch.zeros(n_queries, dtype=torch.long, device=self.device)
 
-            while len(stack) > 0 and len(query_candidates) < max_candidates_per_point:
-                node_idx = stack.pop()
+        ### Storage for all (query_idx, cell_idx) pairs found during traversal
+        all_query_indices_list = []
+        all_cell_indices_list = []
 
-                ### Check if point is in this node's bounding box (with tolerance)
-                aabb_min = self.node_aabb_min[node_idx]
-                aabb_max = self.node_aabb_max[node_idx]
+        ### Iterative traversal processing all active (query, node) pairs in parallel
+        while len(current_query_indices) > 0:
+            ### Vectorized AABB intersection test for all active pairs
+            batch_query_points = query_points[current_query_indices]  # (n_active, n_spatial_dims)
+            batch_aabb_min = self.node_aabb_min[current_node_indices]  # (n_active, n_spatial_dims)
+            batch_aabb_max = self.node_aabb_max[current_node_indices]  # (n_active, n_spatial_dims)
 
-                # Use tolerance for intersection test to handle degenerate cells
-                inside = (
-                    (query_point >= aabb_min - aabb_tolerance)
-                    & (query_point <= aabb_max + aabb_tolerance)
-                ).all()
+            # Check containment with tolerance for all pairs simultaneously
+            inside = (
+                (batch_query_points >= batch_aabb_min - aabb_tolerance)
+                & (batch_query_points <= batch_aabb_max + aabb_tolerance)
+            ).all(dim=1)  # (n_active,)
 
-                if not inside:
-                    continue  # Skip this subtree
+            ### Filter to only intersecting pairs
+            intersecting_query_indices = current_query_indices[inside]
+            intersecting_node_indices = current_node_indices[inside]
 
-                ### Check if this is a leaf node
-                if self.node_cell_idx[node_idx] >= 0:
-                    # Leaf node - add cell to candidates
-                    query_candidates.append(self.node_cell_idx[node_idx].item())
-                else:
-                    # Internal node - add children to stack
-                    left = self.node_left_child[node_idx].item()
-                    right = self.node_right_child[node_idx].item()
+            if len(intersecting_query_indices) == 0:
+                break  # No more intersections, done
 
-                    if left >= 0:
-                        stack.append(left)
-                    if right >= 0:
-                        stack.append(right)
+            ### Separate leaf nodes from internal nodes
+            cell_indices = self.node_cell_idx[intersecting_node_indices]
+            is_leaf = cell_indices >= 0
 
-            ### Convert to tensor
-            if len(query_candidates) > 0:
-                candidates.append(
-                    torch.tensor(query_candidates, dtype=torch.long, device=self.device)
+            ### Handle leaf nodes: record candidates
+            leaf_query_indices = intersecting_query_indices[is_leaf]
+            leaf_cell_indices = cell_indices[is_leaf]
+
+            if len(leaf_query_indices) > 0:
+                all_query_indices_list.append(leaf_query_indices)
+                all_cell_indices_list.append(leaf_cell_indices)
+
+                # Update candidate counts for these queries
+                # Use scatter_add to accumulate counts
+                candidates_count.scatter_add_(
+                    0,
+                    leaf_query_indices,
+                    torch.ones_like(leaf_query_indices),
                 )
+
+            ### Handle internal nodes: expand to children
+            internal_query_indices = intersecting_query_indices[~is_leaf]
+            internal_node_indices = intersecting_node_indices[~is_leaf]
+
+            # Filter out queries that have already reached max_candidates
+            under_limit = candidates_count[internal_query_indices] < max_candidates_per_point
+            internal_query_indices = internal_query_indices[under_limit]
+            internal_node_indices = internal_node_indices[under_limit]
+
+            if len(internal_query_indices) == 0:
+                break  # All remaining queries have hit their candidate limit
+
+            # Get children for internal nodes
+            left_children = self.node_left_child[internal_node_indices]
+            right_children = self.node_right_child[internal_node_indices]
+
+            # Create work queue entries for left children (where valid)
+            valid_left = left_children >= 0
+            left_query_indices = internal_query_indices[valid_left]
+            left_node_indices = left_children[valid_left]
+
+            # Create work queue entries for right children (where valid)
+            valid_right = right_children >= 0
+            right_query_indices = internal_query_indices[valid_right]
+            right_node_indices = right_children[valid_right]
+
+            # Combine for next iteration
+            if len(left_query_indices) > 0 or len(right_query_indices) > 0:
+                current_query_indices = torch.cat([left_query_indices, right_query_indices])
+                current_node_indices = torch.cat([left_node_indices, right_node_indices])
             else:
-                candidates.append(
-                    torch.tensor([], dtype=torch.long, device=self.device)
-                )
+                break
+
+        ### Group candidates by query index
+        if len(all_query_indices_list) > 0:
+            all_query_indices = torch.cat(all_query_indices_list)
+            all_cell_indices = torch.cat(all_cell_indices_list)
+
+            # Build result list by filtering for each query
+            candidates = []
+            for i in range(n_queries):
+                mask = all_query_indices == i
+                query_candidates = all_cell_indices[mask]
+
+                # Respect max_candidates_per_point limit
+                if len(query_candidates) > max_candidates_per_point:
+                    query_candidates = query_candidates[:max_candidates_per_point]
+
+                candidates.append(query_candidates)
+        else:
+            # No candidates found for any query
+            candidates = [
+                torch.tensor([], dtype=torch.long, device=self.device)
+                for _ in range(n_queries)
+            ]
 
         return candidates
