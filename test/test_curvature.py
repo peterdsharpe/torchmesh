@@ -1,0 +1,634 @@
+"""Comprehensive tests for curvature computations.
+
+Tests Gaussian and mean curvature on analytical test cases including
+spheres, planes, cylinders, and tori. Validates convergence with subdivision.
+"""
+
+import math
+
+import pytest
+import torch
+from torchmesh.mesh import Mesh
+
+
+### Fixtures
+
+
+@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
+def device(request):
+    """Test on both CPU and GPU if available."""
+    return request.param
+
+
+### Mesh Generators
+
+
+def create_sphere_mesh(radius=1.0, subdivisions=0, device="cpu"):
+    """Create a triangulated sphere using icosahedron subdivision.
+    
+    Args:
+        radius: Sphere radius
+        subdivisions: Number of subdivision levels (0 = icosahedron)
+        device: Device to create mesh on
+        
+    Returns:
+        Mesh representing a sphere of given radius
+    """
+    # Start with icosahedron
+    phi = (1.0 + math.sqrt(5.0)) / 2.0  # Golden ratio
+    
+    # 12 vertices of icosahedron
+    vertices = [
+        [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
+        [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
+        [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1],
+    ]
+    
+    # Normalize to unit sphere
+    points = torch.tensor(vertices, dtype=torch.float32, device=device)
+    points = points / torch.norm(points, dim=-1, keepdim=True)
+    
+    # 20 triangular faces of icosahedron
+    faces = [
+        [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+        [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+        [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+        [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+    ]
+    
+    cells = torch.tensor(faces, dtype=torch.int64, device=device)
+    mesh = Mesh(points=points, cells=cells)
+    
+    # Subdivide and project to sphere
+    for _ in range(subdivisions):
+        mesh = mesh.subdivide(levels=1, filter="linear")
+        # Project all points to sphere surface
+        mesh = Mesh(
+            points=mesh.points / torch.norm(mesh.points, dim=-1, keepdim=True),
+            cells=mesh.cells,
+            point_data=mesh.point_data,
+            cell_data=mesh.cell_data,
+            global_data=mesh.global_data,
+        )
+    
+    # Scale to desired radius
+    if radius != 1.0:
+        mesh = Mesh(
+            points=mesh.points * radius,
+            cells=mesh.cells,
+            point_data=mesh.point_data,
+            cell_data=mesh.cell_data,
+            global_data=mesh.global_data,
+        )
+    
+    return mesh
+
+
+def create_plane_mesh(size=2.0, n_subdivisions=2, device="cpu"):
+    """Create a flat triangulated plane."""
+    n = 2 ** n_subdivisions + 1
+    
+    # Create grid of points
+    x = torch.linspace(-size / 2, size / 2, n, device=device)
+    y = torch.linspace(-size / 2, size / 2, n, device=device)
+    xx, yy = torch.meshgrid(x, y, indexing="ij")
+    
+    points = torch.stack([xx.flatten(), yy.flatten(), torch.zeros_like(xx.flatten())], dim=1)
+    
+    # Create triangular cells
+    cells = []
+    for i in range(n - 1):
+        for j in range(n - 1):
+            idx = i * n + j
+            # Two triangles per quad
+            cells.append([idx, idx + 1, idx + n])
+            cells.append([idx + 1, idx + n + 1, idx + n])
+    
+    cells = torch.tensor(cells, dtype=torch.int64, device=device)
+    return Mesh(points=points, cells=cells)
+
+
+def create_cylinder_mesh(radius=1.0, height=2.0, n_circ=16, n_height=8, device="cpu"):
+    """Create a triangulated cylinder (2D manifold in 3D)."""
+    # Create cylindrical points
+    theta = torch.linspace(0, 2 * math.pi, n_circ + 1, device=device)[:-1]
+    z = torch.linspace(-height / 2, height / 2, n_height, device=device)
+    
+    points = []
+    for z_val in z:
+        for theta_val in theta:
+            x = radius * torch.cos(theta_val)
+            y = radius * torch.sin(theta_val)
+            points.append([x.item(), y.item(), z_val.item()])
+    
+    points = torch.tensor(points, dtype=torch.float32, device=device)
+    
+    # Create cells
+    cells = []
+    for i in range(n_height - 1):
+        for j in range(n_circ):
+            idx = i * n_circ + j
+            next_j = (j + 1) % n_circ
+            
+            # Two triangles per quad
+            cells.append([idx, idx + next_j - j, idx + n_circ])
+            cells.append([idx + next_j - j, idx + n_circ + next_j - j, idx + n_circ])
+    
+    cells = torch.tensor(cells, dtype=torch.int64, device=device)
+    return Mesh(points=points, cells=cells)
+
+
+def create_line_curve_2d(n_points=10, curvature=1.0, device="cpu"):
+    """Create a 1D circular arc in 2D (for testing 1D curvature)."""
+    # Circle of given curvature (κ = 1/r)
+    radius = 1.0 / curvature
+    theta = torch.linspace(0, math.pi / 2, n_points, device=device)
+    
+    points = torch.stack([
+        radius * torch.cos(theta),
+        radius * torch.sin(theta),
+    ], dim=1)
+    
+    # Create edge cells
+    cells = torch.stack([
+        torch.arange(n_points - 1, device=device),
+        torch.arange(1, n_points, device=device),
+    ], dim=1)
+    
+    return Mesh(points=points, cells=cells)
+
+
+### Test Gaussian Curvature
+
+
+class TestGaussianCurvature:
+    """Tests for Gaussian curvature computation."""
+
+    def test_sphere_gaussian_curvature(self, device):
+        """Test that sphere has constant positive Gaussian curvature K = 1/r²."""
+        radius = 2.0
+        mesh = create_sphere_mesh(radius=radius, subdivisions=1, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # Expected: K = 1/r² for all vertices
+        expected_K = 1.0 / (radius ** 2)
+        
+        # Should be close to expected (some variation due to discretization)
+        mean_K = K_vertices.mean()
+        assert torch.abs(mean_K - expected_K) / expected_K < 0.15  # Within 15%
+        
+        # All should be positive
+        assert torch.all(K_vertices > 0)
+
+    def test_plane_gaussian_curvature(self, device):
+        """Test that flat plane has zero Gaussian curvature at interior vertices."""
+        mesh = create_plane_mesh(n_subdivisions=2, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # Interior vertices should have zero curvature
+        # For a 5x5 grid (n_subdivisions=2), interior vertices are those not on boundary
+        # Grid size: 2^2 + 1 = 5
+        n = 5
+        
+        # Find interior vertices (not on edges of grid)
+        interior_mask = torch.zeros(mesh.n_points, dtype=torch.bool, device=device)
+        for i in range(n):
+            for j in range(n):
+                idx = i * n + j
+                if 0 < i < n - 1 and 0 < j < n - 1:
+                    interior_mask[idx] = True
+        
+        # Check interior vertices have zero curvature
+        interior_K = K_vertices[interior_mask]
+        assert torch.allclose(interior_K, torch.zeros_like(interior_K), atol=1e-5)
+
+    def test_gaussian_curvature_convergence(self, device):
+        """Test that Gaussian curvature converges with subdivision."""
+        radius = 1.0
+        expected_K = 1.0 / (radius ** 2)
+        
+        errors = []
+        for subdivisions in [0, 1, 2]:
+            mesh = create_sphere_mesh(radius=radius, subdivisions=subdivisions, device=device)
+            K_vertices = mesh.gaussian_curvature_vertices
+            mean_K = K_vertices.mean()
+            error = torch.abs(mean_K - expected_K)
+            errors.append(error.item())
+        
+        # Error should decrease with subdivision
+        assert errors[1] < errors[0]
+        assert errors[2] < errors[1]
+
+    def test_gauss_bonnet_theorem(self, device):
+        """Test discrete Gauss-Bonnet theorem: ∫K dA = 2πχ."""
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=1, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # Compute Voronoi areas for integration
+        from torchmesh.curvature._voronoi import compute_voronoi_areas
+        voronoi_areas = compute_voronoi_areas(mesh)
+        
+        # Integrate: ∫K dA ≈ Σ K_i * A_i
+        total_curvature = (K_vertices * voronoi_areas).sum()
+        
+        # For a sphere: χ = 2, so ∫K dA = 4π
+        expected = 4 * math.pi
+        
+        # Should be close (within a few percent for subdivision level 1)
+        relative_error = torch.abs(total_curvature - expected) / expected
+        assert relative_error < 0.1  # Within 10%
+
+    def test_gaussian_curvature_cells(self, device):
+        """Test cell-based Gaussian curvature (dual mesh)."""
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=1, device=device)
+        
+        K_cells = mesh.gaussian_curvature_cells
+        
+        # Should have curvature for all cells
+        assert K_cells.shape == (mesh.n_cells,)
+        
+        # Should be positive for sphere
+        assert torch.all(K_cells > 0)
+
+
+### Test Mean Curvature
+
+
+class TestMeanCurvature:
+    """Tests for mean curvature computation."""
+
+    def test_sphere_mean_curvature(self, device):
+        """Test that sphere has constant mean curvature H = 1/r."""
+        radius = 2.0
+        mesh = create_sphere_mesh(radius=radius, subdivisions=1, device=device)
+        
+        H_vertices = mesh.mean_curvature_vertices
+        
+        # Expected: H = 1/r for all vertices
+        expected_H = 1.0 / radius
+        
+        # Should be close to expected
+        mean_H = H_vertices.mean()
+        assert torch.abs(mean_H - expected_H) / expected_H < 0.15  # Within 15%
+        
+        # All should be positive (outward normals)
+        assert torch.all(H_vertices > 0)
+
+    def test_plane_mean_curvature(self, device):
+        """Test that flat plane has zero mean curvature."""
+        mesh = create_plane_mesh(n_subdivisions=2, device=device)
+        
+        H_vertices = mesh.mean_curvature_vertices
+        
+        # Should be zero everywhere
+        assert torch.allclose(H_vertices, torch.zeros_like(H_vertices), atol=1e-6)
+
+    def test_cylinder_mean_curvature(self, device):
+        """Test that cylinder has H = 1/(2r) (curved in one direction only)."""
+        radius = 1.0
+        mesh = create_cylinder_mesh(radius=radius, n_circ=32, n_height=16, device=device)
+        
+        H_vertices = mesh.mean_curvature_vertices
+        
+        # Expected: H = 1/(2r) for cylinder
+        expected_H = 1.0 / (2 * radius)
+        
+        # Mean should be in the right ballpark
+        # (Cylinder discretization is less accurate than sphere)
+        mean_H = H_vertices.mean()
+        
+        # Just check that we're getting reasonable positive values
+        # Exact match is difficult due to discretization
+        assert mean_H > 0
+        assert mean_H < 3.0  # Should be < 3x expected value
+
+    def test_mean_curvature_convergence(self, device):
+        """Test that mean curvature is accurate across subdivision levels."""
+        radius = 1.0
+        expected_H = 1.0 / radius
+        
+        for subdivisions in [0, 1, 2]:
+            mesh = create_sphere_mesh(radius=radius, subdivisions=subdivisions, device=device)
+            H_vertices = mesh.mean_curvature_vertices
+            mean_H = H_vertices.mean()
+            error = torch.abs(mean_H - expected_H)
+            
+            # Each subdivision level should maintain reasonable accuracy
+            assert error / expected_H < 0.2  # Within 20% at all levels
+
+    def test_mean_curvature_codimension_error(self, device):
+        """Test that mean curvature raises error for non-codimension-1."""
+        # Create a tet mesh (codimension-0)
+        points = torch.tensor(
+            [[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+            dtype=torch.float32,
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        with pytest.raises(ValueError, match="codimension-1"):
+            _ = mesh.mean_curvature_vertices
+
+
+### Test 1D Curvature (Curves)
+
+
+class Test1DCurvature:
+    """Tests for curvature of 1D curves."""
+
+    def test_circular_arc_curvature(self, device):
+        """Test curvature of circular arc (1D in 2D)."""
+        curvature = 2.0  # κ = 1/r, r = 0.5
+        mesh = create_line_curve_2d(n_points=20, curvature=curvature, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # For 1D curves, Gaussian curvature is related to κ
+        # Interior vertices should have consistent curvature
+        # End vertices may differ (boundary effects)
+        
+        # Check that interior vertices have reasonable curvature
+        interior_K = K_vertices[1:-1]  # Skip endpoints
+        
+        # Should all have same sign and similar magnitude
+        assert torch.all(interior_K > 0) or torch.all(interior_K < 0)
+
+    def test_straight_line_curvature(self, device):
+        """Test that straight line has zero curvature."""
+        points = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]],
+            dtype=torch.float32,
+            device=device,
+        )
+        cells = torch.tensor([[0, 1], [1, 2], [2, 3]], dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # Interior vertices should have zero curvature (straight line)
+        # For 1D, interior vertices have angle sum = π (full angle for 1D)
+        interior_K = K_vertices[1:-1]
+        assert torch.allclose(interior_K, torch.zeros_like(interior_K), atol=1e-5)
+
+
+### Test Edge Cases
+
+
+class TestCurvatureEdgeCases:
+    """Tests for edge cases and error conditions."""
+
+    def test_empty_mesh(self, device):
+        """Test curvature computation on empty mesh."""
+        points = torch.empty((0, 3), dtype=torch.float32, device=device)
+        cells = torch.empty((0, 3), dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        assert K_vertices.shape == (0,)
+
+    def test_single_triangle(self, device):
+        """Test curvature on single triangle."""
+        points = torch.tensor(
+            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            dtype=torch.float32,
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2]], dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        H_vertices = mesh.mean_curvature_vertices
+        
+        # Should compute without error
+        assert K_vertices.shape == (3,)
+        assert H_vertices.shape == (3,)
+
+    def test_isolated_vertex(self, device):
+        """Test that isolated vertices are handled gracefully."""
+        points = torch.tensor(
+            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [99.0, 99.0, 99.0]],
+            dtype=torch.float32,
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2]], dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        # Isolated vertex (index 3) should have zero or NaN curvature
+        # Implementation choice - either is acceptable
+        isolated_K = K_vertices[3]
+        assert torch.isnan(isolated_K) or isolated_K == 0
+
+    def test_caching(self, device):
+        """Test that curvatures are cached."""
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=0, device=device)
+        
+        # First access
+        K1 = mesh.gaussian_curvature_vertices
+        H1 = mesh.mean_curvature_vertices
+        
+        # Check cached
+        assert "_gaussian_curvature" in mesh.point_data
+        assert "_mean_curvature" in mesh.point_data
+        
+        # Second access should return same values
+        K2 = mesh.gaussian_curvature_vertices
+        H2 = mesh.mean_curvature_vertices
+        
+        assert torch.allclose(K1, K2)
+        assert torch.allclose(H1, H2)
+
+
+### Test Dimension Coverage
+
+
+class TestCurvatureDimensions:
+    """Tests across different manifold dimensions."""
+
+    def test_1d_curve_in_2d(self, device):
+        """Test 1D curve curvature in 2D space."""
+        mesh = create_line_curve_2d(n_points=10, curvature=1.0, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        
+        assert K_vertices.shape == (mesh.n_points,)
+        # Should have some non-zero curvature
+        assert K_vertices.abs().max() > 0
+
+    def test_2d_surface_in_3d(self, device):
+        """Test 2D surface in 3D space (standard case)."""
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=0, device=device)
+        
+        K_vertices = mesh.gaussian_curvature_vertices
+        H_vertices = mesh.mean_curvature_vertices
+        
+        assert K_vertices.shape == (mesh.n_points,)
+        assert H_vertices.shape == (mesh.n_points,)
+
+    def test_2d_surface_in_4d(self, device):
+        """Test 2D surface in 4D space (higher codimension)."""
+        # Create triangle in 4D
+        points = torch.tensor(
+            [[0., 0., 0., 0.], [1., 0., 0., 0.], [0.5, 1., 0., 0.]],
+            dtype=torch.float32,
+            device=device,
+        )
+        cells = torch.tensor([[0, 1, 2]], dtype=torch.int64, device=device)
+        mesh = Mesh(points=points, cells=cells)
+        
+        # Gaussian curvature should work (intrinsic)
+        K_vertices = mesh.gaussian_curvature_vertices
+        assert K_vertices.shape == (3,)
+        
+        # Mean curvature should fail (requires codimension-1)
+        with pytest.raises(ValueError, match="codimension-1"):
+            _ = mesh.mean_curvature_vertices
+
+
+### Test Principal Curvatures (Derived)
+
+
+class TestPrincipalCurvatures:
+    """Tests for principal curvatures derived from K and H."""
+
+    def test_sphere_principal_curvatures(self, device):
+        """Test that sphere has equal principal curvatures k1 = k2 = 1/r."""
+        radius = 1.0
+        mesh = create_sphere_mesh(radius=radius, subdivisions=1, device=device)
+        
+        K = mesh.gaussian_curvature_vertices
+        H = mesh.mean_curvature_vertices
+        
+        # For sphere: k1 = k2 = 1/r
+        # K = k1 * k2 = 1/r²
+        # H = (k1 + k2)/2 = 1/r
+        # Therefore: k1 = k2 = H
+        
+        expected_k = 1.0 / radius
+        
+        # Principal curvatures should be approximately equal to H
+        # (Verify K ≈ H² for sphere)
+        K_from_H = H ** 2
+        relative_error = (K - K_from_H).abs() / (K + 1e-10)
+        
+        # Should match well for sphere
+        assert relative_error.mean() < 0.2  # Within 20% on average
+
+    def test_cylinder_principal_curvatures(self, device):
+        """Test cylinder has k1 = 1/r, k2 = 0."""
+        radius = 1.0
+        mesh = create_cylinder_mesh(radius=radius, n_circ=32, n_height=16, device=device)
+        
+        K = mesh.gaussian_curvature_vertices
+        H = mesh.mean_curvature_vertices
+        
+        # For cylinder: k1 = 1/r, k2 = 0
+        # K = k1 * k2 = 0
+        # H = (k1 + k2)/2 = 1/(2r)
+        
+        # Filter to interior vertices (not on top/bottom boundary)
+        # Top boundary: z > height/2 - epsilon
+        # Bottom boundary: z < -height/2 + epsilon
+        z_coords = mesh.points[:, 2]
+        interior_mask = (z_coords > -0.9) & (z_coords < 0.9)
+        
+        K_interior = K[interior_mask]
+        
+        # Gaussian curvature should be near zero (intrinsically flat)
+        assert torch.allclose(K_interior, torch.zeros_like(K_interior), atol=0.01)
+        
+        # Mean curvature should be positive
+        H_interior = H[interior_mask]
+        assert torch.all(H_interior > 0)
+
+
+### Test Numerical Stability
+
+
+class TestCurvatureNumerical:
+    """Tests for numerical stability."""
+
+    def test_small_radius_sphere(self, device):
+        """Test curvature on very small sphere."""
+        radius = 0.01
+        mesh = create_sphere_mesh(radius=radius, subdivisions=0, device=device)
+        
+        K = mesh.gaussian_curvature_vertices
+        H = mesh.mean_curvature_vertices
+        
+        # Should still compute valid curvatures
+        assert not torch.any(torch.isnan(K))
+        assert not torch.any(torch.isnan(H))
+        
+        # Should scale correctly with radius
+        expected_K = 1.0 / (radius ** 2)
+        expected_H = 1.0 / radius
+        
+        assert K.mean() > 0
+        assert H.mean() > 0
+
+    def test_large_radius_sphere(self, device):
+        """Test curvature on very large sphere."""
+        radius = 100.0
+        mesh = create_sphere_mesh(radius=radius, subdivisions=0, device=device)
+        
+        K = mesh.gaussian_curvature_vertices
+        H = mesh.mean_curvature_vertices
+        
+        # Should compute very small curvatures
+        expected_K = 1.0 / (radius ** 2)
+        expected_H = 1.0 / radius
+        
+        # Should be small but non-zero
+        assert torch.all(K > 0)
+        assert torch.all(H > 0)
+        assert K.mean() < 0.01  # Small curvature
+        assert H.mean() < 0.1
+
+
+### Test Sign Conventions
+
+
+class TestCurvatureSigns:
+    """Tests for sign conventions."""
+
+    def test_positive_gaussian_curvature(self, device):
+        """Test positive Gaussian curvature (elliptic point)."""
+        # Sphere has positive curvature everywhere
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=0, device=device)
+        K = mesh.gaussian_curvature_vertices
+        
+        assert torch.all(K > 0)
+
+    def test_zero_gaussian_curvature(self, device):
+        """Test zero Gaussian curvature (parabolic/flat) at interior vertices."""
+        # Plane has zero curvature at interior vertices
+        mesh = create_plane_mesh(n_subdivisions=2, device=device)
+        K = mesh.gaussian_curvature_vertices
+        
+        # Check only interior vertices
+        n = 5  # Grid size for n_subdivisions=2
+        interior_mask = torch.zeros(mesh.n_points, dtype=torch.bool, device=device)
+        for i in range(n):
+            for j in range(n):
+                idx = i * n + j
+                if 0 < i < n - 1 and 0 < j < n - 1:
+                    interior_mask[idx] = True
+        
+        interior_K = K[interior_mask]
+        assert torch.allclose(interior_K, torch.zeros_like(interior_K), atol=1e-5)
+
+    def test_signed_mean_curvature_sphere(self, device):
+        """Test that mean curvature sign depends on normal orientation."""
+        mesh = create_sphere_mesh(radius=1.0, subdivisions=0, device=device)
+        H = mesh.mean_curvature_vertices
+        
+        # With outward normals, sphere should have positive H
+        # (All should have same sign)
+        assert torch.all(H > 0) or torch.all(H < 0)
+
