@@ -292,20 +292,27 @@ def compute_cotan_weights_triangle_mesh(
 
     cotans = dot_products / cross_mag.clamp(min=1e-10)
 
-    ### Map candidate edges to sorted_edges and accumulate
-    # Need to find which sorted_edge each candidate maps to
-    # Build a hash for quick lookup
+    ### Map candidate edges to sorted_edges and accumulate (vectorized)
+    # Build hash for quick lookup
     edge_hash = candidate_edges[:, 0] * (mesh.n_points + 1) + candidate_edges[:, 1]
     sorted_hash = sorted_edges[:, 0] * (mesh.n_points + 1) + sorted_edges[:, 1]
 
-    # For each candidate, find its index in sorted_edges
-    cotan_weights = torch.zeros(n_edges, dtype=mesh.points.dtype, device=device)
+    # Sort sorted_hash to enable binary search via searchsorted
+    sorted_hash_argsort = torch.argsort(sorted_hash)
+    sorted_hash_sorted = sorted_hash[sorted_hash_argsort]
 
-    for cand_idx in range(len(candidate_edges)):
-        # Find matching sorted edge
-        matches = (sorted_hash == edge_hash[cand_idx]).nonzero(as_tuple=True)[0]
-        if len(matches) > 0:
-            cotan_weights[matches[0]] += cotans[cand_idx]
+    # Find index of each edge_hash in the sorted sorted_hash
+    indices_in_sorted = torch.searchsorted(sorted_hash_sorted, edge_hash)
+
+    # Clamp indices to valid range (handles any edge_hash not found)
+    indices_in_sorted = torch.clamp(indices_in_sorted, 0, n_edges - 1)
+
+    # Map back to original sorted_edges indices
+    indices_in_original = sorted_hash_argsort[indices_in_sorted]
+
+    # Accumulate cotans using scatter_add (vectorized)
+    cotan_weights = torch.zeros(n_edges, dtype=mesh.points.dtype, device=device)
+    cotan_weights.scatter_add_(0, indices_in_original, cotans)
 
     # DON'T divide by 2 - the formula seems to work better without it
     # cotan_weights = cotan_weights / 2.0

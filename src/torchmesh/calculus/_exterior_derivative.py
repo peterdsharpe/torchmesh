@@ -139,50 +139,87 @@ def exterior_derivative_1(
         faces = face_mesh.cells  # (n_faces, 3)
         n_faces = face_mesh.n_cells
 
-    ### Build edge lookup for fast indexing
-    # Create a dictionary mapping (sorted) edge tuples to their indices
-    # This allows us to find the 1-form value for each edge in a face's boundary
+    ### Extract all boundary edges from all faces (vectorized)
+    # For each triangular face [v₀, v₁, v₂], extract edges [v₀,v₁], [v₁,v₂], [v₂,v₀]
+    # Shape: (n_faces, 3, 2) where 3 is the number of edges per triangle
+    boundary_edges = torch.stack(
+        [
+            faces[:, [0, 1]],  # edge from v₀ to v₁
+            faces[:, [1, 2]],  # edge from v₁ to v₂
+            faces[:, [2, 0]],  # edge from v₂ to v₀
+        ],
+        dim=1,
+    )  # (n_faces, 3, 2)
 
-    edge_tuples = [
-        tuple(sorted([int(edges[i, 0]), int(edges[i, 1])])) for i in range(len(edges))
-    ]
-    edge_to_index = {edge_tuple: i for i, edge_tuple in enumerate(edge_tuples)}
+    # Flatten to (n_faces*3, 2) for easier processing
+    boundary_edges_flat = boundary_edges.reshape(-1, 2)  # (n_faces*3, 2)
 
-    ### Compute circulation around each face
-    # For each face, sum 1-form values around its boundary with appropriate signs
+    ### Create canonical edge representations (sorted vertices) for fast matching
+    # Sort vertices within each edge to get canonical form (lower vertex first)
+    boundary_edges_sorted, _ = boundary_edges_flat.sort(dim=1)
+    edges_sorted, _ = edges.sort(dim=1)
 
-    face_values_list = []
+    # Convert each edge to a unique integer ID for efficient lookup
+    # Formula: edge_id = min_vertex * (max_vertex + 1) + max_vertex
+    # This creates a unique mapping assuming vertices are non-negative integers
+    max_vertex_id = max(edges.max().item(), faces.max().item()) + 1
+    boundary_edge_ids = (
+        boundary_edges_sorted[:, 0] * max_vertex_id + boundary_edges_sorted[:, 1]
+    )
+    edge_ids = edges_sorted[:, 0] * max_vertex_id + edges_sorted[:, 1]
 
-    for face_idx in range(n_faces):
-        face_verts = faces[face_idx]  # (3,) for triangular faces
+    ### Use searchsorted for efficient vectorized lookup
+    # Sort edge_ids and keep track of original indices
+    edge_ids_sorted, sort_indices = torch.sort(edge_ids)
 
-        # Get boundary edges of this face
-        # For triangle [v₀, v₁, v₂], boundary is [v₀,v₁], [v₁,v₂], [v₂,v₀]
-        boundary_edges = [
-            (int(face_verts[0]), int(face_verts[1])),
-            (int(face_verts[1]), int(face_verts[2])),
-            (int(face_verts[2]), int(face_verts[0])),
-        ]
+    # Find where each boundary edge ID would fit in the sorted edge list
+    positions = torch.searchsorted(edge_ids_sorted, boundary_edge_ids)
 
-        # Sort each edge and look up in edge_to_index
-        # Track orientation: if edge was flipped during sorting, negate contribution
-        circulation = 0
-        for v_start, v_end in boundary_edges:
-            sorted_edge = tuple(sorted([v_start, v_end]))
-            edge_idx = edge_to_index.get(sorted_edge)
+    # Clamp positions to valid range to avoid index errors
+    positions = positions.clamp(max=len(edge_ids_sorted) - 1)
 
-            if edge_idx is not None:
-                # Determine sign based on orientation
-                # If original edge matches sorted edge orientation, positive, else negative
-                if v_start < v_end:
-                    sign = 1
-                else:
-                    sign = -1
+    # Check if the found positions are exact matches
+    matches = edge_ids_sorted[positions] == boundary_edge_ids  # (n_faces*3,)
 
-                circulation = circulation + sign * edge_1form[edge_idx]
+    # Get the original edge indices
+    edge_indices = sort_indices[positions]  # (n_faces*3,)
 
-        face_values_list.append(circulation)
+    ### Determine orientation of each boundary edge
+    # If edge is [v_i, v_j] with v_i < v_j, orientation is +1
+    # If edge is [v_i, v_j] with v_i > v_j, orientation is -1 (reversed)
+    orientations = torch.where(
+        boundary_edges_flat[:, 0] < boundary_edges_flat[:, 1],
+        torch.ones(
+            boundary_edges_flat.shape[0], dtype=edge_1form.dtype, device=edge_1form.device
+        ),
+        -torch.ones(
+            boundary_edges_flat.shape[0], dtype=edge_1form.dtype, device=edge_1form.device
+        ),
+    )  # (n_faces*3,)
 
-    face_values = torch.stack(face_values_list)
+    ### Compute contributions from each edge, respecting orientation
+    # Get the edge values for all boundary edges
+    edge_values = edge_1form[edge_indices]  # (n_faces*3,) or (n_faces*3, ...)
+
+    # Broadcast orientations and matches to match the shape of edge_values
+    # Add singleton dimensions to the right to match any trailing dimensions
+    orientations_broadcast = orientations.reshape(
+        -1, *([1] * (edge_values.ndim - 1))
+    )  # (n_faces*3, 1, 1, ...)
+    matches_broadcast = matches.reshape(
+        -1, *([1] * (edge_values.ndim - 1))
+    )  # (n_faces*3, 1, 1, ...)
+
+    # Apply orientation and mask out non-matches (set to 0 contribution)
+    edge_contributions = torch.where(
+        matches_broadcast,
+        orientations_broadcast * edge_values,
+        torch.zeros_like(edge_values),
+    )  # (n_faces*3,) or (n_faces*3, ...)
+
+    ### Sum contributions from the 3 edges of each face to get circulation
+    # Reshape to (n_faces, 3, ...) and sum over the 3 edges
+    edge_contributions = edge_contributions.reshape(n_faces, 3, *edge_1form.shape[1:])
+    face_values = edge_contributions.sum(dim=1)  # (n_faces,) or (n_faces, ...)
 
     return face_values, faces
