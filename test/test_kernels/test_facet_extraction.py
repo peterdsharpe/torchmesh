@@ -1449,7 +1449,7 @@ class TestFacetExtractionParametrized:
             f"Cell data should be aggregated with {data_aggregation=}"
         )
         assert facet_mesh.cell_data["value"].shape[0] == facet_mesh.n_cells, (
-            f"Aggregated data should have one value per facet"
+            "Aggregated data should have one value per facet"
         )
 
         # Verify device consistency

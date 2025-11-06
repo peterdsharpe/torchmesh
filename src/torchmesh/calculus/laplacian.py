@@ -45,7 +45,6 @@ def compute_laplacian_points_dec(
     """
     from torchmesh.calculus._circumcentric_dual import (
         get_or_compute_dual_volumes_0,
-        compute_dual_volumes_1,
     )
 
     n_points = mesh.n_points

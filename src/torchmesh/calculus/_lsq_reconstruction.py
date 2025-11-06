@@ -9,7 +9,7 @@ to neighboring points/cells, weighted by inverse distance.
 Reference: Standard in CFD literature (Barth & Jespersen, AIAA 1989)
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import torch
 

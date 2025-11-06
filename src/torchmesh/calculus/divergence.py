@@ -32,8 +32,6 @@ def compute_divergence_points_dec(
         Divergence at vertices, shape (n_points,)
     """
     from torchmesh.calculus._circumcentric_dual import get_or_compute_dual_volumes_0
-    from torchmesh.calculus._exterior_derivative import exterior_derivative_0
-    from torchmesh.calculus._sharp_flat import flat
 
     n_points = mesh.n_points
 

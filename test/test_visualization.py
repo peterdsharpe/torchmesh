@@ -6,7 +6,6 @@ and visualization backends (matplotlib, PyVista).
 
 import pytest
 import torch
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 

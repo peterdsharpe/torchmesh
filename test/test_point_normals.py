@@ -473,7 +473,7 @@ class TestPointCellNormalConsistency:
         threshold = 0.1  # radians (~5.7 degrees)
         fraction_consistent = (angular_errors < threshold).float().mean()
 
-        print(f"\nAirplane mesh consistency:")
+        print("\nAirplane mesh consistency:")
         print(
             f"  Fraction with angular error < {threshold} rad: {fraction_consistent:.3f}"
         )
@@ -513,7 +513,7 @@ class TestPointCellNormalConsistency:
         fraction_original = (errors_original < threshold).float().mean()
         fraction_subdivided = (errors_subdivided < threshold).float().mean()
 
-        print(f"\nSubdivision effect on consistency:")
+        print("\nSubdivision effect on consistency:")
         print(f"  Original: {fraction_original:.3f} consistent")
         print(f"  Subdivided (1 level): {fraction_subdivided:.3f} consistent")
         print(f"  Improvement: {(fraction_subdivided - fraction_original):.3f}")
@@ -586,7 +586,7 @@ class TestPointCellNormalConsistency:
         percentiles = [50, 75, 90, 95, 99]
         values = [torch.quantile(angular_errors, p / 100.0) for p in percentiles]
 
-        print(f"\nAngular error distribution (radians):")
+        print("\nAngular error distribution (radians):")
         for p, v in zip(percentiles, values):
             print(f"  {p}th percentile: {v:.4f} rad ({v * 180 / torch.pi:.2f}°)")
 
@@ -622,7 +622,7 @@ class TestPointCellNormalConsistency:
             fraction_original = (errors_original < threshold).float().mean()
             fraction_loop = (errors_loop < threshold).float().mean()
 
-            print(f"\nLoop subdivision effect:")
+            print("\nLoop subdivision effect:")
             print(f"  Original: {fraction_original:.3f} consistent")
             print(f"  Loop subdivided: {fraction_loop:.3f} consistent")
 

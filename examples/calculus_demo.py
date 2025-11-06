@@ -34,7 +34,7 @@ def demo_volume_mesh():
     mesh_grad = mesh.compute_point_derivatives(keys="pressure", method="lsq")
     grad_p = mesh_grad.point_data["pressure_gradient"]
     print(f"✓ Gradient computed: shape {grad_p.shape}")
-    print(f"  Expected: ∇p ≈ 2r")
+    print("  Expected: ∇p ≈ 2r")
     print(f"  Sample: ∇p[50] = {grad_p[50].numpy()}")
     print(f"  Compare: 2×r[50] = {(2 * mesh.points[50]).numpy()}\n")
 
@@ -45,7 +45,7 @@ def demo_volume_mesh():
     # Compute divergence
     div_v = compute_divergence_points_lsq(mesh, mesh.point_data["velocity"])
     print(f"✓ Divergence computed: shape {div_v.shape}")
-    print(f"  Expected: div(v) = 3 (constant)")
+    print("  Expected: div(v) = 3 (constant)")
     print(f"  Mean: {div_v.mean():.6f}")
     print(f"  Std: {div_v.std():.6f}\n")
 
@@ -57,7 +57,7 @@ def demo_volume_mesh():
     curl_v = compute_curl_points_lsq(mesh, mesh.point_data["rotation"])
     print("Created rotation field: v = [-y, x, 0]")
     print(f"✓ Curl computed: shape {curl_v.shape}")
-    print(f"  Expected: curl(v) = [0, 0, 2]")
+    print("  Expected: curl(v) = [0, 0, 2]")
     print(f"  Mean: {curl_v.mean(dim=0).numpy()}")
     print(f"  Sample: curl[50] = {curl_v[50].numpy()}\n")
 
@@ -66,9 +66,9 @@ def demo_volume_mesh():
     print("Computing Laplacian via div(grad(.)) for 3D meshes...")
     laplacian_p = compute_divergence_points_lsq(mesh_grad, grad_p)
     print(f"✓ Laplacian computed: shape {laplacian_p.shape}")
-    print(f"  Expected: Δp ≈ 6 for φ=||r||² in 3D")
+    print("  Expected: Δp ≈ 6 for φ=||r||² in 3D")
     print(f"  Mean: {laplacian_p.mean():.3f}")
-    print(f"  (Note: First-order LSQ has systematic errors on quadratics)\n")
+    print("  (Note: First-order LSQ has systematic errors on quadratics)\n")
 
 
 def demo_surface_mesh():
@@ -95,7 +95,7 @@ def demo_surface_mesh():
     )
     grad_T = mesh_grad.point_data["temperature_gradient"]
     print(f"✓ Intrinsic gradient computed: shape {grad_T.shape}")
-    print(f"  Lives in surface tangent space")
+    print("  Lives in surface tangent space")
 
     # Verify orthogonality to normal
     adj = mesh.get_point_to_cells_adjacency()
@@ -109,14 +109,14 @@ def demo_surface_mesh():
             point_normals[i] /= torch.norm(point_normals[i]).clamp(min=1e-10)
 
     dots = (grad_T * point_normals).sum(dim=-1)
-    print(f"  Orthogonality check: grad·normal")
+    print("  Orthogonality check: grad·normal")
     print(f"    Mean: {dots.mean():.6f}")
     print(f"    Max: {dots.abs().max():.6f} (should be ~0)\n")
 
     # Compute intrinsic Laplacian using DEC
     laplacian_T = compute_laplacian_points_dec(mesh, mesh.point_data["temperature"])
     print(f"✓ Intrinsic Laplace-Beltrami computed: shape {laplacian_T.shape}")
-    print(f"  Uses cotangent weights (intrinsic to surface)")
+    print("  Uses cotangent weights (intrinsic to surface)")
     print(f"  Mean: {laplacian_T.mean():.3f}")
     print(f"  Median: {laplacian_T.median():.3f}\n")
 
@@ -146,12 +146,12 @@ def demo_compute_jacobian():
     jacobian = mesh_jac.point_data["velocity_gradient"]
 
     print(f"✓ Jacobian computed: shape {jacobian.shape}")
-    print(f"  J[i,j,k] = ∂v_j/∂x_k")
-    print(f"\nExpected Jacobian:")
+    print("  J[i,j,k] = ∂v_j/∂x_k")
+    print("\nExpected Jacobian:")
     print("  [[0, 1, 0],")
     print("   [-1, 0, 0],")
     print("   [0, 0, 0]]")
-    print(f"\nComputed Jacobian (mean over all points):")
+    print("\nComputed Jacobian (mean over all points):")
     print(f"{jacobian.mean(dim=0).numpy()}\n")
 
 
