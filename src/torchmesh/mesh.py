@@ -500,7 +500,7 @@ class Mesh:
         )
 
     def slice_points(self, indices: int | slice | torch.Tensor) -> "Mesh":
-        """Returns a new BoundaryMesh with a subset of the points.
+        """Returns a new Mesh with a subset of the points.
 
         Args:
             indices: Indices or mask to select points.
@@ -515,7 +515,7 @@ class Mesh:
         )
 
     def slice_cells(self, indices: int | slice | torch.Tensor) -> "Mesh":
-        """Returns a new BoundaryMesh with a subset of the cells.
+        """Returns a new Mesh with a subset of the cells.
 
         Args:
             indices: Indices or mask to select cells.
@@ -1012,14 +1012,14 @@ class Mesh:
                 Must be >= current n_cells if specified.
 
         Returns:
-            A new BoundaryMesh with padded arrays. If both targets are None or equal to
+            A new Mesh with padded arrays. If both targets are None or equal to
             current sizes, returns self unchanged.
 
         Raises:
             ValueError: If target sizes are less than current sizes.
 
         Example:
-            >>> mesh = BoundaryMesh(points, cells, "no_slip")  # 100 points, 200 cells
+            >>> mesh = Mesh(points, cells, "no_slip")  # 100 points, 200 cells
             >>> padded = mesh.pad(target_n_points=128, target_n_cells=256)
             >>> padded.n_points  # 128
             >>> padded.n_cells   # 256
@@ -1075,14 +1075,14 @@ class Mesh:
                 cache hits.
 
         Returns:
-            A new BoundaryMesh with padded points and cells arrays. The padding uses
+            A new Mesh with padded points and cells arrays. The padding uses
             null elements that don't affect geometric computations.
 
         Raises:
             ValueError: If power <= 1.
 
         Example:
-            >>> mesh = BoundaryMesh(points, cells, "no_slip")  # 100 points, 200 cells
+            >>> mesh = Mesh(points, cells, "no_slip")  # 100 points, 200 cells
             >>> padded = mesh.pad_to_next_power(power=1.5)
             >>> # Points padded to floor(1.5^n) >= 100, cells to floor(1.5^m) >= 200
             >>> # For power=1.5: 100 points -> 129 points, 200 cells -> 216 cells
@@ -1539,7 +1539,7 @@ if __name__ == "__main__":
     #     cells=cells,
     # )
 
-    # demo_path = Path("demo_airplane.boundarymesh")
+    # demo_path = Path("demo_airplane.mesh")
 
     # torch.save(b3, demo_path)
 
