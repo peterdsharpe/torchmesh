@@ -166,20 +166,14 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
         if n_cells_val == 0:
             continue
 
-        ### Extract vectors for these cells using advanced indexing
+        ### Extract vectors for these cells using vectorized indexing
         # Shape: (n_cells_val, val, n_spatial_dims)
-        # For each cell in cells_with_valence, get its val neighbor vectors
-
-        # Build indices to gather from vectors array
+        
+        # Build gather indices vectorized: broadcast offsets with arange
         # Shape: (n_cells_val, val)
-        gather_indices = torch.zeros(
-            (n_cells_val, val), dtype=torch.int64, device=device
-        )
-        for local_idx, cell_idx in enumerate(cells_with_valence):
-            start_idx = adjacency.offsets[cell_idx]
-            gather_indices[local_idx] = torch.arange(
-                start_idx, start_idx + val, device=device
-            )
+        start_indices = adjacency.offsets[cells_with_valence]  # (n_cells_val,)
+        offset_range = torch.arange(val, device=device)  # (val,)
+        gather_indices = start_indices.unsqueeze(1) + offset_range.unsqueeze(0)  # (n_cells_val, val)
 
         # Gather vectors
         # Shape: (n_cells_val, val, n_spatial_dims)
@@ -191,15 +185,17 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
         # For val neighbors, we have C(val, 2) = val*(val-1)/2 pairs
         n_pairs = (val * (val - 1)) // 2
 
-        # Use torch.combinations or create indices directly
-        pair_i = []
-        pair_j = []
-        for i in range(val):
-            for j in range(i + 1, val):
-                pair_i.append(i)
-                pair_j.append(j)
-        pair_i = torch.tensor(pair_i, dtype=torch.int64, device=device)
-        pair_j = torch.tensor(pair_j, dtype=torch.int64, device=device)
+        # Vectorized pair generation
+        # Create indices 0 to val-1 and get all pairs where i < j
+        val_int = int(val)
+        indices = torch.arange(val_int, device=device)
+        # Generate pairs using broadcasting trick
+        i_idx = indices.unsqueeze(1).expand(val_int, val_int)
+        j_idx = indices.unsqueeze(0).expand(val_int, val_int)
+        # Get upper triangle (i < j)
+        mask = i_idx < j_idx
+        pair_i = i_idx[mask]
+        pair_j = j_idx[mask]
 
         ### Compute angles for all pairs across all cells
         # Shape: (n_cells_val, n_pairs, n_spatial_dims)

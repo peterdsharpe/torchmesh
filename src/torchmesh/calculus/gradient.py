@@ -136,27 +136,9 @@ def project_to_tangent_space(
             # Use cell normals
             normals = mesh.cell_normals  # (n_cells, n_spatial_dims)
         else:
-            # For points, estimate normal from adjacent cell normals
-            # Average normals of adjacent cells
-            adjacency = mesh.get_point_to_cells_adjacency()
-            neighbor_lists = adjacency.to_list()
-
-            normals = torch.zeros(
-                (mesh.n_points, mesh.n_spatial_dims),
-                dtype=gradients.dtype,
-                device=mesh.points.device,
-            )
-
-            cell_normals = mesh.cell_normals  # (n_cells, n_spatial_dims)
-
-            for point_idx in range(mesh.n_points):
-                adjacent_cells = neighbor_lists[point_idx]
-                if len(adjacent_cells) > 0:
-                    # Average normals (and renormalize)
-                    avg_normal = cell_normals[adjacent_cells].mean(dim=0)
-                    normals[point_idx] = avg_normal / torch.norm(avg_normal).clamp(
-                        min=1e-10
-                    )
+            # For points, use area-weighted averaged normals from adjacent cells
+            # This is already computed and cached by mesh.point_normals
+            normals = mesh.point_normals  # (n_points, n_spatial_dims)
 
         ### Project: grad_intrinsic = grad - (grad·n)n
         # grad·n contracts along the spatial dimension (dim=1 for gradients)

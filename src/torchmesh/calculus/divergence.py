@@ -58,21 +58,21 @@ def compute_divergence_points_dec(
         n_points, dtype=vector_field.dtype, device=mesh.points.device
     )
 
-    for edge_idx in range(len(sorted_edges)):
-        v0_idx, v1_idx = sorted_edges[edge_idx]
-        edge_dir = edge_unit[edge_idx]
-
-        # Vector field at edge (average of endpoints)
-        v_edge = (vector_field[v0_idx] + vector_field[v1_idx]) / 2
-
-        # Flux through edge: v·edge_direction
-        flux = (v_edge * edge_dir).sum()
-
-        # Contribution to divergence (with sign for orientation)
-        # v0 is "start", v1 is "end" of edge
-        # Outward flux from v0 is positive, from v1 is negative
-        divergence[v0_idx] += flux
-        divergence[v1_idx] -= flux
+    ### Vectorized edge contributions
+    v0_indices = sorted_edges[:, 0]  # (n_edges,)
+    v1_indices = sorted_edges[:, 1]  # (n_edges,)
+    
+    # Vector field at edges (average of endpoints): (n_edges, n_spatial_dims)
+    v_edge = (vector_field[v0_indices] + vector_field[v1_indices]) / 2
+    
+    # Flux through all edges: v·edge_direction (n_edges,)
+    flux = (v_edge * edge_unit).sum(dim=-1)
+    
+    # Scatter-add contributions with appropriate signs
+    # v0: positive flux (outward)
+    # v1: negative flux (inward)
+    divergence.scatter_add_(0, v0_indices, flux)
+    divergence.scatter_add_(0, v1_indices, -flux)
 
     ### Normalize by dual volumes
     divergence = divergence / dual_volumes.clamp(min=1e-10)
