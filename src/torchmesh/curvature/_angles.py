@@ -130,88 +130,98 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
         # For closed polygons, must handle reflex angles (> π) correctly
         # Use signed angle based on cross product (2D) or ordering
 
-        for point_idx in range(n_points):
-            # Get cells (edges) incident to this point
-            incident_cells = adjacency.to_list()[point_idx]
-
-            if len(incident_cells) < 2:
-                # Endpoint or isolated - no angle to compute
-                continue
-
-            # For standard case: exactly 2 incident edges
-            if len(incident_cells) == 2:
-                # Get the two edges
-                edge0_verts = mesh.cells[incident_cells[0]]
-                edge1_verts = mesh.cells[incident_cells[1]]
-
-                # Determine which edge is incoming and which is outgoing
-                # Incoming: point_idx is at position 1 (edge = [prev, point_idx])
-                # Outgoing: point_idx is at position 0 (edge = [point_idx, next])
-
-                if edge0_verts[1] == point_idx:
-                    # edge0 is incoming (prev → point_idx)
-                    incoming_edge = edge0_verts
-                    outgoing_edge = edge1_verts
-                else:
-                    # edge1 is incoming
-                    incoming_edge = edge1_verts
-                    outgoing_edge = edge0_verts
-
-                # Get the previous and next vertices
-                prev_vertex = incoming_edge[0]
-                next_vertex = outgoing_edge[1]
-
-                # Compute vectors
-                v_from_prev = mesh.points[point_idx] - mesh.points[prev_vertex]
-                v_to_next = mesh.points[next_vertex] - mesh.points[point_idx]
-
-                # Interior angle is measured from incoming direction to outgoing direction
-                # Use signed angle for 2D
-                if mesh.n_spatial_dims == 2:
-                    # 2D cross product (z-component)
-                    cross_z = (
-                        v_from_prev[0] * v_to_next[1] - v_from_prev[1] * v_to_next[0]
-                    )
-                    dot = (v_from_prev * v_to_next).sum()
-
-                    # Signed angle in range [-π, π]
-                    signed_angle = torch.atan2(cross_z, dot)
-
-                    # Interior angle: π - signed_angle (supplement of turning angle)
-                    # For a left turn (CCW), signed_angle > 0, interior angle < π
-                    # For a right turn (CW), signed_angle < 0, interior angle > π
-                    interior_angle = math.pi - signed_angle
-
-                    angle_sums[point_idx] = interior_angle
-                else:
-                    # For higher dimensions, use unsigned angle
-                    angle = stable_angle_between_vectors(
-                        v_from_prev.unsqueeze(0),
-                        v_to_next.unsqueeze(0),
-                    )[0]
-                    angle_sums[point_idx] = angle
+        ### Group points by number of incident edges
+        neighbor_counts = adjacency.offsets[1:] - adjacency.offsets[:-1]  # (n_points,)
+        
+        ### Handle most common case: exactly 2 incident edges (vectorized)
+        two_edge_mask = neighbor_counts == 2
+        two_edge_indices = torch.where(two_edge_mask)[0]  # (n_two_edge,)
+        
+        if len(two_edge_indices) > 0:
+            # Extract the two incident edges for each vertex
+            offsets_two_edge = adjacency.offsets[two_edge_indices]  # (n_two_edge,)
+            edge0_cells = adjacency.indices[offsets_two_edge]  # (n_two_edge,)
+            edge1_cells = adjacency.indices[offsets_two_edge + 1]  # (n_two_edge,)
+            
+            # Get edge vertices: (n_two_edge, 2)
+            edge0_verts = mesh.cells[edge0_cells]
+            edge1_verts = mesh.cells[edge1_cells]
+            
+            # Determine incoming/outgoing edges
+            # Incoming: point_idx is at position 1 (edge = [prev, point_idx])
+            # Outgoing: point_idx is at position 0 (edge = [point_idx, next])
+            
+            # Check if point is at position 1 of edge0
+            edge0_is_incoming = edge0_verts[:, 1] == two_edge_indices  # (n_two_edge,)
+            
+            # Select prev/next vertices based on edge configuration
+            # If edge0 is incoming: prev=edge0[0], next=edge1[1]
+            # If edge1 is incoming: prev=edge1[0], next=edge0[1]
+            prev_vertex = torch.where(
+                edge0_is_incoming,
+                edge0_verts[:, 0],
+                edge1_verts[:, 0],
+            )  # (n_two_edge,)
+            next_vertex = torch.where(
+                edge0_is_incoming,
+                edge1_verts[:, 1],
+                edge0_verts[:, 1],
+            )  # (n_two_edge,)
+            
+            # Compute vectors
+            v_from_prev = mesh.points[two_edge_indices] - mesh.points[prev_vertex]  # (n_two_edge, n_spatial_dims)
+            v_to_next = mesh.points[next_vertex] - mesh.points[two_edge_indices]  # (n_two_edge, n_spatial_dims)
+            
+            # Compute interior angles
+            if mesh.n_spatial_dims == 2:
+                # 2D: Use signed angle with cross product
+                cross_z = (
+                    v_from_prev[:, 0] * v_to_next[:, 1] - v_from_prev[:, 1] * v_to_next[:, 0]
+                )  # (n_two_edge,)
+                dot = (v_from_prev * v_to_next).sum(dim=-1)  # (n_two_edge,)
+                
+                # Signed angle in range [-π, π]
+                signed_angle = torch.atan2(cross_z, dot)
+                
+                # Interior angle: π - signed_angle
+                interior_angles = math.pi - signed_angle
             else:
-                # More than 2 edges - sum pairwise angles
-                # This is less common but possible at junctions
-                angles = []
-                for i, cell_i in enumerate(incident_cells):
-                    for cell_j in incident_cells[i + 1 :]:
-                        edge_i_verts = mesh.cells[cell_i]
-                        edge_j_verts = mesh.cells[cell_j]
-
-                        other_i = edge_i_verts[edge_i_verts != point_idx][0]
-                        other_j = edge_j_verts[edge_j_verts != point_idx][0]
-
-                        v_i = mesh.points[other_i] - mesh.points[point_idx]
-                        v_j = mesh.points[other_j] - mesh.points[point_idx]
-
-                        angle = stable_angle_between_vectors(
-                            v_i.unsqueeze(0), v_j.unsqueeze(0)
-                        )[0]
-                        angles.append(angle)
-
-                if len(angles) > 0:
-                    angle_sums[point_idx] = torch.stack(angles).sum()
+                # Higher dimensions: Use unsigned angle
+                interior_angles = stable_angle_between_vectors(v_from_prev, v_to_next)
+            
+            # Assign angles to vertices
+            angle_sums[two_edge_indices] = interior_angles
+        
+        ### Handle vertices with >2 edges (junctions) - rare, so loop is acceptable
+        multi_edge_mask = neighbor_counts > 2
+        multi_edge_indices = torch.where(multi_edge_mask)[0]
+        
+        for point_idx_tensor in multi_edge_indices:
+            point_idx = int(point_idx_tensor)
+            offset_start = int(adjacency.offsets[point_idx])
+            offset_end = int(adjacency.offsets[point_idx + 1])
+            incident_cells = adjacency.indices[offset_start:offset_end]
+            
+            # Sum pairwise angles
+            angles = []
+            for i in range(len(incident_cells)):
+                for j in range(i + 1, len(incident_cells)):
+                    edge_i_verts = mesh.cells[incident_cells[i]]
+                    edge_j_verts = mesh.cells[incident_cells[j]]
+                    
+                    other_i = edge_i_verts[edge_i_verts != point_idx][0]
+                    other_j = edge_j_verts[edge_j_verts != point_idx][0]
+                    
+                    v_i = mesh.points[other_i] - mesh.points[point_idx]
+                    v_j = mesh.points[other_j] - mesh.points[point_idx]
+                    
+                    angle = stable_angle_between_vectors(
+                        v_i.unsqueeze(0), v_j.unsqueeze(0)
+                    )[0]
+                    angles.append(angle)
+            
+            if len(angles) > 0:
+                angle_sums[point_idx] = torch.stack(angles).sum()
 
     elif n_manifold_dims == 2:
         ### 2D manifolds (triangles): Sum of corner angles

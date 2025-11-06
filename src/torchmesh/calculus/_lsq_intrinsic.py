@@ -24,22 +24,29 @@ def compute_point_gradient_lsq_intrinsic(
 
     Args:
         mesh: Simplicial mesh (assumed to be a manifold)
-        point_values: Values at vertices
-        weight_power: Weight exponent
+        point_values: Values at vertices, shape (n_points,) or (n_points, ...)
+        weight_power: Exponent for inverse distance weighting (default: 2.0)
 
     Returns:
-        Intrinsic gradients (living in tangent space, represented in ambient coordinates)
+        Intrinsic gradients (living in tangent space, represented in ambient coordinates).
+        Shape: (n_points, n_spatial_dims) for scalars, or (n_points, n_spatial_dims, ...) for tensor fields
 
     Algorithm:
         For each point:
-        1. Estimate tangent space (use local PCA or normal-based projection)
+        1. Estimate tangent space using point normals
         2. Project neighbor positions onto tangent space
         3. Solve LSQ in tangent space (reduced dimension)
         4. Express result as vector in ambient space
+        
+    Implementation:
+        Fully vectorized using batched operations. Groups points by neighbor count
+        and processes each group in parallel.
     """
     n_points = mesh.n_points
     n_spatial_dims = mesh.n_spatial_dims
     n_manifold_dims = mesh.n_manifold_dims
+    device = mesh.points.device
+    dtype = point_values.dtype
 
     if mesh.codimension == 0:
         # No manifold structure: use standard LSQ
@@ -47,129 +54,217 @@ def compute_point_gradient_lsq_intrinsic(
 
         return compute_point_gradient_lsq(mesh, point_values, weight_power)
 
-    ###Get adjacency
+    ### Get adjacency
     adjacency = mesh.get_point_to_points_adjacency()
-    neighbor_lists = adjacency.to_list()
 
     ### Determine output shape
-    if point_values.ndim == 1:
+    is_scalar = point_values.ndim == 1
+    if is_scalar:
         gradient_shape = (n_points, n_spatial_dims)
-        is_scalar = True
     else:
         gradient_shape = (n_points, n_spatial_dims) + point_values.shape[1:]
-        is_scalar = False
 
-    gradients = torch.zeros(
-        gradient_shape, dtype=point_values.dtype, device=mesh.points.device
-    )
+    gradients = torch.zeros(gradient_shape, dtype=dtype, device=device)
 
-    ### Get tangent space basis at each point
-    # For codim-1: use normal and construct orthogonal basis
+    ### Build tangent space basis for all points (vectorized)
+    # For codim-1: use point normals and construct orthogonal basis
     if mesh.codimension == 1:
-        # Get point normals
-        point_to_cells = mesh.get_point_to_cells_adjacency()
-        cell_lists = point_to_cells.to_list()
-        cell_normals = mesh.cell_normals
+        # Get point normals (already vectorized and cached)
+        point_normals = mesh.point_normals  # (n_points, n_spatial_dims)
 
-        for point_idx in range(n_points):
-            neighbors = neighbor_lists[point_idx]
-            if len(neighbors) < 2:
+        # Build tangent basis for all points at once
+        tangent_bases = _build_tangent_bases_vectorized(
+            point_normals, n_manifold_dims
+        )  # (n_points, n_spatial_dims, n_manifold_dims)
+
+        ### Group points by neighbor count for efficient batched processing
+        neighbor_counts = adjacency.offsets[1:] - adjacency.offsets[:-1]  # (n_points,)
+        unique_counts, inverse_indices = torch.unique(
+            neighbor_counts, return_inverse=True
+        )
+
+        ### Process each neighbor-count group in parallel
+        for count_idx, n_neighbors in enumerate(unique_counts):
+            n_neighbors = int(n_neighbors)
+
+            # Skip if too few neighbors
+            if n_neighbors < 2:
                 continue
 
-            ### Get normal at this point
-            adjacent_cells = cell_lists[point_idx]
-            if len(adjacent_cells) == 0:
+            # Find all points with this neighbor count
+            points_mask = inverse_indices == count_idx
+            point_indices = torch.where(points_mask)[0]  # (n_group,)
+            n_group = len(point_indices)
+
+            if n_group == 0:
                 continue
 
-            normal = cell_normals[adjacent_cells].mean(dim=0)
-            normal = normal / torch.norm(normal).clamp(min=1e-10)
+            ### Extract neighbor indices for this group
+            # Shape: (n_group, n_neighbors)
+            offsets_group = adjacency.offsets[point_indices]  # (n_group,)
+            neighbor_idx_ranges = offsets_group.unsqueeze(1) + torch.arange(
+                n_neighbors, device=device
+            ).unsqueeze(
+                0
+            )  # (n_group, n_neighbors)
+            neighbors_flat = adjacency.indices[
+                neighbor_idx_ranges
+            ]  # (n_group, n_neighbors)
 
-            ### Build tangent space basis using Gram-Schmidt
-            # Start with arbitrary vector not parallel to normal
-            if normal[0].abs() < 0.9:
-                v1 = torch.tensor(
-                    [1.0, 0.0, 0.0], device=normal.device, dtype=normal.dtype
-                )
-            else:
-                v1 = torch.tensor(
-                    [0.0, 1.0, 0.0], device=normal.device, dtype=normal.dtype
-                )
+            ### Build LSQ matrices in ambient space
+            # Current point positions: (n_group, n_spatial_dims)
+            x0 = mesh.points[point_indices]  # (n_group, n_spatial_dims)
 
-            # Project v1 onto tangent plane
-            v1 = v1 - (v1 @ normal) * normal
-            v1 = v1 / torch.norm(v1).clamp(min=1e-10)
+            # Neighbor positions: (n_group, n_neighbors, n_spatial_dims)
+            x_neighbors = mesh.points[neighbors_flat]
 
-            if n_manifold_dims >= 2:
-                # Second tangent vector (for 2D manifolds in 3D)
-                v2 = torch.linalg.cross(normal, v1)
-                v2 = v2 / torch.norm(v2).clamp(min=1e-10)
-
-                # Tangent basis matrix: columns are tangent vectors
-                tangent_basis = torch.stack([v1, v2], dim=1)  # (3, 2)
-            else:
-                tangent_basis = v1.unsqueeze(1)  # (3, 1)
+            # Relative positions (A matrix): (n_group, n_neighbors, n_spatial_dims)
+            A_ambient = x_neighbors - x0.unsqueeze(1)
 
             ### Project LSQ system into tangent space
-            x0 = mesh.points[point_idx]
-            neighbor_positions = mesh.points[neighbors]
+            # Tangent bases for this group: (n_group, n_spatial_dims, n_manifold_dims)
+            tangent_basis = tangent_bases[point_indices]
 
-            # Relative positions in 3D
-            A_ambient = neighbor_positions - x0
-
-            # Project onto tangent space: A_tangent = A_ambient @ tangent_basis
-            A_tangent = A_ambient @ tangent_basis  # (n_neighbors, n_manifold_dims)
+            # Project A into tangent space: A_tangent = A_ambient @ tangent_basis
+            # For each group element: A_ambient[i, :, :] @ tangent_basis[i, :, :]
+            # (n_group, n_neighbors, n_spatial_dims) @ (n_group, n_spatial_dims, n_manifold_dims)
+            # = (n_group, n_neighbors, n_manifold_dims)
+            A_tangent = torch.einsum(
+                "gns,gsm->gnm", A_ambient, tangent_basis
+            )
 
             # Function differences
             if is_scalar:
-                b = point_values[neighbors] - point_values[point_idx]
+                b = point_values[neighbors_flat] - point_values[point_indices].unsqueeze(
+                    1
+                )  # (n_group, n_neighbors)
             else:
-                b = point_values[neighbors] - point_values[point_idx].unsqueeze(0)
+                b = point_values[neighbors_flat] - point_values[point_indices].unsqueeze(
+                    1
+                )  # (n_group, n_neighbors, ...)
 
-            ### Weights
-            distances_ambient = torch.norm(A_ambient, dim=-1)
-            weights = 1.0 / distances_ambient.pow(weight_power).clamp(min=1e-10)
-            sqrt_w = weights.sqrt().unsqueeze(-1)
+            ### Compute weights (based on ambient distances)
+            distances = torch.norm(A_ambient, dim=-1)  # (n_group, n_neighbors)
+            weights = 1.0 / distances.pow(weight_power).clamp(min=1e-10)
 
-            ### Solve LSQ in tangent space
-            A_tangent_weighted = sqrt_w * A_tangent
+            ### Apply weights to tangent-space system
+            sqrt_w = weights.sqrt().unsqueeze(-1)  # (n_group, n_neighbors, 1)
+            A_tangent_weighted = sqrt_w * A_tangent  # (n_group, n_neighbors, n_manifold_dims)
 
-            if is_scalar:
-                b_weighted = sqrt_w.squeeze(-1) * b
-                try:
+            ### Solve batched least-squares in tangent space
+            try:
+                if is_scalar:
+                    b_weighted = sqrt_w.squeeze(-1) * b  # (n_group, n_neighbors)
                     # Solve for gradient in tangent coordinates
                     grad_tangent = torch.linalg.lstsq(
-                        A_tangent_weighted,
-                        b_weighted.unsqueeze(-1),
-                    ).solution.squeeze(-1)  # (n_manifold_dims,)
+                        A_tangent_weighted,  # (n_group, n_neighbors, n_manifold_dims)
+                        b_weighted.unsqueeze(-1),  # (n_group, n_neighbors, 1)
+                        rcond=None,
+                    ).solution.squeeze(
+                        -1
+                    )  # (n_group, n_manifold_dims)
 
                     # Convert back to ambient coordinates
-                    grad_ambient = tangent_basis @ grad_tangent  # (n_spatial_dims,)
-                    gradients[point_idx] = grad_ambient
-                except:
-                    pass
-            else:
-                # Tensor case
-                b_weighted = sqrt_w * b
-                orig_shape = b.shape[1:]
-                b_flat = b_weighted.reshape(len(neighbors), -1)
+                    # grad_ambient = tangent_basis @ grad_tangent
+                    # (n_group, n_spatial_dims, n_manifold_dims) @ (n_group, n_manifold_dims)
+                    grad_ambient = torch.einsum(
+                        "gsm,gm->gs", tangent_basis, grad_tangent
+                    )  # (n_group, n_spatial_dims)
 
-                try:
+                    gradients[point_indices] = grad_ambient
+                else:
+                    # Tensor field case
+                    b_weighted = sqrt_w * b  # (n_group, n_neighbors, ...)
+                    orig_shape = b.shape[2:]  # Extra dimensions
+                    b_flat = b_weighted.reshape(
+                        n_group, n_neighbors, -1
+                    )  # (n_group, n_neighbors, n_components)
+
                     grad_tangent = torch.linalg.lstsq(
-                        A_tangent_weighted,
-                        b_flat,
-                    ).solution  # (n_manifold_dims, n_components)
+                        A_tangent_weighted,  # (n_group, n_neighbors, n_manifold_dims)
+                        b_flat,  # (n_group, n_neighbors, n_components)
+                        rcond=None,
+                    ).solution  # (n_group, n_manifold_dims, n_components)
 
-                    # Convert to ambient
-                    grad_ambient = (
-                        tangent_basis @ grad_tangent
-                    )  # (n_spatial_dims, n_components)
+                    # Convert to ambient: (n_group, n_spatial_dims, n_manifold_dims) @ (n_group, n_manifold_dims, n_components)
+                    grad_ambient = torch.bmm(
+                        tangent_basis,  # (n_group, n_spatial_dims, n_manifold_dims)
+                        grad_tangent,  # (n_group, n_manifold_dims, n_components)
+                    )  # (n_group, n_spatial_dims, n_components)
+
+                    # Reshape: (n_group, n_spatial_dims, *orig_shape)
                     grad_ambient_reshaped = grad_ambient.reshape(
-                        n_spatial_dims, *orig_shape
+                        n_group, n_spatial_dims, *orig_shape
                     )
-                    gradients[point_idx] = grad_ambient_reshaped.permute(
-                        list(range(1, grad_ambient_reshaped.ndim)) + [0]
-                    )
-                except:
-                    pass
+                    # Move spatial_dims to second position: (n_group, *orig_shape, n_spatial_dims)
+                    perm = [0] + list(range(2, grad_ambient_reshaped.ndim)) + [1]
+                    gradients[point_indices] = grad_ambient_reshaped.permute(*perm)
+
+            except torch.linalg.LinAlgError:
+                # Singular systems: gradients remain zero
+                pass
 
     return gradients
+
+
+def _build_tangent_bases_vectorized(
+    normals: torch.Tensor,
+    n_manifold_dims: int,
+) -> torch.Tensor:
+    """Build orthonormal tangent space bases from normal vectors (vectorized).
+
+    Args:
+        normals: Unit normal vectors, shape (n_points, n_spatial_dims)
+        n_manifold_dims: Dimension of the manifold
+
+    Returns:
+        Tangent bases, shape (n_points, n_spatial_dims, n_manifold_dims)
+        where tangent_bases[i, :, :] contains n_manifold_dims orthonormal tangent vectors
+        as columns
+
+    Algorithm:
+        Uses Gram-Schmidt to construct orthonormal basis from arbitrary starting vectors.
+    """
+    n_points, n_spatial_dims = normals.shape
+    device = normals.device
+    dtype = normals.dtype
+
+    ### Start with arbitrary vectors not parallel to normals
+    # Use standard basis vector least aligned with normal
+    # For each point, choose e_i where |normal · e_i| is smallest
+    standard_basis = torch.eye(
+        n_spatial_dims, device=device, dtype=dtype
+    )  # (n_spatial_dims, n_spatial_dims)
+
+    # Compute |normal · e_i| for all i: (n_points, n_spatial_dims)
+    alignment = torch.abs(normals @ standard_basis)  # (n_points, n_spatial_dims)
+
+    # Choose least-aligned basis vector for each point
+    least_aligned_idx = torch.argmin(alignment, dim=-1)  # (n_points,)
+    v1 = standard_basis[least_aligned_idx]  # (n_points, n_spatial_dims)
+
+    ### Project v1 onto tangent plane: v1 = v1 - (v1·n)n
+    v1_dot_n = (v1 * normals).sum(dim=-1, keepdim=True)  # (n_points, 1)
+    v1 = v1 - v1_dot_n * normals  # (n_points, n_spatial_dims)
+    v1 = v1 / torch.norm(v1, dim=-1, keepdim=True).clamp(min=1e-10)
+
+    if n_manifold_dims == 1:
+        # 1D manifold (curves): single tangent vector
+        return v1.unsqueeze(-1)  # (n_points, n_spatial_dims, 1)
+
+    elif n_manifold_dims == 2:
+        # 2D manifold (surfaces): two tangent vectors
+        # Second tangent vector: v2 = n × v1
+        if n_spatial_dims == 3:
+            v2 = torch.linalg.cross(normals, v1)  # (n_points, 3)
+            v2 = v2 / torch.norm(v2, dim=-1, keepdim=True).clamp(min=1e-10)
+            return torch.stack([v1, v2], dim=-1)  # (n_points, 3, 2)
+        else:
+            raise ValueError(
+                f"2D manifolds require 3D ambient space, got {n_spatial_dims=}"
+            )
+
+    else:
+        raise NotImplementedError(
+            f"Tangent basis construction for {n_manifold_dims=} not implemented"
+        )

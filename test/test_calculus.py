@@ -544,16 +544,8 @@ class TestManifolds:
         grad_intrinsic = mesh_grad.point_data["test_field_gradient_intrinsic"]
         grad_extrinsic = mesh_grad.point_data["test_field_gradient_extrinsic"]
 
-        # Get normals at points (average of adjacent cell normals)
-        adjacency = mesh.get_point_to_cells_adjacency()
-        neighbor_lists = adjacency.to_list()
-        cell_normals = mesh.cell_normals
-
-        point_normals = torch.zeros_like(mesh.points)
-        for i in range(mesh.n_points):
-            if len(neighbor_lists[i]) > 0:
-                point_normals[i] = cell_normals[neighbor_lists[i]].mean(dim=0)
-                point_normals[i] /= torch.norm(point_normals[i]).clamp(min=1e-10)
+        # Get normals at points (use mesh's area-weighted normals)
+        point_normals = mesh.point_normals
 
         # Intrinsic gradient should be orthogonal to normal
         dot_products = (grad_intrinsic * point_normals).sum(dim=-1)
