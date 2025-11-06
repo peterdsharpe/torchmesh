@@ -22,15 +22,17 @@ def extract_unique_edges(mesh: "Mesh") -> tuple[torch.Tensor, torch.Tensor]:
         mesh: Input mesh to extract edges from.
         
     Returns:
-        Tuple of (unique_edges, edge_to_parent_cells):
+        Tuple of (unique_edges, inverse_indices):
         - unique_edges: Unique edge vertex indices, shape (n_edges, 2), sorted
-        - edge_to_parent_cells: Mapping from edge index to list of parent cell indices
-          (stored as inverse indices from candidate edges)
+        - inverse_indices: Mapping from candidate edges to unique edge indices,
+          shape (n_candidate_edges,). For n-manifolds with n > 1, this has shape
+          (n_cells * n_edges_per_cell,), allowing reshaping to (n_cells, n_edges_per_cell).
     
     Example:
         >>> edges, inverse = extract_unique_edges(triangle_mesh)
         >>> # edges[i] contains the two vertex indices for edge i
-        >>> # inverse maps candidate edges to unique edge indices
+        >>> # inverse[j] gives the unique edge index for candidate edge j
+        >>> # For triangles: inverse can be reshaped to (n_cells, 3)
     """
     ### Special case: 1D manifolds (edges)
     # For 1D meshes, the cells ARE edges, so we just return them directly
@@ -152,109 +154,81 @@ def get_subdivision_pattern(n_manifold_dims: int) -> torch.Tensor:
 def generate_child_cells(
     parent_cells: torch.Tensor,
     unique_edges: torch.Tensor,
+    edge_inverse: torch.Tensor,
     n_original_points: int,
     subdivision_pattern: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Generate child cells from parent cells using subdivision pattern.
     
+    This implementation is fully vectorized using torch operations, avoiding Python loops
+    and GPU-CPU transfers for optimal performance on both CPU and GPU.
+    
     Args:
         parent_cells: Parent cell connectivity, shape (n_parent_cells, n_vertices_per_cell)
         unique_edges: Unique edge vertex indices, shape (n_edges, 2)
+        edge_inverse: Mapping from candidate edges to unique edge indices,
+            shape (n_parent_cells * n_edges_per_cell,). This comes from torch.unique()
+            called in extract_unique_edges().
         n_original_points: Number of points in original mesh (before adding edge midpoints)
-        subdivision_pattern: Pattern from get_subdivision_pattern(), shape (n_children_per_parent, n_vertices_per_child)
+        subdivision_pattern: Pattern from get_subdivision_pattern(), 
+            shape (n_children_per_parent, n_vertices_per_child)
         
     Returns:
         Tuple of (child_cells, parent_indices):
-        - child_cells: Child cell connectivity, shape (n_parent_cells * n_children_per_parent, n_vertices_per_child)
-        - parent_indices: Parent cell index for each child, shape (n_parent_cells * n_children_per_parent,)
+        - child_cells: Child cell connectivity, 
+          shape (n_parent_cells * n_children_per_parent, n_vertices_per_child)
+        - parent_indices: Parent cell index for each child, 
+          shape (n_parent_cells * n_children_per_parent,)
     
     Algorithm:
-        For each parent cell:
-        1. Build local vertex indexing: [original_vertices, edge_midpoint_indices]
-        2. Map edge midpoints to their global point indices (n_original_points + edge_index)
-        3. Apply subdivision pattern to generate children
-        4. Translate local indices to global point indices
+        1. Reshape edge_inverse to (n_parent_cells, n_edges_per_cell) for per-cell lookup
+        2. Build local_to_global mapping for ALL cells at once via concatenation
+        3. Apply subdivision pattern using torch.gather to generate all children
+        4. No Python loops, no GPU-CPU transfers - fully vectorized
     """
     n_parent_cells, n_vertices_per_cell = parent_cells.shape
     n_children_per_parent = subdivision_pattern.shape[0]
-    n_total_children = n_parent_cells * n_children_per_parent
     device = parent_cells.device
     
-    ### Build edge-to-index lookup for fast access
-    # Create a mapping from sorted edge tuple to edge index
-    # Edge i gets point index: n_original_points + i
-    edge_to_idx = {}
-    for edge_idx in range(len(unique_edges)):
-        edge = unique_edges[edge_idx]
-        # Edges are already sorted by extract_candidate_facets
-        edge_tuple = (int(edge[0]), int(edge[1]))
-        edge_to_idx[edge_tuple] = edge_idx
+    ### Compute number of edges per cell
+    # For n-simplex: C(n+1, 2) = (n+1) * n / 2
+    n_edges_per_cell = (n_vertices_per_cell * (n_vertices_per_cell - 1)) // 2
     
-    ### Prepare output tensors
-    child_cells = torch.zeros(
-        (n_total_children, n_vertices_per_cell),
-        dtype=torch.int64,
-        device=device,
-    )
+    ### Reshape edge_inverse to per-cell mapping
+    # Shape: (n_parent_cells, n_edges_per_cell)
+    # edge_inverse_per_cell[i, j] = global edge index for j-th edge of cell i
+    edge_inverse_per_cell = edge_inverse.reshape(n_parent_cells, n_edges_per_cell)
+    
+    ### Build local_to_global mapping for ALL cells at once
+    # Shape: (n_parent_cells, n_vertices_per_cell + n_edges_per_cell)
+    # First n_vertices_per_cell entries: original vertices of the cell
+    # Next n_edges_per_cell entries: global point indices of edge midpoints
+    local_to_global = torch.cat([
+        parent_cells,  # (n_parent_cells, n_vertices_per_cell)
+        n_original_points + edge_inverse_per_cell,  # (n_parent_cells, n_edges_per_cell)
+    ], dim=1)
+    
+    ### Apply subdivision pattern using torch.gather
+    # Expand pattern to match batch dimension: (1, n_children, n_vertices) → (n_cells, n_children, n_vertices)
+    pattern_expanded = subdivision_pattern.unsqueeze(0).expand(n_parent_cells, -1, -1)
+    
+    # Gather indices from local_to_global according to pattern
+    # local_to_global: (n_cells, local_size)
+    # pattern_expanded: (n_cells, n_children, n_vertices)
+    # Result: (n_cells, n_children, n_vertices)
+    child_cells = torch.gather(
+        local_to_global.unsqueeze(1).expand(-1, n_children_per_parent, -1),
+        dim=2,
+        index=pattern_expanded,
+    ).reshape(n_parent_cells * n_children_per_parent, n_vertices_per_cell)
+    
+    ### Generate parent indices for each child
+    # Shape: (n_parent_cells * n_children_per_parent,)
     parent_indices = torch.arange(
         n_parent_cells,
         dtype=torch.int64,
         device=device,
     ).repeat_interleave(n_children_per_parent)
-    
-    ### Generate all edges for each parent cell
-    from torchmesh.kernels.facet_extraction import _generate_combination_indices
-    
-    # Get all edge combinations for this simplex type
-    edge_combinations = _generate_combination_indices(
-        n_vertices_per_cell, 2
-    ).to(device)
-    n_edges_per_cell = len(edge_combinations)
-    
-    ### Process each parent cell
-    for cell_idx in range(n_parent_cells):
-        cell_vertices = parent_cells[cell_idx]  # (n_vertices_per_cell,)
-        
-        ### Build local-to-global mapping
-        # First n_vertices_per_cell entries: original vertices
-        # Next n_edges_per_cell entries: edge midpoints
-        local_to_global = torch.zeros(
-            n_vertices_per_cell + n_edges_per_cell,
-            dtype=torch.int64,
-            device=device,
-        )
-        
-        # Original vertices
-        local_to_global[:n_vertices_per_cell] = cell_vertices
-        
-        # Edge midpoints
-        for local_edge_idx in range(n_edges_per_cell):
-            # Get the two vertices forming this edge (local indices)
-            edge_local_verts = edge_combinations[local_edge_idx]
-            
-            # Get global vertex indices for this edge
-            v0 = int(cell_vertices[edge_local_verts[0]])
-            v1 = int(cell_vertices[edge_local_verts[1]])
-            
-            # Sort to match unique_edges format
-            edge_tuple = (min(v0, v1), max(v0, v1))
-            
-            # Look up edge index and compute midpoint's global index
-            edge_idx = edge_to_idx[edge_tuple]
-            midpoint_global_idx = n_original_points + edge_idx
-            
-            # Store in local mapping
-            local_to_global[n_vertices_per_cell + local_edge_idx] = midpoint_global_idx
-        
-        ### Generate children for this parent
-        child_start_idx = cell_idx * n_children_per_parent
-        
-        for child_local_idx in range(n_children_per_parent):
-            # Get pattern for this child (local indices)
-            pattern_indices = subdivision_pattern[child_local_idx]
-            
-            # Translate to global indices
-            child_cells[child_start_idx + child_local_idx] = local_to_global[pattern_indices]
     
     return child_cells, parent_indices
 

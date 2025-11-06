@@ -187,7 +187,7 @@ def subdivide_butterfly(mesh: "Mesh") -> "Mesh":
         return mesh
     
     ### Extract unique edges
-    unique_edges, _ = extract_unique_edges(mesh)
+    unique_edges, edge_inverse = extract_unique_edges(mesh)
     n_edges = len(unique_edges)
     n_original_points = mesh.n_points
     
@@ -216,6 +216,7 @@ def subdivide_butterfly(mesh: "Mesh") -> "Mesh":
     child_cells, parent_indices = generate_child_cells(
         parent_cells=mesh.cells,
         unique_edges=unique_edges,
+        edge_inverse=edge_inverse,
         n_original_points=n_original_points,
         subdivision_pattern=subdivision_pattern,
     )
