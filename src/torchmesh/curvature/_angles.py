@@ -132,28 +132,28 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
 
         ### Group points by number of incident edges
         neighbor_counts = adjacency.offsets[1:] - adjacency.offsets[:-1]  # (n_points,)
-        
+
         ### Handle most common case: exactly 2 incident edges (vectorized)
         two_edge_mask = neighbor_counts == 2
         two_edge_indices = torch.where(two_edge_mask)[0]  # (n_two_edge,)
-        
+
         if len(two_edge_indices) > 0:
             # Extract the two incident edges for each vertex
             offsets_two_edge = adjacency.offsets[two_edge_indices]  # (n_two_edge,)
             edge0_cells = adjacency.indices[offsets_two_edge]  # (n_two_edge,)
             edge1_cells = adjacency.indices[offsets_two_edge + 1]  # (n_two_edge,)
-            
+
             # Get edge vertices: (n_two_edge, 2)
             edge0_verts = mesh.cells[edge0_cells]
             edge1_verts = mesh.cells[edge1_cells]
-            
+
             # Determine incoming/outgoing edges
             # Incoming: point_idx is at position 1 (edge = [prev, point_idx])
             # Outgoing: point_idx is at position 0 (edge = [point_idx, next])
-            
+
             # Check if point is at position 1 of edge0
             edge0_is_incoming = edge0_verts[:, 1] == two_edge_indices  # (n_two_edge,)
-            
+
             # Select prev/next vertices based on edge configuration
             # If edge0 is incoming: prev=edge0[0], next=edge1[1]
             # If edge1 is incoming: prev=edge1[0], next=edge0[1]
@@ -167,72 +167,83 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
                 edge1_verts[:, 1],
                 edge0_verts[:, 1],
             )  # (n_two_edge,)
-            
+
             # Compute vectors
-            v_from_prev = mesh.points[two_edge_indices] - mesh.points[prev_vertex]  # (n_two_edge, n_spatial_dims)
-            v_to_next = mesh.points[next_vertex] - mesh.points[two_edge_indices]  # (n_two_edge, n_spatial_dims)
-            
+            v_from_prev = (
+                mesh.points[two_edge_indices] - mesh.points[prev_vertex]
+            )  # (n_two_edge, n_spatial_dims)
+            v_to_next = (
+                mesh.points[next_vertex] - mesh.points[two_edge_indices]
+            )  # (n_two_edge, n_spatial_dims)
+
             # Compute interior angles
             if mesh.n_spatial_dims == 2:
                 # 2D: Use signed angle with cross product
                 cross_z = (
-                    v_from_prev[:, 0] * v_to_next[:, 1] - v_from_prev[:, 1] * v_to_next[:, 0]
+                    v_from_prev[:, 0] * v_to_next[:, 1]
+                    - v_from_prev[:, 1] * v_to_next[:, 0]
                 )  # (n_two_edge,)
                 dot = (v_from_prev * v_to_next).sum(dim=-1)  # (n_two_edge,)
-                
+
                 # Signed angle in range [-π, π]
                 signed_angle = torch.atan2(cross_z, dot)
-                
+
                 # Interior angle: π - signed_angle
                 interior_angles = math.pi - signed_angle
             else:
                 # Higher dimensions: Use unsigned angle
                 interior_angles = stable_angle_between_vectors(v_from_prev, v_to_next)
-            
+
             # Assign angles to vertices
             angle_sums[two_edge_indices] = interior_angles
-        
+
         ### Handle vertices with >2 edges (junctions) - rare, so small loop acceptable
         # Note: This case is uncommon (junction points in 1D meshes)
         # Full vectorization is complex due to variable edge counts
         multi_edge_mask = neighbor_counts > 2
         multi_edge_indices = torch.where(multi_edge_mask)[0]
-        
+
         for point_idx_tensor in multi_edge_indices:
             point_idx = int(point_idx_tensor)
             offset_start = int(adjacency.offsets[point_idx])
             offset_end = int(adjacency.offsets[point_idx + 1])
             incident_cells = adjacency.indices[offset_start:offset_end]
             n_incident = len(incident_cells)
-            
+
             # Get all incident edge vertices
             edge_verts = mesh.cells[incident_cells]  # (n_incident, 2)
-            
+
             # Find the "other" vertex in each edge (not point_idx)
             # Create mask for vertices that equal point_idx
             is_point = edge_verts == point_idx
-            other_indices = torch.where(~is_point, edge_verts, torch.tensor(-1, device=edge_verts.device))
+            other_indices = torch.where(
+                ~is_point, edge_verts, torch.tensor(-1, device=edge_verts.device)
+            )
             other_vertices = other_indices.max(dim=1).values  # (n_incident,)
-            
+
             # Compute vectors from point to all neighbors
-            vectors = mesh.points[other_vertices] - mesh.points[point_idx]  # (n_incident, n_spatial_dims)
-            
+            vectors = (
+                mesh.points[other_vertices] - mesh.points[point_idx]
+            )  # (n_incident, n_spatial_dims)
+
             # Compute all pairwise angles using broadcasting
             # Expand vectors for pairwise computation
             v_i = vectors.unsqueeze(1)  # (n_incident, 1, n_spatial_dims)
             v_j = vectors.unsqueeze(0)  # (1, n_incident, n_spatial_dims)
-            
+
             # Compute pairwise angles for all combinations
             # We only need upper triangle (i < j)
             pairwise_angles = stable_angle_between_vectors(
                 v_i.expand(-1, n_incident, -1).reshape(-1, mesh.n_spatial_dims),
                 v_j.expand(n_incident, -1, -1).reshape(-1, mesh.n_spatial_dims),
             ).reshape(n_incident, n_incident)
-            
+
             # Sum only upper triangle (i < j) to avoid double-counting
-            triu_indices = torch.triu_indices(n_incident, n_incident, offset=1, device=device)
+            triu_indices = torch.triu_indices(
+                n_incident, n_incident, offset=1, device=device
+            )
             angle_sum = pairwise_angles[triu_indices[0], triu_indices[1]].sum()
-            
+
             angle_sums[point_idx] = angle_sum
 
     elif n_manifold_dims == 2:
@@ -286,10 +297,10 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
         # Vertex 1: opposite vertices are [0, 2, 3]
         # Vertex 2: opposite vertices are [0, 1, 3]
         # Vertex 3: opposite vertices are [0, 1, 2]
-        
+
         # Stack all apex vertices: (n_cells, 4, n_spatial_dims)
         all_apexes = cell_vertices  # (n_cells, 4, n_spatial_dims)
-        
+
         # Stack all opposite triangles: (n_cells, 4, 3, n_spatial_dims)
         # For each of 4 vertices, select the 3 opposite vertices
         # Opposite vertices of vertex i are all vertices except i
@@ -298,23 +309,27 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
             device=mesh.cells.device,
             dtype=torch.long,
         )  # (4, 3)
-        
+
         # Gather opposite vertices: (n_cells, 4, 3, n_spatial_dims)
         all_opposites = torch.gather(
-            cell_vertices.unsqueeze(1).expand(-1, 4, -1, -1),  # (n_cells, 4, 4, n_spatial_dims)
+            cell_vertices.unsqueeze(1).expand(
+                -1, 4, -1, -1
+            ),  # (n_cells, 4, 4, n_spatial_dims)
             dim=2,
-            index=opposite_vertex_indices.unsqueeze(0).unsqueeze(-1).expand(
-                n_cells, -1, -1, mesh.n_spatial_dims
-            ),
+            index=opposite_vertex_indices.unsqueeze(0)
+            .unsqueeze(-1)
+            .expand(n_cells, -1, -1, mesh.n_spatial_dims),
         )  # (n_cells, 4, 3, n_spatial_dims)
-        
+
         # Reshape for batch computation
         apexes_flat = all_apexes.reshape(n_cells * 4, mesh.n_spatial_dims)
         opposites_flat = all_opposites.reshape(n_cells * 4, 3, mesh.n_spatial_dims)
-        
+
         # Compute all solid angles at once
-        solid_angles_flat = compute_solid_angle_at_tet_vertex(apexes_flat, opposites_flat)
-        
+        solid_angles_flat = compute_solid_angle_at_tet_vertex(
+            apexes_flat, opposites_flat
+        )
+
         # Scatter all angles to vertices in one operation
         # Flatten vertex indices and solid angles together
         vertex_indices_flat = mesh.cells.reshape(-1)  # (n_cells * 4,)

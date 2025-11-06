@@ -61,13 +61,13 @@ def compute_divergence_points_dec(
     ### Vectorized edge contributions
     v0_indices = sorted_edges[:, 0]  # (n_edges,)
     v1_indices = sorted_edges[:, 1]  # (n_edges,)
-    
+
     # Vector field at edges (average of endpoints): (n_edges, n_spatial_dims)
     v_edge = (vector_field[v0_indices] + vector_field[v1_indices]) / 2
-    
+
     # Flux through all edges: v·edge_direction (n_edges,)
     flux = (v_edge * edge_unit).sum(dim=-1)
-    
+
     # Scatter-add contributions with appropriate signs
     # v0: positive flux (outward)
     # v1: negative flux (inward)

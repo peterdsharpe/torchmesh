@@ -90,17 +90,17 @@ def sharp(
     ### Vectorized contribution to both endpoints
     v0_indices = edges[:, 0]  # (n_edges,)
     v1_indices = edges[:, 1]  # (n_edges,)
-    
+
     # Compute weights for all edges
     weights_v0 = 0.5 / dual_volumes_0[v0_indices].clamp(min=1e-10)  # (n_edges,)
     weights_v1 = 0.5 / dual_volumes_0[v1_indices].clamp(min=1e-10)  # (n_edges,)
-    
+
     if edge_1form.ndim == 1:
         # Scalar 1-form: compute contributions for all edges
         # (n_edges,) * (n_edges, n_spatial_dims) -> (n_edges, n_spatial_dims)
         contrib_v0 = weights_v0.unsqueeze(-1) * edge_1form.unsqueeze(-1) * edge_unit
         contrib_v1 = weights_v1.unsqueeze(-1) * edge_1form.unsqueeze(-1) * edge_unit
-        
+
         # Scatter-add contributions to vertices
         vector_field.scatter_add_(
             0,
@@ -116,22 +116,32 @@ def sharp(
         # Tensor 1-form: (n_edges, features...)
         # edge_dir.unsqueeze(-1): (n_edges, n_spatial_dims, 1)
         # form_value: (n_edges, features...)
-        contrib_base = edge_1form.unsqueeze(1) * edge_unit.unsqueeze(-1)  # (n_edges, n_spatial_dims, features...)
-        contrib_v0 = weights_v0.view(-1, *([1] * (contrib_base.ndim - 1))) * contrib_base
-        contrib_v1 = weights_v1.view(-1, *([1] * (contrib_base.ndim - 1))) * contrib_base
-        
+        contrib_base = edge_1form.unsqueeze(1) * edge_unit.unsqueeze(
+            -1
+        )  # (n_edges, n_spatial_dims, features...)
+        contrib_v0 = (
+            weights_v0.view(-1, *([1] * (contrib_base.ndim - 1))) * contrib_base
+        )
+        contrib_v1 = (
+            weights_v1.view(-1, *([1] * (contrib_base.ndim - 1))) * contrib_base
+        )
+
         # Flatten spatial and feature dims for scatter
         n_features = contrib_base.shape[2:]
         contrib_v0_flat = contrib_v0.reshape(n_edges, -1)
         contrib_v1_flat = contrib_v1.reshape(n_edges, -1)
-        
+
         vector_field_flat = vector_field.reshape(n_points, -1)
-        v0_indices_expanded = v0_indices.unsqueeze(-1).expand(-1, contrib_v0_flat.shape[1])
-        v1_indices_expanded = v1_indices.unsqueeze(-1).expand(-1, contrib_v1_flat.shape[1])
-        
+        v0_indices_expanded = v0_indices.unsqueeze(-1).expand(
+            -1, contrib_v0_flat.shape[1]
+        )
+        v1_indices_expanded = v1_indices.unsqueeze(-1).expand(
+            -1, contrib_v1_flat.shape[1]
+        )
+
         vector_field_flat.scatter_add_(0, v0_indices_expanded, contrib_v0_flat)
         vector_field_flat.scatter_add_(0, v1_indices_expanded, contrib_v1_flat)
-        
+
         vector_field = vector_field_flat.reshape(vector_field.shape)
 
     return vector_field

@@ -37,7 +37,7 @@ def compute_point_gradient_lsq_intrinsic(
         2. Project neighbor positions onto tangent space
         3. Solve LSQ in tangent space (reduced dimension)
         4. Express result as vector in ambient space
-        
+
     Implementation:
         Fully vectorized using batched operations. Groups points by neighbor count
         and processes each group in parallel.
@@ -104,9 +104,7 @@ def compute_point_gradient_lsq_intrinsic(
             offsets_group = adjacency.offsets[point_indices]  # (n_group,)
             neighbor_idx_ranges = offsets_group.unsqueeze(1) + torch.arange(
                 n_neighbors, device=device
-            ).unsqueeze(
-                0
-            )  # (n_group, n_neighbors)
+            ).unsqueeze(0)  # (n_group, n_neighbors)
             neighbors_flat = adjacency.indices[
                 neighbor_idx_ranges
             ]  # (n_group, n_neighbors)
@@ -129,19 +127,17 @@ def compute_point_gradient_lsq_intrinsic(
             # For each group element: A_ambient[i, :, :] @ tangent_basis[i, :, :]
             # (n_group, n_neighbors, n_spatial_dims) @ (n_group, n_spatial_dims, n_manifold_dims)
             # = (n_group, n_neighbors, n_manifold_dims)
-            A_tangent = torch.einsum(
-                "gns,gsm->gnm", A_ambient, tangent_basis
-            )
+            A_tangent = torch.einsum("gns,gsm->gnm", A_ambient, tangent_basis)
 
             # Function differences
             if is_scalar:
-                b = point_values[neighbors_flat] - point_values[point_indices].unsqueeze(
-                    1
-                )  # (n_group, n_neighbors)
+                b = point_values[neighbors_flat] - point_values[
+                    point_indices
+                ].unsqueeze(1)  # (n_group, n_neighbors)
             else:
-                b = point_values[neighbors_flat] - point_values[point_indices].unsqueeze(
-                    1
-                )  # (n_group, n_neighbors, ...)
+                b = point_values[neighbors_flat] - point_values[
+                    point_indices
+                ].unsqueeze(1)  # (n_group, n_neighbors, ...)
 
             ### Compute weights (based on ambient distances)
             distances = torch.norm(A_ambient, dim=-1)  # (n_group, n_neighbors)
@@ -149,7 +145,9 @@ def compute_point_gradient_lsq_intrinsic(
 
             ### Apply weights to tangent-space system
             sqrt_w = weights.sqrt().unsqueeze(-1)  # (n_group, n_neighbors, 1)
-            A_tangent_weighted = sqrt_w * A_tangent  # (n_group, n_neighbors, n_manifold_dims)
+            A_tangent_weighted = (
+                sqrt_w * A_tangent
+            )  # (n_group, n_neighbors, n_manifold_dims)
 
             ### Solve batched least-squares in tangent space
             try:
@@ -160,9 +158,7 @@ def compute_point_gradient_lsq_intrinsic(
                         A_tangent_weighted,  # (n_group, n_neighbors, n_manifold_dims)
                         b_weighted.unsqueeze(-1),  # (n_group, n_neighbors, 1)
                         rcond=None,
-                    ).solution.squeeze(
-                        -1
-                    )  # (n_group, n_manifold_dims)
+                    ).solution.squeeze(-1)  # (n_group, n_manifold_dims)
 
                     # Convert back to ambient coordinates
                     # grad_ambient = tangent_basis @ grad_tangent

@@ -242,7 +242,9 @@ class BVH:
         ### Initialize work queue with (query_idx, node_idx) pairs
         # All queries start at the root node (index 0)
         current_query_indices = torch.arange(n_queries, device=self.device)
-        current_node_indices = torch.zeros(n_queries, dtype=torch.long, device=self.device)
+        current_node_indices = torch.zeros(
+            n_queries, dtype=torch.long, device=self.device
+        )
 
         ### Track how many candidates we've found per query
         candidates_count = torch.zeros(n_queries, dtype=torch.long, device=self.device)
@@ -254,9 +256,15 @@ class BVH:
         ### Iterative traversal processing all active (query, node) pairs in parallel
         while len(current_query_indices) > 0:
             ### Vectorized AABB intersection test for all active pairs
-            batch_query_points = query_points[current_query_indices]  # (n_active, n_spatial_dims)
-            batch_aabb_min = self.node_aabb_min[current_node_indices]  # (n_active, n_spatial_dims)
-            batch_aabb_max = self.node_aabb_max[current_node_indices]  # (n_active, n_spatial_dims)
+            batch_query_points = query_points[
+                current_query_indices
+            ]  # (n_active, n_spatial_dims)
+            batch_aabb_min = self.node_aabb_min[
+                current_node_indices
+            ]  # (n_active, n_spatial_dims)
+            batch_aabb_max = self.node_aabb_max[
+                current_node_indices
+            ]  # (n_active, n_spatial_dims)
 
             # Check containment with tolerance for all pairs simultaneously
             inside = (
@@ -296,7 +304,9 @@ class BVH:
             internal_node_indices = intersecting_node_indices[~is_leaf]
 
             # Filter out queries that have already reached max_candidates
-            under_limit = candidates_count[internal_query_indices] < max_candidates_per_point
+            under_limit = (
+                candidates_count[internal_query_indices] < max_candidates_per_point
+            )
             internal_query_indices = internal_query_indices[under_limit]
             internal_node_indices = internal_node_indices[under_limit]
 
@@ -319,8 +329,12 @@ class BVH:
 
             # Combine for next iteration
             if len(left_query_indices) > 0 or len(right_query_indices) > 0:
-                current_query_indices = torch.cat([left_query_indices, right_query_indices])
-                current_node_indices = torch.cat([left_node_indices, right_node_indices])
+                current_query_indices = torch.cat(
+                    [left_query_indices, right_query_indices]
+                )
+                current_node_indices = torch.cat(
+                    [left_node_indices, right_node_indices]
+                )
             else:
                 break
 

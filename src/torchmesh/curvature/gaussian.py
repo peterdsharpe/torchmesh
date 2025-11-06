@@ -168,12 +168,14 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
 
         ### Extract vectors for these cells using vectorized indexing
         # Shape: (n_cells_val, val, n_spatial_dims)
-        
+
         # Build gather indices vectorized: broadcast offsets with arange
         # Shape: (n_cells_val, val)
         start_indices = adjacency.offsets[cells_with_valence]  # (n_cells_val,)
         offset_range = torch.arange(val, device=device)  # (val,)
-        gather_indices = start_indices.unsqueeze(1) + offset_range.unsqueeze(0)  # (n_cells_val, val)
+        gather_indices = start_indices.unsqueeze(1) + offset_range.unsqueeze(
+            0
+        )  # (n_cells_val, val)
 
         # Gather vectors
         # Shape: (n_cells_val, val, n_spatial_dims)

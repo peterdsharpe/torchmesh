@@ -83,14 +83,18 @@ def compute_laplacian_points_dec(
     ### Vectorized edge contributions using scatter_add
     v0_indices = sorted_edges[:, 0]  # (n_edges,)
     v1_indices = sorted_edges[:, 1]  # (n_edges,)
-    
+
     if point_values.ndim == 1:
         # Scalar case: (n_edges,) weights
         # Contribution to v0: weight × (f(v1) - f(v0))
-        contrib_v0 = cotan_weights * (point_values[v1_indices] - point_values[v0_indices])
+        contrib_v0 = cotan_weights * (
+            point_values[v1_indices] - point_values[v0_indices]
+        )
         # Contribution to v1: weight × (f(v0) - f(v1))
-        contrib_v1 = cotan_weights * (point_values[v0_indices] - point_values[v1_indices])
-        
+        contrib_v1 = cotan_weights * (
+            point_values[v0_indices] - point_values[v1_indices]
+        )
+
         laplacian.scatter_add_(0, v0_indices, contrib_v0)
         laplacian.scatter_add_(0, v1_indices, contrib_v1)
     else:
@@ -101,18 +105,18 @@ def compute_laplacian_points_dec(
         contrib_v1 = cotan_weights.view(-1, *([1] * (point_values.ndim - 1))) * (
             point_values[v0_indices] - point_values[v1_indices]
         )
-        
+
         # Flatten for scatter_add
         laplacian_flat = laplacian.reshape(n_points, -1)
         contrib_v0_flat = contrib_v0.reshape(len(sorted_edges), -1)
         contrib_v1_flat = contrib_v1.reshape(len(sorted_edges), -1)
-        
+
         v0_expanded = v0_indices.unsqueeze(-1).expand(-1, contrib_v0_flat.shape[1])
         v1_expanded = v1_indices.unsqueeze(-1).expand(-1, contrib_v1_flat.shape[1])
-        
+
         laplacian_flat.scatter_add_(0, v0_expanded, contrib_v0_flat)
         laplacian_flat.scatter_add_(0, v1_expanded, contrib_v1_flat)
-        
+
         laplacian = laplacian_flat.reshape(laplacian.shape)
 
     ### Normalize by Voronoi areas

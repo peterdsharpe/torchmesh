@@ -190,10 +190,14 @@ def exterior_derivative_1(
     orientations = torch.where(
         boundary_edges_flat[:, 0] < boundary_edges_flat[:, 1],
         torch.ones(
-            boundary_edges_flat.shape[0], dtype=edge_1form.dtype, device=edge_1form.device
+            boundary_edges_flat.shape[0],
+            dtype=edge_1form.dtype,
+            device=edge_1form.device,
         ),
         -torch.ones(
-            boundary_edges_flat.shape[0], dtype=edge_1form.dtype, device=edge_1form.device
+            boundary_edges_flat.shape[0],
+            dtype=edge_1form.dtype,
+            device=edge_1form.device,
         ),
     )  # (n_faces*3,)
 

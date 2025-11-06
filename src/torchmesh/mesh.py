@@ -904,7 +904,7 @@ class Mesh:
             batch_size=self.point_data.batch_size,
             device=self.point_data.device,
         )
-        
+
         return Mesh(
             points=self.points,  # Share the same points
             cells=facet_cells,  # New connectivity for sub-simplices

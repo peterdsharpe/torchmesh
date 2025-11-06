@@ -64,7 +64,6 @@ def draw_mesh_matplotlib(
     ### Create figure and axes if not provided
     if ax is None:
         if mesh.n_spatial_dims == 3:
-
             fig = plt.figure(figsize=(8, 8))
             ax = fig.add_subplot(111, projection="3d")
         else:
