@@ -38,6 +38,13 @@ class TestCacheIsolation:
         triangle_normals = mesh.point_normals
         assert "_normals" in mesh.point_data
         assert mesh.codimension == 1  # Valid for normals
+        
+        # Verify normals were correctly computed (should point in +z direction for this mesh)
+        assert triangle_normals.shape == (4, 3), "Point normals should have shape (n_points, 3)"
+        assert torch.all(torch.isfinite(triangle_normals)), "Normals should be finite"
+        # All normals should be unit vectors
+        norms = torch.norm(triangle_normals, dim=-1)
+        assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5), "Normals should be unit vectors"
 
         # Extract edge mesh (codimension-2, normals are NOT valid)
         edge_mesh = mesh.get_facet_mesh(manifold_codimension=1)

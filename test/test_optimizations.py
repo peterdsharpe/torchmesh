@@ -503,8 +503,6 @@ class TestOptimizationsParametrized:
     @pytest.mark.parametrize("n_manifold_dims", [2, 3])
     def test_cell_areas_computation_parametrized(self, n_manifold_dims, device):
         """Test cell area computation across backends."""
-        n_spatial_dims = 3
-
         if n_manifold_dims == 2:
             points = torch.tensor(
                 [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
@@ -536,11 +534,9 @@ class TestOptimizationsParametrized:
     def test_cell_normals_computation_parametrized(self, n_manifold_dims, device):
         """Test cell normals computation across backends (codimension-1 only)."""
         if n_manifold_dims == 1:
-            n_spatial_dims = 2
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
             cells = torch.tensor([[0, 1]], device=device, dtype=torch.int64)
         else:
-            n_spatial_dims = 3
             points = torch.tensor(
                 [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
                 device=device,

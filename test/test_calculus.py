@@ -553,6 +553,16 @@ class TestManifolds:
         assert dot_products.abs().max() < 1e-2, (
             f"Intrinsic gradient not orthogonal to normal: max dot product = {dot_products.abs().max():.6f}"
         )
+        
+        # Extrinsic gradient may differ from intrinsic gradient
+        # Verify that extrinsic gradient has been computed (is finite)
+        assert torch.all(torch.isfinite(grad_extrinsic)), (
+            "Extrinsic gradient should be finite"
+        )
+        # Both gradients should have same shape
+        assert grad_intrinsic.shape == grad_extrinsic.shape, (
+            "Intrinsic and extrinsic gradients should have same shape"
+        )
 
 
 class TestCalculusIdentities:
@@ -576,6 +586,9 @@ class TestCalculusIdentities:
         curl_grad = compute_curl_points_lsq(mesh_grad, grad_phi)
 
         # Should be zero (curl of conservative field)
+        # Verify curl was computed successfully (is finite)
+        assert torch.all(torch.isfinite(curl_grad)), "Curl should be finite"
+        
         # For LINEAR potential, curl of gradient should be near-exact zero
         # Use phi = x + y for exact test
         phi_linear = mesh.points[:, 0] + mesh.points[:, 1]

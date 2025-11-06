@@ -447,8 +447,8 @@ class TestTransform:
         n_manifold_dims = n_spatial_dims - 1
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
 
-        I = torch.eye(n_spatial_dims, device=device)
-        transformed = transform(mesh, I)
+        identity_matrix = torch.eye(n_spatial_dims, device=device)
+        transformed = transform(mesh, identity_matrix)
 
         assert torch.allclose(transformed.points, mesh.points)
 

@@ -348,6 +348,15 @@ class TestLoopSubdivision:
         # At least some original vertices should have moved
         # (unless they're on boundaries with special handling)
         assert subdivided.n_points > mesh.n_points
+        
+        # Check that original vertices were modified in the subdivided mesh
+        # The first n_original_points in the subdivided mesh are the repositioned originals
+        n_original = original_points.shape[0]
+        repositioned_points = subdivided.points[:n_original]
+        
+        # At least one vertex should have moved (Loop smoothing)
+        max_displacement = torch.max(torch.norm(repositioned_points - original_points, dim=-1))
+        assert max_displacement > 1e-6, "Loop subdivision should reposition at least some vertices"
 
     def test_loop_topology_same_as_linear(self, device):
         """Test that Loop has same connectivity pattern as linear."""

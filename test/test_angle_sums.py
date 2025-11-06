@@ -107,6 +107,10 @@ class TestClosedCurveAngleSums:
         # Just verify computation doesn't crash and gives reasonable values
         assert not torch.isnan(total_angle_noisy)
         assert total_angle_noisy > 0
+        
+        # For small noise, relative error should still be bounded
+        # (noise_level=0.01 should not completely destroy the geometric structure)
+        assert relative_error < 0.5, f"Relative error {relative_error:.3f} too large for small noise"
 
 
 ### Test 2D Manifolds (Closed Surfaces)

@@ -341,7 +341,9 @@ class TestMeanCurvature:
         # Just check that we're getting reasonable positive values
         # Exact match is difficult due to discretization
         assert mean_H > 0
-        assert mean_H < 3.0  # Should be < 3x expected value
+        assert mean_H < 3.0 * expected_H, f"Mean curvature {mean_H:.4f} too far from expected {expected_H:.4f}"
+        # Should be at least somewhat close to expected value
+        assert mean_H > 0.1 * expected_H, f"Mean curvature {mean_H:.4f} too small compared to expected {expected_H:.4f}"
 
     def test_mean_curvature_convergence(self, device):
         """Test that mean curvature is accurate across subdivision levels."""
@@ -552,6 +554,12 @@ class TestPrincipalCurvatures:
         expected_k = 1.0 / radius
 
         # Principal curvatures should be approximately equal to H
+        # Mean curvature should match expected value
+        mean_H = H.mean()
+        assert torch.abs(mean_H - expected_k) < 0.3 * expected_k, (
+            f"Mean curvature {mean_H:.4f} doesn't match expected principal curvature {expected_k:.4f}"
+        )
+        
         # (Verify K ≈ H² for sphere)
         K_from_H = H**2
         relative_error = (K - K_from_H).abs() / (K + 1e-10)
@@ -613,6 +621,16 @@ class TestCurvatureNumerical:
 
         assert K.mean() > 0
         assert H.mean() > 0
+        
+        # Verify curvatures are in the correct ballpark for small sphere
+        mean_K = K.mean()
+        mean_H = H.mean()
+        assert torch.abs(mean_K - expected_K) < 2.0 * expected_K, (
+            f"Gaussian curvature {mean_K:.2f} doesn't scale correctly (expected ~{expected_K:.2f})"
+        )
+        assert torch.abs(mean_H - expected_H) < 2.0 * expected_H, (
+            f"Mean curvature {mean_H:.2f} doesn't scale correctly (expected ~{expected_H:.2f})"
+        )
 
     def test_large_radius_sphere(self, device):
         """Test curvature on very large sphere."""
@@ -629,8 +647,17 @@ class TestCurvatureNumerical:
         # Should be small but non-zero
         assert torch.all(K > 0)
         assert torch.all(H > 0)
-        assert K.mean() < 0.01  # Small curvature
-        assert H.mean() < 0.1
+        
+        # Verify curvatures are correctly computed for large sphere
+        mean_K = K.mean()
+        mean_H = H.mean()
+        # For large sphere, curvatures should be small and match expected values
+        assert torch.abs(mean_K - expected_K) < 2.0 * expected_K, (
+            f"Gaussian curvature {mean_K:.6f} doesn't scale correctly (expected ~{expected_K:.6f})"
+        )
+        assert torch.abs(mean_H - expected_H) < 2.0 * expected_H, (
+            f"Mean curvature {mean_H:.6f} doesn't scale correctly (expected ~{expected_H:.6f})"
+        )
 
 
 ### Test Sign Conventions
