@@ -134,7 +134,6 @@ def compute_barycentric_coordinates_pairwise(
         >>> bary = compute_barycentric_coordinates_pairwise(query_points, cell_vertices)
         >>> bary.shape  # (1000, 3) instead of (1000, 1000, 3) from full version
     """
-    n_pairs = query_points.shape[0]
     n_vertices_per_cell = cell_vertices.shape[1]
     n_spatial_dims = query_points.shape[1]
     n_manifold_dims = n_vertices_per_cell - 1

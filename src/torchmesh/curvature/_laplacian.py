@@ -50,7 +50,6 @@ def compute_laplacian_at_points(mesh: "Mesh") -> torch.Tensor:
     device = mesh.points.device
     n_points = mesh.n_points
     n_spatial_dims = mesh.n_spatial_dims
-    n_manifold_dims = mesh.n_manifold_dims
 
     ### Initialize Laplacian result
     laplacian_coords = torch.zeros(
@@ -160,11 +159,6 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
 
         ### 2D triangles: Cotangent of opposite angles (fully vectorized)
         # For each edge, find adjacent triangles and compute opposite angles
-
-        ### Build mapping from candidate edges to unique edges
-        # Sort by edge index to group candidates
-        sort_idx = torch.argsort(inverse_indices)
-        sorted_parents = parent_cell_indices[sort_idx]
 
         ### For each candidate edge, get the triangle and compute cotangent
         # Shape: (n_candidates, 3)

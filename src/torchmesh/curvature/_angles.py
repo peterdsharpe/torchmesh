@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from torchmesh.curvature._utils import compute_triangle_angles
+from torchmesh.curvature._utils import compute_triangle_angles, stable_angle_between_vectors
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
@@ -342,7 +342,3 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
         )
 
     return angle_sums
-
-
-# Import here to avoid circular dependency
-from torchmesh.curvature._utils import stable_angle_between_vectors

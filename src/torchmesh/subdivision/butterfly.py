@@ -203,7 +203,6 @@ def subdivide_butterfly(mesh: "Mesh") -> "Mesh":
 
     ### Extract unique edges
     unique_edges, edge_inverse = extract_unique_edges(mesh)
-    n_edges = len(unique_edges)
     n_original_points = mesh.n_points
 
     ### Compute edge midpoints using butterfly weights

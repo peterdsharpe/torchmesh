@@ -70,7 +70,6 @@ def subdivide_linear(mesh: "Mesh") -> "Mesh":
 
     ### Extract unique edges from mesh
     unique_edges, edge_inverse = extract_unique_edges(mesh)
-    n_edges = len(unique_edges)
     n_original_points = mesh.n_points
 
     ### Compute edge midpoints

@@ -133,18 +133,12 @@ def codifferential(
         For divergence of a vector field (represented as 1-form on edges):
         >>> div_f = codifferential(mesh, k=0, edge_1form, edges=edges)
     """
-    n = mesh.n_manifold_dims
-    sign = (-1) ** (n * k + 1)
-
     if k == 0:
         ### δ: Ω¹ → Ω⁰ (divergence)
         # δ = -⋆₀ d₀ ⋆₁ (for n odd) or +⋆₀ d₀ ⋆₁ (for n even)
         edges = kwargs.get("edges")
         if edges is None:
             raise ValueError("Must provide 'edges' argument for k=0 codifferential")
-
-        # Step 1: Apply ⋆₁ to get dual (n-1)-form
-        dual_form = hodge_star_1(mesh, primal_kplus1_form, edges)
 
         # Step 2: Apply d₀ on dual mesh (this requires dual mesh structure)
         # For now, we'll implement this directly using the divergence formula

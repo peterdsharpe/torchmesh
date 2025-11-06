@@ -1,8 +1,11 @@
 """PyVista backend for mesh visualization."""
 
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 import torch
 import pyvista as pv
+
+if TYPE_CHECKING:
+    from torchmesh import Mesh
 
 
 def draw_mesh_pyvista(

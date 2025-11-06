@@ -1,12 +1,15 @@
 """Matplotlib backend for mesh visualization."""
 
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PolyCollection
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+
+if TYPE_CHECKING:
+    from torchmesh import Mesh
 
 
 def draw_mesh_matplotlib(

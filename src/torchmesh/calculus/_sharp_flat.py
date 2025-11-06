@@ -127,7 +127,6 @@ def sharp(
         )
 
         # Flatten spatial and feature dims for scatter
-        n_features = contrib_base.shape[2:]
         contrib_v0_flat = contrib_v0.reshape(n_edges, -1)
         contrib_v1_flat = contrib_v1.reshape(n_edges, -1)
 
@@ -178,8 +177,6 @@ def flat(
         3. Project onto edge direction
         4. Weight by geometric factors
     """
-    n_edges = len(edges)
-
     ### Get edge vectors
     edge_vectors = (
         mesh.points[edges[:, 1]] - mesh.points[edges[:, 0]]
