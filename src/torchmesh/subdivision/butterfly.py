@@ -65,78 +65,93 @@ def compute_butterfly_weights_2d(
         return_inverse=True,
     )
     
-    ### For each unique edge, find its adjacent cells
+    ### Count adjacent cells for each edge (vectorized)
+    # Shape: (n_edges,)
+    adjacent_counts = torch.bincount(inverse_indices, minlength=n_edges)
+    
+    ### Identify boundary vs interior edges
+    is_interior = adjacent_counts == 2
+    is_boundary = adjacent_counts != 2  # 0, 1, or >2
+    
+    ### Initialize edge midpoints
     edge_midpoints = torch.zeros(
         (n_edges, mesh.n_spatial_dims),
         dtype=mesh.points.dtype,
         device=device,
     )
     
-    for edge_idx in range(n_edges):
-        edge = unique_edges[edge_idx]  # (2,)
-        v0, v1 = int(edge[0]), int(edge[1])
+    ### Compute boundary edge positions (simple average) - vectorized
+    boundary_edges = unique_edges[is_boundary]
+    if len(boundary_edges) > 0:
+        v0_pos = mesh.points[boundary_edges[:, 0]]
+        v1_pos = mesh.points[boundary_edges[:, 1]]
+        edge_midpoints[is_boundary] = (v0_pos + v1_pos) / 2
+    
+    ### Compute interior edge positions (butterfly stencil) - vectorized
+    interior_edge_indices = torch.where(is_interior)[0]
+    n_interior = len(interior_edge_indices)
+    
+    if n_interior > 0:
+        ### For each interior edge, find its two adjacent cells
+        # Filter candidate edges to only those belonging to interior edges
+        is_interior_candidate = is_interior[inverse_indices]
+        interior_inverse = inverse_indices[is_interior_candidate]
+        interior_parents = parent_cell_indices[is_interior_candidate]
         
-        ### Find cells adjacent to this edge
-        # Find all candidate edges that map to this unique edge
-        adjacent_cell_mask = inverse_indices == edge_idx
-        adjacent_cells = parent_cell_indices[adjacent_cell_mask]
-        n_adjacent = len(adjacent_cells)
+        # Sort by edge index to group candidates belonging to same edge
+        sort_indices = torch.argsort(interior_inverse)
+        sorted_parents = interior_parents[sort_indices]
         
-        if n_adjacent == 0:
-            ### Isolated edge (shouldn't happen in valid mesh)
-            # Fall back to simple average
-            edge_midpoints[edge_idx] = (mesh.points[v0] + mesh.points[v1]) / 2
-            
-        elif n_adjacent == 1:
-            ### Boundary edge - use simple average
-            edge_midpoints[edge_idx] = (mesh.points[v0] + mesh.points[v1]) / 2
-            
-        elif n_adjacent == 2:
-            ### Interior edge - use butterfly stencil
-            # Get the two adjacent triangles
-            tri0 = mesh.cells[adjacent_cells[0]]  # (3,)
-            tri1 = mesh.cells[adjacent_cells[1]]  # (3,)
-            
-            # Find opposite vertices (not in edge)
-            tri0_verts = set(int(v) for v in tri0)
-            tri1_verts = set(int(v) for v in tri1)
-            edge_verts = {v0, v1}
-            
-            opposite0 = list(tri0_verts - edge_verts)
-            opposite1 = list(tri1_verts - edge_verts)
-            
-            if len(opposite0) != 1 or len(opposite1) != 1:
-                # Malformed triangle - fall back to average
-                edge_midpoints[edge_idx] = (mesh.points[v0] + mesh.points[v1]) / 2
-                continue
-                
-            opp0 = opposite0[0]
-            opp1 = opposite1[0]
-            
-            ### Standard butterfly weights for regular case
-            # Main edge vertices: 1/2 each
-            # Opposite vertices: 1/8 each
-            # Wing vertices: -1/16 each (if they exist)
-            
-            # For now, use simplified 4-point butterfly (no wings)
-            # Full 8-point requires finding wing vertices through neighbor traversal
-            midpoint = (
-                (1 / 2) * mesh.points[v0]
-                + (1 / 2) * mesh.points[v1]
-                + (1 / 8) * mesh.points[opp0]
-                + (1 / 8) * mesh.points[opp1]
-            )
-            
-            # Normalize weights (they sum to 5/4, should sum to 1)
-            # Actually, butterfly allows weights to sum to > 1 for smoothing
-            # Keep as-is for now, or use modified butterfly:
-            # Use 1/2, 1/2, 1/8, 1/8 -> sum = 5/4, so scale by 4/5
-            edge_midpoints[edge_idx] = midpoint * (4.0 / 5.0)
-            
-        else:
-            ### Non-manifold edge (more than 2 adjacent cells)
-            # Fall back to average
-            edge_midpoints[edge_idx] = (mesh.points[v0] + mesh.points[v1]) / 2
+        # Reshape to (n_interior, 2) - each interior edge has exactly 2 adjacent cells
+        # Shape: (n_interior, 2)
+        adjacent_cells = sorted_parents.reshape(n_interior, 2)
+        
+        ### Get the triangles
+        # Shape: (n_interior, 2, 3)
+        triangles = mesh.cells[adjacent_cells]
+        
+        ### Get edge vertices
+        # Shape: (n_interior, 2)
+        interior_edges = unique_edges[interior_edge_indices]
+        
+        ### Find opposite vertices for each triangle (vectorized)
+        # Shape: (n_interior, 1, 1)
+        edge_v0 = interior_edges[:, 0].unsqueeze(1).unsqueeze(2)
+        edge_v1 = interior_edges[:, 1].unsqueeze(1).unsqueeze(2)
+        
+        # Check if each triangle vertex matches edge vertices
+        # Shape: (n_interior, 2, 3)
+        is_edge_vertex = (triangles == edge_v0) | (triangles == edge_v1)
+        opposite_mask = ~is_edge_vertex
+        
+        # Extract opposite vertices using argmax
+        # Shape: (n_interior, 2)
+        opposite_vertex_indices = torch.argmax(opposite_mask.int(), dim=2)
+        opposite_vertices = torch.gather(
+            triangles,
+            dim=2,
+            index=opposite_vertex_indices.unsqueeze(2),
+        ).squeeze(2)
+        
+        ### Compute butterfly weights for all interior edges (vectorized)
+        # Main edge vertices: 1/2 each
+        # Opposite vertices: 1/8 each
+        # (Simplified 4-point butterfly, no wing vertices)
+        
+        v0_pos = mesh.points[interior_edges[:, 0]]  # (n_interior, n_spatial_dims)
+        v1_pos = mesh.points[interior_edges[:, 1]]  # (n_interior, n_spatial_dims)
+        opp0_pos = mesh.points[opposite_vertices[:, 0]]  # (n_interior, n_spatial_dims)
+        opp1_pos = mesh.points[opposite_vertices[:, 1]]  # (n_interior, n_spatial_dims)
+        
+        midpoint = (
+            (1.0 / 2.0) * v0_pos
+            + (1.0 / 2.0) * v1_pos
+            + (1.0 / 8.0) * opp0_pos
+            + (1.0 / 8.0) * opp1_pos
+        )
+        
+        # Normalize weights (they sum to 5/4, scale by 4/5)
+        edge_midpoints[interior_edge_indices] = midpoint * (4.0 / 5.0)
     
     return edge_midpoints
 
