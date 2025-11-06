@@ -43,6 +43,7 @@ class TestRotationErrors:
 
     def test_rotate_4d_raises_not_implemented(self):
         """Test that rotation in >3D raises NotImplementedError."""
+        torch.manual_seed(42)
         # 4D mesh
         points = torch.randn(5, 4)
         cells = torch.tensor([[0, 1, 2, 3]])

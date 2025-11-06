@@ -432,6 +432,7 @@ class TestBVHParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test BVH with multiple query points across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
         bvh = BVH.from_mesh(mesh)
 

@@ -151,6 +151,7 @@ def test_explicit_pyvista_backend_3d():
 
 def test_unsupported_spatial_dims():
     """Test that meshes with >3 spatial dimensions raise error."""
+    torch.manual_seed(42)
     # Create a 4D mesh
     points = torch.randn(10, 4)
     cells = torch.randint(0, 10, (5, 2))
@@ -173,6 +174,7 @@ def test_no_scalars():
 
 def test_point_scalars_tensor():
     """Test point scalars with direct tensor."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     point_scalars = torch.rand(mesh.n_points)
     ax = mesh.draw(show=False, backend="matplotlib", point_scalars=point_scalars)
@@ -182,6 +184,7 @@ def test_point_scalars_tensor():
 
 def test_cell_scalars_tensor():
     """Test cell scalars with direct tensor."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     cell_scalars = torch.rand(mesh.n_cells)
     ax = mesh.draw(show=False, backend="matplotlib", cell_scalars=cell_scalars)
@@ -191,6 +194,7 @@ def test_cell_scalars_tensor():
 
 def test_point_scalars_key():
     """Test point scalars with key lookup."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     mesh.point_data["temperature"] = torch.rand(mesh.n_points)
     ax = mesh.draw(show=False, backend="matplotlib", point_scalars="temperature")
@@ -200,6 +204,7 @@ def test_point_scalars_key():
 
 def test_cell_scalars_key():
     """Test cell scalars with key lookup."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     mesh.cell_data["pressure"] = torch.rand(mesh.n_cells)
     ax = mesh.draw(show=False, backend="matplotlib", cell_scalars="pressure")
@@ -211,6 +216,7 @@ def test_nested_tensordict_key():
     """Test scalar lookup with nested TensorDict key."""
     from tensordict import TensorDict
 
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
 
     # Create nested structure
@@ -227,6 +233,7 @@ def test_nested_tensordict_key():
 
 def test_multidimensional_scalars_norm():
     """Test that multidimensional scalars are L2-normed."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
 
     # Create 3D vector field
@@ -239,6 +246,7 @@ def test_multidimensional_scalars_norm():
 
 def test_mutual_exclusivity():
     """Test that point_scalars and cell_scalars are mutually exclusive."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
 
     with pytest.raises(ValueError, match="mutually exclusive"):
@@ -251,6 +259,7 @@ def test_mutual_exclusivity():
 
 def test_scalar_wrong_shape():
     """Test that scalars with wrong shape raise error."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
 
     with pytest.raises(ValueError, match="wrong first dimension"):
@@ -274,6 +283,7 @@ def test_scalar_key_not_found():
 
 def test_colormap():
     """Test custom colormap."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     mesh.cell_data["data"] = torch.rand(mesh.n_cells)
 
@@ -284,6 +294,7 @@ def test_colormap():
 
 def test_vmin_vmax():
     """Test colormap range specification."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
     mesh.cell_data["data"] = torch.rand(mesh.n_cells)
 
@@ -369,6 +380,7 @@ def test_draw_1d_in_2d():
 
 def test_draw_empty_mesh():
     """Test drawing mesh with no cells."""
+    torch.manual_seed(42)
     points = torch.randn(10, 2)
     cells = torch.empty((0, 3), dtype=torch.long)
     mesh = Mesh(points=points, cells=cells)
@@ -382,6 +394,7 @@ def test_pyvista_with_scalars():
     """Test PyVista backend with scalar coloring."""
     import pyvista as pv
 
+    torch.manual_seed(42)
     mesh = create_3d_surface_mesh()
     mesh.cell_data["pressure"] = torch.rand(mesh.n_cells)
 
@@ -396,6 +409,7 @@ def test_pyvista_with_point_scalars():
     """Test PyVista backend with point scalar coloring."""
     import pyvista as pv
 
+    torch.manual_seed(42)
     mesh = create_3d_surface_mesh()
     mesh.point_data["temperature"] = torch.rand(mesh.n_points)
 
@@ -411,6 +425,7 @@ def test_pyvista_with_point_scalars():
 
 def test_full_workflow_matplotlib():
     """Test complete workflow with matplotlib backend."""
+    torch.manual_seed(42)
     mesh = create_2d_triangle_mesh()
 
     # Add some data
@@ -436,6 +451,7 @@ def test_full_workflow_pyvista():
     """Test complete workflow with PyVista backend."""
     import pyvista as pv
 
+    torch.manual_seed(42)
     mesh = create_3d_surface_mesh()
 
     # Add some data
@@ -535,6 +551,7 @@ class TestVisualizationParametrized:
     @pytest.mark.parametrize("backend", ["matplotlib", "pyvista"])
     def test_visualization_with_scalars_parametrized(self, backend):
         """Test visualization with scalar data across backends."""
+        torch.manual_seed(42)
         if backend == "pyvista":
             # Use 3D mesh for PyVista
             points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])

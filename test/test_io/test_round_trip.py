@@ -222,6 +222,7 @@ class TestRoundTripParametrized:
 
     def test_device_transfer_preserves_data(self, device):
         """Test that device transfer preserves all data."""
+        np.random.seed(42)
         # Create mesh with data
         pv_mesh = pv.Sphere(theta_resolution=5, phi_resolution=5)
         pv_mesh.point_data["temp"] = np.random.rand(pv_mesh.n_points).astype(np.float32)

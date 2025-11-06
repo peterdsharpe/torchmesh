@@ -546,6 +546,7 @@ class TestProjectionEdgeCases:
         """Test that projection on codim=0 mesh returns input unchanged."""
         from torchmesh.calculus.gradient import project_to_tangent_space
 
+        torch.manual_seed(42)
         mesh = simple_tet_mesh  # Codimension 0
         gradients = torch.randn(mesh.n_points, mesh.n_spatial_dims)
 
@@ -555,6 +556,7 @@ class TestProjectionEdgeCases:
 
     def test_projection_higher_codimension_fallback(self):
         """Test projection on codim>1 returns input (not yet implemented)."""
+        torch.manual_seed(42)
         # 1D curve in 3D (codimension=2)
         t = torch.linspace(0, 1, 10)
         points = torch.stack([t, t**2, t**3], dim=-1)
@@ -633,6 +635,7 @@ class TestTangentSpaceProjection:
         """Test projecting tensor gradient onto tangent space."""
         from torchmesh.calculus.gradient import project_to_tangent_space
 
+        torch.manual_seed(42)
         # Surface mesh
         mesh = from_pyvista(pv.examples.load_airplane())
 

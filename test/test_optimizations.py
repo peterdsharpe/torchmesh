@@ -48,6 +48,7 @@ class TestBarycentricOptimizations:
 
     def test_pairwise_vs_full_2d(self):
         """Verify pairwise barycentric matches diagonal of full computation (2D)."""
+        torch.manual_seed(42)
         # Create simple triangle mesh in 2D
         points = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]], dtype=torch.float32
@@ -86,6 +87,7 @@ class TestBarycentricOptimizations:
 
     def test_pairwise_vs_full_3d(self):
         """Verify pairwise barycentric matches diagonal of full computation (3D)."""
+        torch.manual_seed(42)
         # Create tetrahedron mesh in 3D
         points = torch.tensor(
             [
@@ -158,6 +160,7 @@ class TestBarycentricOptimizations:
 
     def test_pairwise_memory_efficiency(self):
         """Verify pairwise uses O(n) not O(n²) memory."""
+        torch.manual_seed(42)
         # This is more of a conceptual test - verify shape differences
         n_pairs = 100
         query_points = torch.rand(n_pairs, 3)
@@ -210,6 +213,7 @@ class TestCellNormalsOptimizations:
 
     def test_normals_are_unit_length(self):
         """Verify all normals are unit length."""
+        torch.manual_seed(42)
         # Create non-degenerate triangles (sequential indices to avoid duplicates)
         points = torch.randn(15, 3)
         # Use sequential indices to ensure non-degenerate triangles
@@ -411,6 +415,7 @@ class TestBVHPerformance:
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
     def test_bvh_on_gpu(self):
         """Test BVH works on GPU."""
+        torch.manual_seed(42)
         # Create mesh on GPU
         points = torch.randn(100, 3, device="cuda")
         cells = torch.randint(0, 100, (50, 4), device="cuda")
@@ -474,6 +479,7 @@ class TestOptimizationsParametrized:
     @pytest.mark.parametrize("n_queries,n_spatial_dims", [(10, 2), (20, 3)])
     def test_barycentric_pairwise_parametrized(self, n_queries, n_spatial_dims, device):
         """Test pairwise barycentric across backends and dimensions."""
+        torch.manual_seed(42)
         # Create query points and cell vertices
         query_points = torch.rand(n_queries, n_spatial_dims, device=device)
         cell_vertices = torch.rand(

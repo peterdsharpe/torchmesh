@@ -508,6 +508,7 @@ class TestDataConversionParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test multidimensional data conversion (vectors) across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Add vector cell data
@@ -534,6 +535,7 @@ class TestDataConversionParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test multidimensional data conversion (vectors) across dimensions."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Add vector point data

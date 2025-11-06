@@ -1598,6 +1598,7 @@ class TestFacetExtractionParametrized:
         self, n_spatial_dims, n_manifold_dims, device
     ):
         """Test aggregation of multi-dimensional data (vectors, tensors)."""
+        torch.manual_seed(42)
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
         # Add vector field

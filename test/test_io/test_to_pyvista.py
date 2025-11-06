@@ -98,6 +98,7 @@ class TestToPyvista:
     def test_data_preservation_to_pyvista(self):
         """Test that point_data, cell_data, and global_data are preserved."""
         np.random.seed(0)
+        torch.manual_seed(42)
 
         # Create a mesh with data
         points = torch.rand(10, 3)

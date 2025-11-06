@@ -158,6 +158,7 @@ class TestDataPreservationParametrized:
 
     def test_data_preservation_with_device_transfer(self, device):
         """Test that data is preserved when transferring to different device."""
+        np.random.seed(42)
         pv_mesh = pv.Sphere(theta_resolution=5, phi_resolution=5)
         pv_mesh.point_data["temp"] = np.random.rand(pv_mesh.n_points).astype(np.float32)
         pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(
