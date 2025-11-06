@@ -27,7 +27,7 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
         raise ValueError(
             f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
         )
-    
+
     if n_manifold_dims == 0:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], device=device)
@@ -76,12 +76,14 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -1386,9 +1388,9 @@ class TestFacetExtractionParametrized:
     ):
         """Test basic facet extraction across all dimension combinations."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         facet_mesh = mesh.get_facet_mesh()
-        
+
         # Verify dimensions
         assert facet_mesh.n_spatial_dims == n_spatial_dims, (
             f"Spatial dims should be preserved: {facet_mesh.n_spatial_dims=} != {n_spatial_dims=}"
@@ -1396,14 +1398,14 @@ class TestFacetExtractionParametrized:
         assert facet_mesh.n_manifold_dims == n_manifold_dims - 1, (
             f"Manifold dims should decrease by 1: {facet_mesh.n_manifold_dims=} != {n_manifold_dims - 1=}"
         )
-        
+
         # Verify device consistency
         assert_on_device(facet_mesh.points, device)
         assert_on_device(facet_mesh.cells, device)
-        
+
         # Verify facets exist
         assert facet_mesh.n_cells > 0, "Should extract at least some facets"
-        
+
         # Verify cell shape
         expected_verts_per_facet = n_manifold_dims
         assert facet_mesh.cells.shape[1] == expected_verts_per_facet, (
@@ -1430,18 +1432,18 @@ class TestFacetExtractionParametrized:
     ):
         """Test all data aggregation strategies across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add some cell data
-        cell_data_values = torch.arange(
-            mesh.n_cells, dtype=torch.float32, device=device
-        ) * 10.0
+        cell_data_values = (
+            torch.arange(mesh.n_cells, dtype=torch.float32, device=device) * 10.0
+        )
         mesh.cell_data["value"] = cell_data_values
-        
+
         facet_mesh = mesh.get_facet_mesh(
             data_source="cells",
             data_aggregation=data_aggregation,
         )
-        
+
         # Verify data was aggregated
         assert "value" in facet_mesh.cell_data, (
             f"Cell data should be aggregated with {data_aggregation=}"
@@ -1449,16 +1451,16 @@ class TestFacetExtractionParametrized:
         assert facet_mesh.cell_data["value"].shape[0] == facet_mesh.n_cells, (
             f"Aggregated data should have one value per facet"
         )
-        
+
         # Verify device consistency
         assert_on_device(facet_mesh.cell_data["value"], device)
-        
+
         # Verify values are reasonable (should be within range of original data)
         min_original = cell_data_values.min()
         max_original = cell_data_values.max()
         min_facet = facet_mesh.cell_data["value"].min()
         max_facet = facet_mesh.cell_data["value"].max()
-        
+
         assert min_facet >= min_original, (
             f"Facet min value should be >= original min: {min_facet=}, {min_original=}"
         )
@@ -1479,20 +1481,18 @@ class TestFacetExtractionParametrized:
     ):
         """Test point data aggregation across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add point data
-        point_values = torch.arange(
-            mesh.n_points, dtype=torch.float32, device=device
-        )
+        point_values = torch.arange(mesh.n_points, dtype=torch.float32, device=device)
         mesh.point_data["point_id"] = point_values
-        
+
         facet_mesh = mesh.get_facet_mesh(data_source="points")
-        
+
         # Verify data was inherited
         assert "point_id" in facet_mesh.cell_data, (
             "Point data should be aggregated to facet cell_data"
         )
-        
+
         # Verify device
         assert_on_device(facet_mesh.cell_data["point_id"], device)
 
@@ -1508,15 +1508,15 @@ class TestFacetExtractionParametrized:
         """Test higher codimension extractions across dimensions."""
         n_spatial_dims = 3  # Use 3D for all to support higher manifold dims
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         facet_mesh = mesh.get_facet_mesh(manifold_codimension=codim)
-        
+
         expected_manifold_dim = n_manifold_dims - codim
         assert facet_mesh.n_manifold_dims == expected_manifold_dim, (
             f"Expected manifold dim {expected_manifold_dim}, "
             f"got {facet_mesh.n_manifold_dims}"
         )
-        
+
         assert_on_device(facet_mesh.points, device)
         assert_on_device(facet_mesh.cells, device)
 
@@ -1535,18 +1535,22 @@ class TestFacetExtractionParametrized:
     ):
         """Test that global data is preserved across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add global data
         mesh.global_data["time"] = torch.tensor(42.0, device=device)
         mesh.global_data["iteration"] = torch.tensor(100, device=device)
-        
+
         facet_mesh = mesh.get_facet_mesh()
-        
+
         # Verify global data preserved
         assert "time" in facet_mesh.global_data
         assert "iteration" in facet_mesh.global_data
-        assert torch.equal(facet_mesh.global_data["time"], torch.tensor(42.0, device=device))
-        assert torch.equal(facet_mesh.global_data["iteration"], torch.tensor(100, device=device))
+        assert torch.equal(
+            facet_mesh.global_data["time"], torch.tensor(42.0, device=device)
+        )
+        assert torch.equal(
+            facet_mesh.global_data["iteration"], torch.tensor(100, device=device)
+        )
 
     @pytest.mark.parametrize(
         "n_spatial_dims,n_manifold_dims",
@@ -1563,20 +1567,20 @@ class TestFacetExtractionParametrized:
     ):
         """Test that shared facets are properly deduplicated across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # For meshes with multiple cells, some facets should be shared
         if mesh.n_cells < 2:
             pytest.skip("Need at least 2 cells for this test")
-        
+
         facet_mesh = mesh.get_facet_mesh()
-        
+
         # Verify facets are unique (no duplicates in cells array)
         # Sort each facet for comparison
         sorted_facets = torch.sort(facet_mesh.cells, dim=1)[0]
-        
+
         # Check for duplicates
         unique_facets = torch.unique(sorted_facets, dim=0)
-        
+
         assert unique_facets.shape[0] == sorted_facets.shape[0], (
             f"Found duplicate facets: {sorted_facets.shape[0]} facets, "
             f"but only {unique_facets.shape[0]} unique"
@@ -1595,21 +1599,21 @@ class TestFacetExtractionParametrized:
     ):
         """Test aggregation of multi-dimensional data (vectors, tensors)."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add vector field
         velocity = torch.randn(mesh.n_cells, n_spatial_dims, device=device)
         mesh.cell_data["velocity"] = velocity
-        
+
         facet_mesh = mesh.get_facet_mesh(
             data_source="cells",
             data_aggregation="mean",
         )
-        
+
         # Verify vector data was aggregated
         assert "velocity" in facet_mesh.cell_data
         assert facet_mesh.cell_data["velocity"].shape == (
             facet_mesh.n_cells,
             n_spatial_dims,
         ), f"Velocity shape mismatch: {facet_mesh.cell_data['velocity'].shape=}"
-        
+
         assert_on_device(facet_mesh.cell_data["velocity"], device)

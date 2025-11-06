@@ -25,24 +25,32 @@ def get_available_devices() -> list[str]:
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
-        raise ValueError(f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}")
-    
+        raise ValueError(
+            f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
+        )
+
     if n_manifold_dims == 1:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1], [1, 2], [2, 3]], device=device, dtype=torch.int64)
     elif n_manifold_dims == 2:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
@@ -59,12 +67,14 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -359,14 +369,14 @@ class TestRandomSamplingParametrized:
     ):
         """Test default sampling (one per cell) across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         sampled = sample_random_points_on_cells(mesh)
-        
+
         # Should get one point per cell
         assert sampled.shape == (mesh.n_cells, n_spatial_dims), (
             f"Expected shape ({mesh.n_cells}, {n_spatial_dims}), got {sampled.shape}"
         )
-        
+
         # Verify device
         assert_on_device(sampled, device)
 
@@ -385,11 +395,11 @@ class TestRandomSamplingParametrized:
     ):
         """Test sampling from specific cells across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Sample from specific cells (with repetition)
         cell_indices = torch.tensor([0, 1, 0], device=device, dtype=torch.int64)
         sampled = sample_random_points_on_cells(mesh, cell_indices=cell_indices)
-        
+
         assert sampled.shape == (3, n_spatial_dims)
         assert_on_device(sampled, device)
 
@@ -406,15 +416,15 @@ class TestRandomSamplingParametrized:
     ):
         """Test repeated sampling from same cell across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Sample multiple times from first cell
         n_samples = 20
         cell_indices = torch.zeros(n_samples, device=device, dtype=torch.int64)
         sampled = sample_random_points_on_cells(mesh, cell_indices=cell_indices)
-        
+
         assert sampled.shape == (n_samples, n_spatial_dims)
         assert_on_device(sampled, device)
-        
+
         # All samples should be different (with extremely high probability)
         # Check that at least some variation exists
         if n_samples > 1:
@@ -436,10 +446,10 @@ class TestRandomSamplingParametrized:
     ):
         """Test sampling with empty indices across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         cell_indices = torch.tensor([], dtype=torch.int64, device=device)
         sampled = sample_random_points_on_cells(mesh, cell_indices=cell_indices)
-        
+
         assert sampled.shape == (0, n_spatial_dims)
         assert_on_device(sampled, device)
 
@@ -453,20 +463,20 @@ class TestRandomSamplingParametrized:
             (3, 3),
         ],
     )
-    def test_mesh_method_parametrized(
-        self, n_spatial_dims, n_manifold_dims, device
-    ):
+    def test_mesh_method_parametrized(self, n_spatial_dims, n_manifold_dims, device):
         """Test Mesh.sample_random_points_on_cells method across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Test default
         sampled_default = mesh.sample_random_points_on_cells()
         assert sampled_default.shape == (mesh.n_cells, n_spatial_dims)
         assert_on_device(sampled_default, device)
-        
+
         # Test with specific indices
         if mesh.n_cells > 1:
             cell_indices = torch.tensor([0, 1], device=device, dtype=torch.int64)
-            sampled_specific = mesh.sample_random_points_on_cells(cell_indices=cell_indices)
+            sampled_specific = mesh.sample_random_points_on_cells(
+                cell_indices=cell_indices
+            )
             assert sampled_specific.shape == (2, n_spatial_dims)
             assert_on_device(sampled_specific, device)

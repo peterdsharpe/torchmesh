@@ -80,7 +80,7 @@ class TestPointNormalsBasic:
     def test_single_triangle_2d(self, device):
         """Test that 2D triangles in 2D space (codimension-0) raise an error."""
         mesh = create_single_triangle_2d(device)
-        
+
         # Should raise ValueError for codimension-0 (not codimension-1)
         with pytest.raises(ValueError, match="codimension-1"):
             _ = mesh.point_normals
@@ -359,46 +359,46 @@ class TestPointCellNormalConsistency:
 
     def compute_angular_errors(self, mesh):
         """Compute angular errors between each cell normal and its vertex normals.
-        
+
         Returns:
             Tensor of angular errors (in radians) for each cell-vertex pair.
             Shape: (n_cells * n_vertices_per_cell,)
         """
         cell_normals = mesh.cell_normals  # (n_cells, n_spatial_dims)
         point_normals = mesh.point_normals  # (n_points, n_spatial_dims)
-        
+
         n_cells, n_vertices_per_cell = mesh.cells.shape
-        
+
         # Get point normals for each vertex of each cell
         # Shape: (n_cells, n_vertices_per_cell, n_spatial_dims)
         point_normals_per_cell = point_normals[mesh.cells]
-        
+
         # Repeat cell normals for each vertex
         # Shape: (n_cells, n_vertices_per_cell, n_spatial_dims)
         cell_normals_repeated = cell_normals.unsqueeze(1).expand(
             -1, n_vertices_per_cell, -1
         )
-        
+
         # Compute dot products (cosine of angle)
         # Shape: (n_cells, n_vertices_per_cell)
         cos_angles = (cell_normals_repeated * point_normals_per_cell).sum(dim=-1)
-        
+
         # Clamp to [-1, 1] to avoid numerical issues with acos
         cos_angles = torch.clamp(cos_angles, -1.0, 1.0)
-        
+
         # Compute angular errors in radians
         # Shape: (n_cells * n_vertices_per_cell,)
         angular_errors = torch.acos(cos_angles).flatten()
-        
+
         return angular_errors
 
     def test_flat_surface_perfect_alignment(self, device):
         """Test that flat surfaces have perfect alignment between point and cell normals."""
         # Create a flat triangular mesh (all normals should be identical)
         mesh = create_single_triangle_3d(device)
-        
+
         angular_errors = self.compute_angular_errors(mesh)
-        
+
         # All errors should be essentially zero for a single flat triangle
         assert torch.all(angular_errors < 1e-5)
 
@@ -422,9 +422,9 @@ class TestPointCellNormalConsistency:
             device=device,
         )
         mesh = Mesh(points=points, cells=cells)
-        
+
         angular_errors = self.compute_angular_errors(mesh)
-        
+
         # All errors should be very small for coplanar triangles
         assert torch.all(angular_errors < 1e-4)
 
@@ -443,9 +443,9 @@ class TestPointCellNormalConsistency:
         )
         cells = torch.tensor([[0, 1, 2], [0, 1, 3]], dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
-        
+
         angular_errors = self.compute_angular_errors(mesh)
-        
+
         # Some errors should be larger due to the sharp edge
         # But most should still be reasonable (< pi/2)
         assert torch.any(angular_errors > 0.1)  # Some significant errors
@@ -453,7 +453,7 @@ class TestPointCellNormalConsistency:
 
     def test_real_mesh_airplane_consistency(self, device):
         """Test consistency on a real mesh (PyVista airplane).
-        
+
         Note: The airplane mesh has many sharp edges (wings, tail, fuselage),
         so point and cell normals will naturally disagree at these features.
         This is expected behavior - area-weighted averaging produces smooth
@@ -461,61 +461,63 @@ class TestPointCellNormalConsistency:
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Load airplane mesh
         pv_mesh = pv.examples.load_airplane()
         mesh = from_pyvista(pv_mesh).to(device)
-        
+
         # Compute angular errors
         angular_errors = self.compute_angular_errors(mesh)
-        
+
         # Check that most (95%+) of the errors are < 0.1 radians
         threshold = 0.1  # radians (~5.7 degrees)
         fraction_consistent = (angular_errors < threshold).float().mean()
-        
+
         print(f"\nAirplane mesh consistency:")
-        print(f"  Fraction with angular error < {threshold} rad: {fraction_consistent:.3f}")
+        print(
+            f"  Fraction with angular error < {threshold} rad: {fraction_consistent:.3f}"
+        )
         print(f"  Max angular error: {angular_errors.max():.3f} rad")
         print(f"  Mean angular error: {angular_errors.mean():.3f} rad")
-        
+
         # Airplane has many sharp edges, so expect ~48% consistency
         # This is correct behavior - point normals smooth over sharp features
         assert fraction_consistent >= 0.40  # At least 40% should be smooth regions
 
     def test_subdivided_mesh_improved_consistency(self, device):
         """Test that subdivision improves consistency by adding smooth vertices.
-        
+
         Note: Linear subdivision is INTERPOLATING, not smoothing. Original
         vertices (including sharp corners) remain in place. Only NEW vertices
         (at edge midpoints) have better normals. This is expected behavior.
-        
+
         As we add more subdivision levels, the fraction of vertices that are
         NEW (and thus have better normals) increases, improving overall consistency.
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Load airplane mesh
         pv_mesh = pv.examples.load_airplane()
         mesh_original = from_pyvista(pv_mesh).to(device)
-        
+
         # Subdivide to add smooth vertices at edge midpoints
         mesh_subdivided = mesh_original.subdivide(levels=1, filter="linear")
-        
+
         # Compute angular errors for both
         errors_original = self.compute_angular_errors(mesh_original)
         errors_subdivided = self.compute_angular_errors(mesh_subdivided)
-        
+
         # Check consistency at threshold of 0.1 radians
         threshold = 0.1
         fraction_original = (errors_original < threshold).float().mean()
         fraction_subdivided = (errors_subdivided < threshold).float().mean()
-        
+
         print(f"\nSubdivision effect on consistency:")
         print(f"  Original: {fraction_original:.3f} consistent")
         print(f"  Subdivided (1 level): {fraction_subdivided:.3f} consistent")
         print(f"  Improvement: {(fraction_subdivided - fraction_original):.3f}")
-        
+
         # Linear subdivision adds new smooth vertices but keeps sharp corners.
         # With 1 level, about 75% of vertices are new (better normals),
         # but 25% are original (may have sharp edges).
@@ -525,37 +527,37 @@ class TestPointCellNormalConsistency:
 
     def test_multiple_subdivision_levels(self, device):
         """Test that multiple subdivision levels improve consistency.
-        
+
         With each subdivision level, the fraction of NEW (smooth) vertices
         increases relative to original (potentially sharp) vertices:
         - Level 0: 100% original vertices
         - Level 1: ~25% original, ~75% new
         - Level 2: ~6% original, ~94% new
         - Level 3: ~1.5% original, ~98.5% new
-        
+
         As the fraction of new vertices increases, overall consistency improves.
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Load airplane mesh
         pv_mesh = pv.examples.load_airplane()
         mesh = from_pyvista(pv_mesh).to(device)
-        
+
         threshold = 0.1  # radians
         fractions = []
-        
+
         # Test original and multiple subdivision levels
         for level in range(3):
             if level > 0:
                 mesh = mesh.subdivide(levels=1, filter="linear")
-            
+
             errors = self.compute_angular_errors(mesh)
             fraction = (errors < threshold).float().mean()
             fractions.append(fraction)
-            
+
             print(f"\nLevel {level}: {fraction:.3f} consistent ({mesh.n_cells} cells)")
-        
+
         # Higher subdivision levels should generally improve consistency
         # as the fraction of original (sharp) vertices decreases
         assert fractions[-1] >= fractions[0]  # Should improve or stay same
@@ -563,31 +565,31 @@ class TestPointCellNormalConsistency:
 
     def test_consistency_distribution(self, device):
         """Test the distribution of angular errors.
-        
+
         The distribution should be bimodal:
         - Most vertices in smooth regions have low error
         - Vertices at sharp edges have high error
-        
+
         This is expected and correct behavior.
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Load airplane mesh
         pv_mesh = pv.examples.load_airplane()
         mesh = from_pyvista(pv_mesh).to(device)
-        
+
         # Compute angular errors
         angular_errors = self.compute_angular_errors(mesh)
-        
+
         # Check various percentiles
         percentiles = [50, 75, 90, 95, 99]
         values = [torch.quantile(angular_errors, p / 100.0) for p in percentiles]
-        
+
         print(f"\nAngular error distribution (radians):")
         for p, v in zip(percentiles, values):
             print(f"  {p}th percentile: {v:.4f} rad ({v * 180 / torch.pi:.2f}°)")
-        
+
         # With sharp edges, median can be higher
         # Just verify the distribution is reasonable
         assert values[0] < 0.3  # 50th percentile (17 degrees)
@@ -596,38 +598,37 @@ class TestPointCellNormalConsistency:
     @pytest.mark.slow
     def test_loop_subdivision_smoothing(self, device):
         """Test that Loop subdivision (smoothing) improves normal consistency.
-        
+
         Loop subdivision is APPROXIMATING - it repositions original vertices
         to smooth out sharp edges. This should produce much better consistency
         than linear subdivision.
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Load airplane mesh
         pv_mesh = pv.examples.load_airplane()
         mesh_original = from_pyvista(pv_mesh).to(device)
-        
+
         # Try Loop subdivision (approximating, should smooth)
         try:
             mesh_loop = mesh_original.subdivide(levels=1, filter="loop")
-            
+
             # Compute angular errors for both
             errors_original = self.compute_angular_errors(mesh_original)
             errors_loop = self.compute_angular_errors(mesh_loop)
-            
+
             threshold = 0.1
             fraction_original = (errors_original < threshold).float().mean()
             fraction_loop = (errors_loop < threshold).float().mean()
-            
+
             print(f"\nLoop subdivision effect:")
             print(f"  Original: {fraction_original:.3f} consistent")
             print(f"  Loop subdivided: {fraction_loop:.3f} consistent")
-            
+
             # Loop subdivision repositions vertices, so should improve significantly
             assert fraction_loop >= fraction_original  # Should improve
             assert fraction_loop >= 0.70  # Should be quite good
         except NotImplementedError:
             # Loop subdivision might not support all mesh types
             pytest.skip("Loop subdivision not supported for this mesh")
-

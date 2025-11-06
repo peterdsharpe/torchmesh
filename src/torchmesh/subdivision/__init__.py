@@ -27,4 +27,3 @@ __all__ = [
     "subdivide_butterfly",
     "subdivide_loop",
 ]
-

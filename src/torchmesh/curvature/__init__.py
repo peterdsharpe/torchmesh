@@ -15,13 +15,13 @@ Mean Curvature (Extrinsic):
 
 Example:
     >>> from torchmesh.curvature import gaussian_curvature_vertices, mean_curvature_vertices
-    >>> 
+    >>>
     >>> # Compute Gaussian curvature
     >>> K = gaussian_curvature_vertices(mesh)
-    >>> 
+    >>>
     >>> # Compute mean curvature (codimension-1 only)
     >>> H = mean_curvature_vertices(mesh)
-    >>> 
+    >>>
     >>> # Or use Mesh properties:
     >>> K = mesh.gaussian_curvature_vertices
     >>> H = mesh.mean_curvature_vertices
@@ -38,4 +38,3 @@ __all__ = [
     "gaussian_curvature_cells",
     "mean_curvature_vertices",
 ]
-

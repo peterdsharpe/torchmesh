@@ -80,11 +80,11 @@ def get_cell_to_cells_adjacency(
     ### Find shared facets (those appearing in multiple cells)
     # Shape: (n_shared_facets,)
     shared_facet_mask = counts > 1
-    
+
     ### Filter to only keep candidate facets that belong to shared unique facets
     # This creates a mask over all candidate facets
     candidate_is_shared = shared_facet_mask[inverse_indices]
-    
+
     # Extract only the parent cells and inverse indices for shared facets
     shared_parent_cells = parent_cell_indices[candidate_is_shared]
     shared_inverse = inverse_indices[candidate_is_shared]
@@ -93,9 +93,7 @@ def get_cell_to_cells_adjacency(
     if len(shared_parent_cells) == 0:
         return Adjacency(
             offsets=torch.zeros(
-                mesh.n_cells + 1, 
-                dtype=torch.int64, 
-                device=mesh.cells.device
+                mesh.n_cells + 1, dtype=torch.int64, device=mesh.cells.device
             ),
             indices=torch.zeros(0, dtype=torch.int64, device=mesh.cells.device),
         )
@@ -108,28 +106,30 @@ def get_cell_to_cells_adjacency(
 
     # Find boundaries of each unique shared facet
     # diff != 0 marks transitions between different facets
-    facet_changes = torch.cat([
-        torch.tensor([0], device=sorted_facet_ids.device),
-        torch.where(sorted_facet_ids[1:] != sorted_facet_ids[:-1])[0] + 1,
-        torch.tensor([len(sorted_facet_ids)], device=sorted_facet_ids.device),
-    ])
+    facet_changes = torch.cat(
+        [
+            torch.tensor([0], device=sorted_facet_ids.device),
+            torch.where(sorted_facet_ids[1:] != sorted_facet_ids[:-1])[0] + 1,
+            torch.tensor([len(sorted_facet_ids)], device=sorted_facet_ids.device),
+        ]
+    )
 
     # Generate all pairs for cells sharing each facet
     # We use gather operations to avoid explicit Python loops
     all_pairs_list = []
-    
+
     for i in range(len(facet_changes) - 1):
         start = facet_changes[i]
         end = facet_changes[i + 1]
         cells_sharing_facet = sorted_cells[start:end]
         n_cells = len(cells_sharing_facet)
-        
+
         if n_cells > 1:
             # Create all directed pairs (i, j) where i != j
             # Shape: (n_cells, n_cells)
             i_indices = cells_sharing_facet.unsqueeze(1).expand(n_cells, n_cells)
             j_indices = cells_sharing_facet.unsqueeze(0).expand(n_cells, n_cells)
-            
+
             # Flatten and remove self-loops
             mask = i_indices != j_indices
             pairs = torch.stack([i_indices[mask], j_indices[mask]], dim=1)
@@ -139,9 +139,7 @@ def get_cell_to_cells_adjacency(
     if len(all_pairs_list) == 0:
         return Adjacency(
             offsets=torch.zeros(
-                mesh.n_cells + 1, 
-                dtype=torch.int64, 
-                device=mesh.cells.device
+                mesh.n_cells + 1, dtype=torch.int64, device=mesh.cells.device
             ),
             indices=torch.zeros(0, dtype=torch.int64, device=mesh.cells.device),
         )
@@ -220,14 +218,16 @@ def get_cells_to_points_adjacency(mesh: "Mesh") -> Adjacency:
 
     ### Create uniform offsets (each cell has exactly n_vertices_per_cell vertices)
     # offsets[i] = i * n_vertices_per_cell
-    offsets = torch.arange(
-        n_cells + 1,
-        dtype=torch.int64,
-        device=mesh.cells.device,
-    ) * n_vertices_per_cell
+    offsets = (
+        torch.arange(
+            n_cells + 1,
+            dtype=torch.int64,
+            device=mesh.cells.device,
+        )
+        * n_vertices_per_cell
+    )
 
     ### Flatten cells array to get all point indices
     indices = mesh.cells.reshape(-1)
 
     return Adjacency(offsets=offsets, indices=indices)
-

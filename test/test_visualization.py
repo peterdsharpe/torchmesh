@@ -514,19 +514,22 @@ class TestVisualizationParametrized:
             )
             cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.int64)
         else:
-            pytest.skip(f"Unsupported combination: {n_spatial_dims=}, {n_manifold_dims=}")
-        
+            pytest.skip(
+                f"Unsupported combination: {n_spatial_dims=}, {n_manifold_dims=}"
+            )
+
         mesh = Mesh(points=points, cells=cells)
-        
+
         # Draw
         result = mesh.draw(show=False, backend=backend)
-        
+
         # Verify result type based on backend
         if backend == "matplotlib":
             assert isinstance(result, matplotlib.axes.Axes)
             plt.close("all")
         elif backend == "pyvista":
             import pyvista as pv
+
             assert isinstance(result, pv.Plotter)
             result.close()
 
@@ -535,25 +538,24 @@ class TestVisualizationParametrized:
         """Test visualization with scalar data across backends."""
         if backend == "pyvista":
             # Use 3D mesh for PyVista
-            points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
-            )
+            points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
             cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
         else:
             # Use 2D mesh for matplotlib
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
             cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
-        
+
         mesh = Mesh(points=points, cells=cells)
         mesh.cell_data["value"] = torch.rand(mesh.n_cells)
-        
+
         result = mesh.draw(show=False, backend=backend, cell_scalars="value")
-        
+
         if backend == "matplotlib":
             assert isinstance(result, matplotlib.axes.Axes)
             plt.close("all")
         elif backend == "pyvista":
             import pyvista as pv
+
             assert isinstance(result, pv.Plotter)
             result.close()
 

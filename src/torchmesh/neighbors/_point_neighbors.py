@@ -40,48 +40,41 @@ def get_point_to_cells_adjacency(mesh: "Mesh") -> Adjacency:
     ### Handle empty mesh
     if mesh.n_cells == 0 or mesh.n_points == 0:
         return Adjacency(
-            offsets=torch.zeros(mesh.n_points + 1, dtype=torch.int64, device=mesh.points.device),
+            offsets=torch.zeros(
+                mesh.n_points + 1, dtype=torch.int64, device=mesh.points.device
+            ),
             indices=torch.zeros(0, dtype=torch.int64, device=mesh.points.device),
         )
 
     ### Create (point_id, cell_id) pairs for all vertices in all cells
     n_cells, n_vertices_per_cell = mesh.cells.shape
-    
+
     # Flatten cells to get all point indices
     # Shape: (n_cells * n_vertices_per_cell,)
     point_ids = mesh.cells.reshape(-1)
-    
+
     # Create corresponding cell indices for each point
     # Shape: (n_cells * n_vertices_per_cell,)
     cell_ids = torch.arange(
-        n_cells, 
-        dtype=torch.int64, 
-        device=mesh.cells.device
+        n_cells, dtype=torch.int64, device=mesh.cells.device
     ).repeat_interleave(n_vertices_per_cell)
 
     ### Sort by (point_id, cell_id) for grouping
     # Use lexsort to sort by point_id first, then cell_id
-    sort_indices = torch.argsort(
-        point_ids * (n_cells + 1) + cell_ids
-    )
+    sort_indices = torch.argsort(point_ids * (n_cells + 1) + cell_ids)
     sorted_point_ids = point_ids[sort_indices]
     sorted_cell_ids = cell_ids[sort_indices]
 
     ### Compute offsets for each point
     # offsets[i] marks the start of point i's cell list in sorted_cell_ids
     offsets = torch.zeros(
-        mesh.n_points + 1, 
-        dtype=torch.int64, 
-        device=mesh.cells.device
+        mesh.n_points + 1, dtype=torch.int64, device=mesh.cells.device
     )
-    
+
     # Count occurrences of each point_id
     # bincount requires non-negative indices and gives counts for 0..max(point_ids)
-    point_counts = torch.bincount(
-        sorted_point_ids, 
-        minlength=mesh.n_points
-    )
-    
+    point_counts = torch.bincount(sorted_point_ids, minlength=mesh.n_points)
+
     # Cumulative sum to get offsets
     offsets[1:] = torch.cumsum(point_counts, dim=0)
 
@@ -119,7 +112,9 @@ def get_point_to_points_adjacency(mesh: "Mesh") -> Adjacency:
     ### Handle empty mesh
     if mesh.n_cells == 0 or mesh.n_points == 0:
         return Adjacency(
-            offsets=torch.zeros(mesh.n_points + 1, dtype=torch.int64, device=mesh.points.device),
+            offsets=torch.zeros(
+                mesh.n_points + 1, dtype=torch.int64, device=mesh.points.device
+            ),
             indices=torch.zeros(0, dtype=torch.int64, device=mesh.points.device),
         )
 
@@ -128,9 +123,9 @@ def get_point_to_points_adjacency(mesh: "Mesh") -> Adjacency:
     ### Generate all vertex pairs (edges) within each cell
     # For n-simplices, all vertices are pairwise connected
     # Use combination indices to get all pairs
-    combination_indices = _generate_combination_indices(
-        n_vertices_per_cell, 2
-    ).to(mesh.cells.device)
+    combination_indices = _generate_combination_indices(n_vertices_per_cell, 2).to(
+        mesh.cells.device
+    )
     n_edges_per_cell = len(combination_indices)
 
     ### Extract edges from all cells
@@ -158,10 +153,13 @@ def get_point_to_points_adjacency(mesh: "Mesh") -> Adjacency:
     ### Create bidirectional edges
     # For each edge [a, b], create both [a, b] and [b, a]
     # Shape: (2 * n_unique_edges, 2)
-    bidirectional_edges = torch.cat([
-        unique_edges,
-        unique_edges.flip(dims=[1]),  # Reverse the edge direction
-    ], dim=0)
+    bidirectional_edges = torch.cat(
+        [
+            unique_edges,
+            unique_edges.flip(dims=[1]),  # Reverse the edge direction
+        ],
+        dim=0,
+    )
 
     ### Sort by source vertex for grouping
     # Sort by first column (source vertex), then second column (target vertex)
@@ -194,4 +192,3 @@ def get_point_to_points_adjacency(mesh: "Mesh") -> Adjacency:
         offsets=offsets,
         indices=neighbor_indices,
     )
-

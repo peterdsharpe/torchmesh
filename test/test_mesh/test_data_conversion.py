@@ -24,24 +24,32 @@ def get_available_devices() -> list[str]:
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
-        raise ValueError(f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}")
-    
+        raise ValueError(
+            f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
+        )
+
     if n_manifold_dims == 1:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1], [1, 2], [2, 3]], device=device, dtype=torch.int64)
     elif n_manifold_dims == 2:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
@@ -58,12 +66,14 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -437,20 +447,20 @@ class TestDataConversionParametrized:
     ):
         """Test basic cell-to-point conversion across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add scalar cell data
         cell_values = torch.arange(mesh.n_cells, dtype=torch.float32, device=device)
         mesh.cell_data["value"] = cell_values
-        
+
         result = mesh.cell_data_to_point_data()
-        
+
         # Verify data was converted
         assert "value" in result.point_data, "Point data should contain 'value'"
         assert result.point_data["value"].shape[0] == mesh.n_points
-        
+
         # Verify device consistency
         assert_on_device(result.point_data["value"], device)
-        
+
         # Verify original data preserved
         assert torch.equal(result.cell_data["value"], cell_values)
 
@@ -469,20 +479,20 @@ class TestDataConversionParametrized:
     ):
         """Test basic point-to-cell conversion across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add scalar point data
         point_values = torch.arange(mesh.n_points, dtype=torch.float32, device=device)
         mesh.point_data["value"] = point_values
-        
+
         result = mesh.point_data_to_cell_data()
-        
+
         # Verify data was converted
         assert "value" in result.cell_data, "Cell data should contain 'value'"
         assert result.cell_data["value"].shape[0] == mesh.n_cells
-        
+
         # Verify device consistency
         assert_on_device(result.cell_data["value"], device)
-        
+
         # Verify original data preserved
         assert torch.equal(result.point_data["value"], point_values)
 
@@ -499,16 +509,16 @@ class TestDataConversionParametrized:
     ):
         """Test multidimensional data conversion (vectors) across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add vector cell data
         vectors = torch.randn(mesh.n_cells, n_spatial_dims, device=device)
         mesh.cell_data["velocity"] = vectors
-        
+
         result = mesh.cell_data_to_point_data()
-        
+
         # Verify shape
         assert result.point_data["velocity"].shape == (mesh.n_points, n_spatial_dims)
-        
+
         # Verify device
         assert_on_device(result.point_data["velocity"], device)
 
@@ -525,16 +535,16 @@ class TestDataConversionParametrized:
     ):
         """Test multidimensional data conversion (vectors) across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add vector point data
         vectors = torch.randn(mesh.n_points, n_spatial_dims, device=device)
         mesh.point_data["velocity"] = vectors
-        
+
         result = mesh.point_data_to_cell_data()
-        
+
         # Verify shape
         assert result.cell_data["velocity"].shape == (mesh.n_cells, n_spatial_dims)
-        
+
         # Verify device
         assert_on_device(result.cell_data["velocity"], device)
 
@@ -553,14 +563,14 @@ class TestDataConversionParametrized:
     ):
         """Test that cached properties are skipped across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Access cached properties to populate them
         _ = mesh.cell_centroids
         _ = mesh.cell_areas
-        
+
         # Convert cell to point
         result = mesh.cell_data_to_point_data()
-        
+
         # Cached properties should not be converted
         assert "_centroids" not in result.point_data
         assert "_areas" not in result.point_data
@@ -580,15 +590,17 @@ class TestDataConversionParametrized:
     ):
         """Test round-trip conversion consistency across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # Add cell data
-        cell_values = torch.arange(mesh.n_cells, dtype=torch.float32, device=device) * 10.0
+        cell_values = (
+            torch.arange(mesh.n_cells, dtype=torch.float32, device=device) * 10.0
+        )
         mesh.cell_data["value"] = cell_values
-        
+
         # Round trip: cell → point → cell
         intermediate = mesh.cell_data_to_point_data()
         result = intermediate.point_data_to_cell_data(overwrite_keys=True)
-        
+
         # Values should be approximately the same (averaging may introduce small changes)
         # But device should be preserved
         assert_on_device(result.cell_data["value"], device)
@@ -607,15 +619,15 @@ class TestDataConversionParametrized:
     ):
         """Test conversion with no data across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # No data to convert
         result1 = mesh.cell_data_to_point_data()
         result2 = mesh.point_data_to_cell_data()
-        
+
         # Should work without errors
         assert result1.n_points == mesh.n_points
         assert result2.n_cells == mesh.n_cells
-        
+
         # Devices should be preserved
         assert_on_device(result1.points, device)
         assert_on_device(result2.points, device)

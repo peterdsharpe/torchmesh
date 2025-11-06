@@ -158,7 +158,9 @@ class TestLinearSubdivision:
     def test_edge_midpoints_correct(self, device):
         """Test that new vertices are at edge midpoints."""
         # Simple single edge
-        points = torch.tensor([[0.0, 0.0], [2.0, 4.0]], dtype=torch.float32, device=device)
+        points = torch.tensor(
+            [[0.0, 0.0], [2.0, 4.0]], dtype=torch.float32, device=device
+        )
         cells = torch.tensor([[0, 1]], dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
 
@@ -168,7 +170,9 @@ class TestLinearSubdivision:
         assert subdivided.n_points == 3
 
         # Find the new point (not in original)
-        new_point_mask = torch.ones(subdivided.n_points, dtype=torch.bool, device=device)
+        new_point_mask = torch.ones(
+            subdivided.n_points, dtype=torch.bool, device=device
+        )
         for i in range(mesh.n_points):
             # Check if original point i is in subdivided mesh
             matches = torch.all(
@@ -187,7 +191,7 @@ class TestLinearSubdivision:
     def test_point_data_interpolation(self, device):
         """Test that point_data is interpolated to new vertices."""
         mesh = create_line_mesh(device)
-        
+
         # Add point data
         mesh.point_data["scalar"] = torch.tensor(
             [1.0, 2.0, 3.0], dtype=torch.float32, device=device
@@ -216,7 +220,7 @@ class TestLinearSubdivision:
     def test_cell_data_propagation(self, device):
         """Test that cell_data is propagated from parent to children."""
         mesh = create_triangle_mesh(device)
-        
+
         # Add cell data
         mesh.cell_data["pressure"] = torch.tensor(
             [100.0, 200.0], dtype=torch.float32, device=device
@@ -248,7 +252,9 @@ class TestLinearSubdivision:
     def test_single_simplex(self, device):
         """Test subdivision of single simplex."""
         # Single edge
-        points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], dtype=torch.float32, device=device)
+        points = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0]], dtype=torch.float32, device=device
+        )
         cells = torch.tensor([[0, 1]], dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
 
@@ -260,7 +266,7 @@ class TestLinearSubdivision:
     def test_levels_parameter(self, device, n_levels):
         """Test that levels parameter works correctly."""
         mesh = create_triangle_mesh(device)
-        
+
         if n_levels == 0:
             subdivided = mesh.subdivide(levels=0, filter="linear")
             # No subdivision should occur
@@ -269,7 +275,7 @@ class TestLinearSubdivision:
         else:
             subdivided = mesh.subdivide(levels=n_levels, filter="linear")
             # Each level multiplies cells by 4 for triangles
-            expected_cells = mesh.n_cells * (4 ** n_levels)
+            expected_cells = mesh.n_cells * (4**n_levels)
             assert subdivided.n_cells == expected_cells
 
 
@@ -312,7 +318,7 @@ class TestButterflySubdivision:
         # This test checks if butterfly subdivision handles non-2D manifolds
         # It might error, or fall back to linear - either is acceptable
         mesh = create_line_mesh(device)
-        
+
         # Butterfly was designed for 2D manifolds (triangles)
         # For 1D, it should either work or raise a clear error
         try:
@@ -386,14 +392,14 @@ class TestSubdivisionValidation:
     def test_negative_levels_error(self, device):
         """Test that negative levels raises error."""
         mesh = create_triangle_mesh(device)
-        
+
         with pytest.raises((ValueError, RuntimeError)):
             mesh.subdivide(levels=-1, filter="linear")
 
     def test_invalid_filter_error(self, device):
         """Test that invalid filter name raises error."""
         mesh = create_triangle_mesh(device)
-        
+
         with pytest.raises((ValueError, TypeError)):
             mesh.subdivide(levels=1, filter="invalid")  # type: ignore
 
@@ -438,7 +444,7 @@ class TestSubdivisionScaling:
     def test_exponential_cell_growth(self, device):
         """Test that cells grow exponentially with levels."""
         mesh = create_triangle_mesh(device)
-        
+
         n_cells_0 = mesh.n_cells
         n_cells_1 = mesh.subdivide(levels=1, filter="linear").n_cells
         n_cells_2 = mesh.subdivide(levels=2, filter="linear").n_cells
@@ -456,13 +462,13 @@ class TestSubdivisionScaling:
         n = 10
         points = []
         cells = []
-        
+
         for i in range(n):
             for j in range(n):
                 points.append([float(i), float(j)])
-        
+
         points = torch.tensor(points, dtype=torch.float32, device=device)
-        
+
         # Create triangular cells
         for i in range(n - 1):
             for j in range(n - 1):
@@ -470,11 +476,10 @@ class TestSubdivisionScaling:
                 # Two triangles per quad
                 cells.append([idx, idx + 1, idx + n])
                 cells.append([idx + 1, idx + n + 1, idx + n])
-        
+
         cells = torch.tensor(cells, dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
 
         # Should handle reasonably large mesh
         subdivided = mesh.subdivide(levels=1, filter="linear")
         assert subdivided.n_cells == mesh.n_cells * 4
-

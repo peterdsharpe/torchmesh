@@ -113,4 +113,3 @@ class Adjacency:
     def n_total_neighbors(self) -> int:
         """Total number of neighbor relationships across all sources."""
         return len(self.indices)
-

@@ -24,33 +24,33 @@ if TYPE_CHECKING:
 
 def gaussian_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
     """Compute intrinsic Gaussian curvature at mesh vertices.
-    
+
     Uses the angle defect formula from discrete differential geometry:
         K_vertex = angle_defect / voronoi_area
     where:
         angle_defect = full_angle(n) - Σ(angles at vertex in incident cells)
-    
+
     This is an intrinsic measure of curvature that works for any codimension,
     as it depends only on distances measured within the manifold (Theorema Egregium).
-    
+
     Signed curvature:
     - Positive: Elliptic point (sphere-like)
     - Zero: Flat/parabolic point (plane-like)
     - Negative: Hyperbolic point (saddle-like)
-    
+
     Args:
         mesh: Input simplicial mesh (1D, 2D, or 3D manifold)
-        
+
     Returns:
         Tensor of shape (n_points,) containing signed Gaussian curvature at each vertex.
         For isolated vertices (no incident cells), curvature is NaN.
-        
+
     Example:
         >>> # Sphere of radius r has K = 1/r² everywhere
         >>> sphere_mesh = create_sphere_mesh(radius=2.0)
         >>> K = gaussian_curvature_vertices(sphere_mesh)
         >>> assert K.mean() ≈ 0.25  # 1/(2.0)²
-        
+
     Note:
         Satisfies discrete Gauss-Bonnet theorem:
             Σ_vertices (K_i * A_i) = 2π * χ(M)
@@ -58,58 +58,58 @@ def gaussian_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
     """
     device = mesh.points.device
     n_manifold_dims = mesh.n_manifold_dims
-    
+
     ### Compute angle sums at each vertex
     angle_sums = compute_angles_at_vertices(mesh)  # (n_points,)
-    
+
     ### Compute full angle for this manifold dimension
     full_angle = compute_full_angle_n_sphere(n_manifold_dims)
-    
+
     ### Compute angle defect
     # angle_defect = full_angle - sum_of_angles
     # Positive defect = positive curvature
     angle_defect = full_angle - angle_sums  # (n_points,)
-    
+
     ### Compute Voronoi areas
     voronoi_areas = compute_voronoi_areas(mesh)  # (n_points,)
-    
+
     ### Compute Gaussian curvature
     # K = angle_defect / voronoi_area
     # For isolated vertices (voronoi_area = 0), this gives inf/nan
     # Clamp areas to avoid division by zero, use inf for zero areas
     voronoi_areas_safe = torch.clamp(voronoi_areas, min=1e-30)
-    
+
     gaussian_curvature = angle_defect / voronoi_areas_safe
-    
+
     # Set isolated vertices (zero voronoi area) to NaN
     gaussian_curvature = torch.where(
         voronoi_areas > 0,
         gaussian_curvature,
-        torch.tensor(float('nan'), dtype=gaussian_curvature.dtype, device=device),
+        torch.tensor(float("nan"), dtype=gaussian_curvature.dtype, device=device),
     )
-    
+
     return gaussian_curvature
 
 
 def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
     """Compute Gaussian curvature at cell centers using dual mesh concept.
-    
+
     Treats cell centroids as vertices of a dual mesh and computes curvature
     based on angles between connections to adjacent cell centroids.
-    
+
     This provides a cell-based curvature measure complementary to vertex curvature.
-    
+
     Args:
         mesh: Input simplicial mesh
-        
+
     Returns:
         Tensor of shape (n_cells,) containing Gaussian curvature at each cell.
-        
+
     Algorithm:
         1. Get cell-to-cell adjacency (cells sharing facets)
         2. Compute "dual angles" between adjacent cell centroids
         3. Apply angle defect formula on dual mesh
-        
+
     Example:
         >>> K_cells = gaussian_curvature_cells(sphere_mesh)
         >>> # Should be positive for sphere
@@ -117,34 +117,34 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
     device = mesh.points.device
     n_cells = mesh.n_cells
     n_manifold_dims = mesh.n_manifold_dims
-    
+
     ### Handle empty mesh
     if n_cells == 0:
         return torch.zeros(0, dtype=mesh.points.dtype, device=device)
-    
+
     ### Get cell centroids (reuse existing computation)
     cell_centroids = mesh.cell_centroids  # (n_cells, n_spatial_dims)
-    
+
     ### Get cell-to-cell adjacency
     from torchmesh.neighbors import get_cell_to_cells_adjacency
-    
+
     # Cells are adjacent if they share a codimension-1 facet
     adjacency = get_cell_to_cells_adjacency(mesh, adjacency_codimension=1)
-    
+
     ### Compute angles in dual mesh (fully vectorized)
     # For each cell, sum angles between all pairs of vectors to adjacent cell centroids
     angle_sums = torch.zeros(n_cells, dtype=mesh.points.dtype, device=device)
-    
+
     ### Get valences (number of neighbors per cell)
     valences = adjacency.offsets[1:] - adjacency.offsets[:-1]
-    
+
     ### Build source cell indices for each neighbor relationship
     # Shape: (total_neighbors,)
     source_cell_indices = torch.repeat_interleave(
         torch.arange(n_cells, dtype=torch.int64, device=device),
         valences,
     )
-    
+
     ### Get vectors from each cell to each of its neighbors
     # adjacency.indices contains the neighbor cell indices
     # source_cell_indices contains the source cell index for each entry in adjacency.indices
@@ -152,24 +152,24 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
     source_centroids = cell_centroids[source_cell_indices]
     neighbor_centroids = cell_centroids[adjacency.indices]
     vectors = neighbor_centroids - source_centroids
-    
+
     ### For each cell, compute pairwise angles between all neighbor vectors
     # We need to process cells with different numbers of neighbors
     # For efficiency, batch cells by valence
     unique_valences = torch.unique(valences[valences >= 2])
-    
+
     for val in unique_valences:
         ### Get cells with this valence
         cells_with_valence = torch.where(valences == val)[0]
         n_cells_val = len(cells_with_valence)
-        
+
         if n_cells_val == 0:
             continue
-        
+
         ### Extract vectors for these cells using advanced indexing
         # Shape: (n_cells_val, val, n_spatial_dims)
         # For each cell in cells_with_valence, get its val neighbor vectors
-        
+
         # Build indices to gather from vectors array
         # Shape: (n_cells_val, val)
         gather_indices = torch.zeros(
@@ -177,16 +177,20 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
         )
         for local_idx, cell_idx in enumerate(cells_with_valence):
             start_idx = adjacency.offsets[cell_idx]
-            gather_indices[local_idx] = torch.arange(start_idx, start_idx + val, device=device)
-        
+            gather_indices[local_idx] = torch.arange(
+                start_idx, start_idx + val, device=device
+            )
+
         # Gather vectors
         # Shape: (n_cells_val, val, n_spatial_dims)
-        cell_vectors = vectors[gather_indices.flatten()].reshape(n_cells_val, val, mesh.n_spatial_dims)
-        
+        cell_vectors = vectors[gather_indices.flatten()].reshape(
+            n_cells_val, val, mesh.n_spatial_dims
+        )
+
         ### Generate all pairwise combinations (i, j) where i < j (vectorized)
         # For val neighbors, we have C(val, 2) = val*(val-1)/2 pairs
         n_pairs = (val * (val - 1)) // 2
-        
+
         # Use torch.combinations or create indices directly
         pair_i = []
         pair_j = []
@@ -196,42 +200,41 @@ def gaussian_curvature_cells(mesh: "Mesh") -> torch.Tensor:
                 pair_j.append(j)
         pair_i = torch.tensor(pair_i, dtype=torch.int64, device=device)
         pair_j = torch.tensor(pair_j, dtype=torch.int64, device=device)
-        
+
         ### Compute angles for all pairs across all cells
         # Shape: (n_cells_val, n_pairs, n_spatial_dims)
         vectors_i = cell_vectors[:, pair_i, :]  # (n_cells_val, n_pairs, n_spatial_dims)
         vectors_j = cell_vectors[:, pair_j, :]  # (n_cells_val, n_pairs, n_spatial_dims)
-        
+
         ### Compute angles using stable_angle_between_vectors
         # Reshape to (n_cells_val * n_pairs, n_spatial_dims) for batch computation
         from torchmesh.curvature._utils import stable_angle_between_vectors
-        
+
         vectors_i_flat = vectors_i.reshape(-1, mesh.n_spatial_dims)
         vectors_j_flat = vectors_j.reshape(-1, mesh.n_spatial_dims)
-        
+
         angles_flat = stable_angle_between_vectors(vectors_i_flat, vectors_j_flat)
         angles = angles_flat.reshape(n_cells_val, n_pairs)
-        
+
         ### Sum angles for each cell
         angle_sums[cells_with_valence] = angles.sum(dim=1)
-    
+
     ### Compute angle defect
     full_angle = compute_full_angle_n_sphere(n_manifold_dims)
     angle_defect = full_angle - angle_sums
-    
+
     ### Approximate "dual Voronoi area" using cell area
     # For dual mesh, use cell area as approximate measure
     cell_areas = mesh.cell_areas
-    
+
     ### Compute curvature
     gaussian_curvature = angle_defect / torch.clamp(cell_areas, min=1e-30)
-    
+
     # Set isolated cells to NaN
     gaussian_curvature = torch.where(
         cell_areas > 0,
         gaussian_curvature,
-        torch.tensor(float('nan'), dtype=gaussian_curvature.dtype, device=device),
+        torch.tensor(float("nan"), dtype=gaussian_curvature.dtype, device=device),
     )
-    
-    return gaussian_curvature
 
+    return gaussian_curvature

@@ -235,32 +235,32 @@ class Mesh:
     @property
     def point_normals(self) -> torch.Tensor:
         """Compute area-weighted normal vectors at mesh vertices.
-        
+
         For each point (vertex), computes a normal vector by taking an area-weighted
         average of the normals of all adjacent cells. This provides a smooth approximation
         of the surface normal at each vertex.
-        
+
         The normal at vertex v is computed as:
             point_normal_v = normalize(sum_over_adjacent_cells(cell_normal * cell_area))
-        
+
         Area weighting ensures that larger adjacent faces have more influence on the
         vertex normal, which is standard practice in computer graphics and produces
         better visual results than simple averaging.
-        
+
         Normal vectors are only well-defined for codimension-1 manifolds, where each
         cell has a unique normal direction. For higher codimensions, normals are
         ambiguous and this property will raise an error.
-        
+
         The result is cached in point_data["_normals"] for efficiency.
-        
+
         Returns:
             Tensor of shape (n_points, n_spatial_dims) containing unit normal vectors
             at each vertex. For isolated points (with no adjacent cells), the normal
             is a zero vector.
-        
+
         Raises:
             ValueError: If the mesh is not codimension-1 (n_manifold_dims ≠ n_spatial_dims - 1).
-        
+
         Example:
             >>> # Triangle mesh in 3D
             >>> mesh = create_triangle_mesh_3d()
@@ -277,11 +277,11 @@ class Mesh:
                     f"Required: n_manifold_dims = n_spatial_dims - 1 (codimension-1).\n"
                     f"Current codimension: {self.codimension}"
                 )
-            
+
             ### Get cell normals and areas (triggers computation if not cached)
             cell_normals = self.cell_normals  # (n_cells, n_spatial_dims)
             cell_areas = self.cell_areas  # (n_cells,)
-            
+
             ### Initialize accumulated weighted normals for each point
             # Shape: (n_points, n_spatial_dims)
             weighted_normals = torch.zeros(
@@ -289,17 +289,17 @@ class Mesh:
                 dtype=self.points.dtype,
                 device=self.points.device,
             )
-            
+
             ### Vectorized accumulation of area-weighted normals
             # For each cell, add (cell_normal * cell_area) to each of its vertices
-            
+
             # Get all vertex indices from all cells
             # Shape: (n_cells, n_vertices_per_cell)
             n_vertices_per_cell = self.cells.shape[1]
-            
+
             # Flatten point indices: (n_cells * n_vertices_per_cell,)
             point_indices = self.cells.flatten()
-            
+
             # Repeat cell normals for each vertex in the cell
             # Shape: (n_cells, n_vertices_per_cell, n_spatial_dims)
             cell_normals_repeated = cell_normals.unsqueeze(1).expand(
@@ -307,124 +307,126 @@ class Mesh:
             )
             # Flatten: (n_cells * n_vertices_per_cell, n_spatial_dims)
             cell_normals_flat = cell_normals_repeated.reshape(-1, self.n_spatial_dims)
-            
+
             # Repeat cell areas for each vertex in the cell
             # Shape: (n_cells, n_vertices_per_cell)
-            cell_areas_repeated = cell_areas.unsqueeze(1).expand(-1, n_vertices_per_cell)
+            cell_areas_repeated = cell_areas.unsqueeze(1).expand(
+                -1, n_vertices_per_cell
+            )
             # Flatten: (n_cells * n_vertices_per_cell,)
             cell_areas_flat = cell_areas_repeated.flatten()
-            
+
             # Weight normals by area
             # Shape: (n_cells * n_vertices_per_cell, n_spatial_dims)
             weighted_normals_flat = cell_normals_flat * cell_areas_flat.unsqueeze(-1)
-            
+
             ### Scatter-add weighted normals to their corresponding points
             # Expand point_indices to match weighted_normals_flat shape
             point_indices_expanded = point_indices.unsqueeze(-1).expand(
                 -1, self.n_spatial_dims
             )
-            
+
             # Accumulate weighted normals at each point
             weighted_normals.scatter_add_(
                 dim=0,
                 index=point_indices_expanded,
                 src=weighted_normals_flat,
             )
-            
+
             ### Normalize to get unit normals
             # For isolated points (zero weighted sum), F.normalize returns zero vector
             self.point_data["_normals"] = F.normalize(
                 weighted_normals, dim=-1, eps=1e-12
             )
-        
+
         return self.point_data["_normals"]
 
     @property
     def gaussian_curvature_vertices(self) -> torch.Tensor:
         """Compute intrinsic Gaussian curvature at mesh vertices.
-        
+
         Uses the angle defect method from discrete differential geometry:
             K = (full_angle - Σ angles) / voronoi_area
-        
+
         This is an intrinsic measure of curvature (Theorema Egregium) that works
         for any codimension, as it depends only on distances within the manifold.
-        
+
         Signed curvature:
         - Positive: Elliptic/convex (sphere-like)
         - Zero: Flat/parabolic (plane-like)
         - Negative: Hyperbolic/saddle (saddle-like)
-        
+
         The result is cached in point_data["_gaussian_curvature"] for efficiency.
-        
+
         Returns:
             Tensor of shape (n_points,) containing signed Gaussian curvature.
             Isolated vertices have NaN curvature.
-            
+
         Example:
             >>> # Sphere of radius r has K = 1/r²
             >>> sphere = create_sphere_mesh(radius=2.0)
             >>> K = sphere.gaussian_curvature_vertices
             >>> assert K.mean() ≈ 0.25
-            
+
         Note:
             Satisfies discrete Gauss-Bonnet theorem:
                 Σ_vertices (K_i * A_i) = 2π * χ(M)
         """
         if "_gaussian_curvature" not in self.point_data:
             from torchmesh.curvature import gaussian_curvature_vertices
-            
+
             self.point_data["_gaussian_curvature"] = gaussian_curvature_vertices(self)
-        
+
         return self.point_data["_gaussian_curvature"]
 
     @property
     def gaussian_curvature_cells(self) -> torch.Tensor:
         """Compute Gaussian curvature at cell centers using dual mesh concept.
-        
+
         Treats cell centroids as vertices of a dual mesh and computes curvature
         based on angles between connections to adjacent cell centroids.
-        
+
         The result is cached in cell_data["_gaussian_curvature"] for efficiency.
-        
+
         Returns:
             Tensor of shape (n_cells,) containing Gaussian curvature at cells.
-            
+
         Example:
             >>> K_cells = mesh.gaussian_curvature_cells
         """
         if "_gaussian_curvature" not in self.cell_data:
             from torchmesh.curvature import gaussian_curvature_cells
-            
+
             self.cell_data["_gaussian_curvature"] = gaussian_curvature_cells(self)
-        
+
         return self.cell_data["_gaussian_curvature"]
 
     @property
     def mean_curvature_vertices(self) -> torch.Tensor:
         """Compute extrinsic mean curvature at mesh vertices.
-        
+
         Uses the cotangent Laplace-Beltrami operator:
             H = (1/2) * ||L @ points|| / voronoi_area
-        
+
         Mean curvature is an extrinsic measure (depends on embedding) and is
         only defined for codimension-1 manifolds where normal vectors exist.
-        
+
         For 2D surfaces: H = (k1 + k2) / 2 where k1, k2 are principal curvatures
-        
+
         Signed curvature:
         - Positive: Convex (sphere exterior with outward normals)
         - Negative: Concave (sphere interior with outward normals)
         - Zero: Minimal surface (soap film)
-        
+
         The result is cached in point_data["_mean_curvature"] for efficiency.
-        
+
         Returns:
             Tensor of shape (n_points,) containing signed mean curvature.
             Isolated vertices have NaN curvature.
-            
+
         Raises:
             ValueError: If mesh is not codimension-1
-            
+
         Example:
             >>> # Sphere of radius r has H = 1/r
             >>> sphere = create_sphere_mesh(radius=2.0)
@@ -433,9 +435,9 @@ class Mesh:
         """
         if "_mean_curvature" not in self.point_data:
             from torchmesh.curvature import mean_curvature_vertices
-            
+
             self.point_data["_mean_curvature"] = mean_curvature_vertices(self)
-        
+
         return self.point_data["_mean_curvature"]
 
     @classmethod
@@ -964,7 +966,9 @@ class Mesh:
         """
         from torchmesh.neighbors import get_cell_to_cells_adjacency
 
-        return get_cell_to_cells_adjacency(self, adjacency_codimension=adjacency_codimension)
+        return get_cell_to_cells_adjacency(
+            self, adjacency_codimension=adjacency_codimension
+        )
 
     def get_cells_to_points_adjacency(self):
         """Get the vertices (points) that comprise each cell.
@@ -1209,21 +1213,21 @@ class Mesh:
 
     def translate(self, offset: torch.Tensor | list | tuple) -> "Mesh":
         """Apply a translation (affine transformation) to the mesh.
-        
+
         Convenience wrapper for torchmesh.transformations.translate().
         See that function for detailed documentation.
-        
+
         Args:
             offset: Translation vector, shape (n_spatial_dims,) or broadcastable
-        
+
         Returns:
             New Mesh with translated geometry
-        
+
         Example:
             >>> translated = mesh.translate([1.0, 2.0, 3.0])
         """
         from torchmesh.transformations import translate
-        
+
         return translate(self, offset)
 
     def rotate(
@@ -1234,26 +1238,26 @@ class Mesh:
         transform_data: bool = False,
     ) -> "Mesh":
         """Rotate the mesh about an axis by a specified angle.
-        
+
         Convenience wrapper for torchmesh.transformations.rotate().
         See that function for detailed documentation.
-        
+
         Args:
             axis: Rotation axis vector (ignored for 2D, required for 3D)
             angle: Rotation angle in radians
             center: Center point for rotation (optional)
             transform_data: If True, also rotate vector/tensor fields
-        
+
         Returns:
             New Mesh with rotated geometry
-        
+
         Example:
             >>> # Rotate 90 degrees about z-axis
             >>> import numpy as np
             >>> rotated = mesh.rotate([0, 0, 1], np.pi/2)
         """
         from torchmesh.transformations import rotate
-        
+
         return rotate(self, axis, angle, center, transform_data)
 
     def scale(
@@ -1263,18 +1267,18 @@ class Mesh:
         transform_data: bool = False,
     ) -> "Mesh":
         """Scale the mesh by specified factor(s).
-        
+
         Convenience wrapper for torchmesh.transformations.scale().
         See that function for detailed documentation.
-        
+
         Args:
             factor: Scale factor (scalar) or factors (per-dimension)
             center: Center point for scaling (optional)
             transform_data: If True, also scale vector/tensor fields
-        
+
         Returns:
             New Mesh with scaled geometry
-        
+
         Example:
             >>> # Uniform scaling
             >>> scaled = mesh.scale(2.0)
@@ -1283,7 +1287,7 @@ class Mesh:
             >>> scaled = mesh.scale([2.0, 1.0, 0.5])
         """
         from torchmesh.transformations import scale
-        
+
         return scale(self, factor, center, transform_data)
 
     def transform(
@@ -1292,24 +1296,24 @@ class Mesh:
         transform_data: bool = False,
     ) -> "Mesh":
         """Apply a linear transformation to the mesh.
-        
+
         Convenience wrapper for torchmesh.transformations.transform().
         See that function for detailed documentation.
-        
+
         Args:
             matrix: Transformation matrix, shape (new_n_spatial_dims, n_spatial_dims)
             transform_data: If True, also transform vector/tensor fields
-        
+
         Returns:
             New Mesh with transformed geometry
-        
+
         Example:
             >>> # Shear transformation
             >>> shear = torch.tensor([[1.0, 0.5], [0.0, 1.0]])
             >>> sheared = mesh.transform(shear)
         """
         from torchmesh.transformations import transform
-        
+
         return transform(self, matrix, transform_data)
 
     def compute_point_derivatives(
@@ -1320,9 +1324,9 @@ class Mesh:
         order: int = 1,
     ) -> "Mesh":
         """Compute gradients of point_data fields.
-        
+
         This is a convenience method that delegates to torchmesh.calculus.compute_point_derivatives.
-        
+
         Args:
             keys: Fields to compute gradients of. Options:
                 - None: All non-cached fields (not starting with "_")
@@ -1334,17 +1338,17 @@ class Mesh:
                 - "dec": Discrete Exterior Calculus (differential geometry)
             gradient_type: Type of gradient:
                 - "intrinsic": Project onto manifold tangent space (default)
-                - "extrinsic": Full ambient space gradient  
+                - "extrinsic": Full ambient space gradient
                 - "both": Compute and store both
             order: Accuracy order for LSQ method (ignored for DEC)
-        
+
         Returns:
             New Mesh with gradient fields added to point_data.
             Field naming: "{field}_gradient" or "{field}_gradient_intrinsic/extrinsic"
-        
+
         Side Effects:
             Original mesh.point_data is modified in-place to cache intermediate results.
-        
+
         Example:
             >>> # Compute gradient of pressure
             >>> mesh_grad = mesh.compute_point_derivatives(keys="pressure")
@@ -1357,7 +1361,7 @@ class Mesh:
             ... )
         """
         from torchmesh.calculus import compute_point_derivatives
-        
+
         return compute_point_derivatives(
             mesh=self,
             keys=keys,
@@ -1374,27 +1378,27 @@ class Mesh:
         order: int = 1,
     ) -> "Mesh":
         """Compute gradients of cell_data fields.
-        
+
         This is a convenience method that delegates to torchmesh.calculus.compute_cell_derivatives.
-        
+
         Args:
             keys: Fields to compute gradients of (same format as compute_point_derivatives)
             method: "lsq" or "dec" (currently only "lsq" is fully supported for cells)
             gradient_type: "intrinsic", "extrinsic", or "both"
             order: Accuracy order for LSQ
-        
+
         Returns:
             New Mesh with gradient fields added to cell_data
-        
+
         Side Effects:
             Original mesh.cell_data is modified in-place to cache results.
-        
+
         Example:
             >>> # Compute gradient of cell-centered pressure
             >>> mesh_grad = mesh.compute_cell_derivatives(keys="pressure")
         """
         from torchmesh.calculus import compute_cell_derivatives
-        
+
         return compute_cell_derivatives(
             mesh=self,
             keys=keys,
@@ -1409,15 +1413,15 @@ class Mesh:
         filter: Literal["linear", "butterfly", "loop"] = "linear",
     ) -> "Mesh":
         """Subdivide the mesh using iterative application of subdivision schemes.
-        
+
         Subdivision refines the mesh by splitting each n-simplex into 2^n child
         simplices. Multiple subdivision schemes are supported, each with different
         geometric and smoothness properties.
-        
+
         This method applies the chosen subdivision scheme iteratively for the
         specified number of levels. Each level independently subdivides the
         current mesh.
-        
+
         Args:
             levels: Number of subdivision iterations to perform. Each level
                 increases mesh resolution exponentially:
@@ -1437,19 +1441,19 @@ class Mesh:
                   Both old and new vertices are repositioned for C² smoothness.
                   Currently only supports 2D manifolds (triangular meshes).
                   Original vertices move to new positions.
-        
+
         Returns:
             Subdivided mesh with refined geometry and connectivity.
             - Manifold and spatial dimensions are preserved
             - Point data is interpolated to new vertices
             - Cell data is propagated from parents to children
             - Global data is preserved unchanged
-        
+
         Raises:
             ValueError: If levels < 0
             ValueError: If filter is not one of the supported schemes
             NotImplementedError: If butterfly/loop filter used with non-2D manifold
-        
+
         Example:
             >>> # Linear subdivision of triangular mesh
             >>> mesh = create_triangle_mesh()
@@ -1463,7 +1467,7 @@ class Mesh:
             >>> # Butterfly for interpolating smooth subdivision
             >>> butterfly = mesh.subdivide(levels=1, filter="butterfly")
             >>> # Smoother than linear, preserves original vertices
-        
+
         Note:
             Multi-level subdivision is achieved by iterative application.
             For levels=3, this is equivalent to:
@@ -1479,11 +1483,11 @@ class Mesh:
             subdivide_linear,
             subdivide_loop,
         )
-        
+
         ### Validate inputs
         if levels < 0:
             raise ValueError(f"levels must be >= 0, got {levels=}")
-        
+
         ### Apply subdivision iteratively
         mesh = self
         for _ in range(levels):
@@ -1497,7 +1501,7 @@ class Mesh:
                 raise ValueError(
                     f"Invalid {filter=}. Must be one of: 'linear', 'butterfly', 'loop'"
                 )
-        
+
         return mesh
 
 

@@ -475,16 +475,16 @@ class TestSamplingParametrized:
         n_verts = n_spatial_dims + 1
         vertices = torch.eye(n_verts, n_spatial_dims, device=device)
         vertices = vertices.unsqueeze(0)  # Add batch dimension
-        
+
         # Query at centroid
         query = torch.ones(1, n_spatial_dims, device=device) / n_verts
-        
+
         bary = compute_barycentric_coordinates(query, vertices)
-        
+
         # All coords should be approximately 1/n_verts
         expected = torch.ones(1, 1, n_verts, device=device) / n_verts
         assert torch.allclose(bary, expected, atol=1e-5)
-        
+
         # Verify device
         assert_on_device(bary, device)
 
@@ -510,17 +510,16 @@ class TestSamplingParametrized:
             )
             cells = torch.tensor([[0, 1, 2, 3]], device=device, dtype=torch.int64)
             query = torch.tensor([[0.25, 0.25, 0.25]], device=device)
-        
+
         mesh = Mesh(
             points=points,
             cells=cells,
             cell_data={"value": torch.tensor([100.0], device=device)},
         )
-        
+
         result = sample_data_at_points(mesh, query, data_source="cells")
-        
+
         # Verify result
         assert "value" in result
         assert_on_device(result["value"], device)
         assert not torch.isnan(result["value"][0])
-

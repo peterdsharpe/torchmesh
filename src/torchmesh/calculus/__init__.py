@@ -26,4 +26,3 @@ __all__ = [
     "compute_point_derivatives",
     "compute_cell_derivatives",
 ]
-

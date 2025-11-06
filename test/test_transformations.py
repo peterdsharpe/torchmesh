@@ -26,16 +26,20 @@ def get_available_devices() -> list[str]:
     return devices
 
 
-def create_mesh_with_caches(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
+def create_mesh_with_caches(
+    n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"
+):
     """Create a mesh and pre-compute all caches."""
     from torchmesh.mesh import Mesh
-    
+
     if n_manifold_dims == 1 and n_spatial_dims == 2:
         points = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
             device=device,
         )
-        cells = torch.tensor([[0, 1], [1, 2], [2, 3], [3, 0]], device=device, dtype=torch.int64)
+        cells = torch.tensor(
+            [[0, 1], [1, 2], [2, 3], [3, 0]], device=device, dtype=torch.int64
+        )
     elif n_manifold_dims == 2 and n_spatial_dims == 2:
         points = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]],
@@ -59,18 +63,22 @@ def create_mesh_with_caches(n_spatial_dims: int, n_manifold_dims: int, device: s
             ],
             device=device,
         )
-        cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+        cells = torch.tensor(
+            [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+        )
     else:
-        raise ValueError(f"Unsupported combination: {n_manifold_dims=}, {n_spatial_dims=}")
-    
+        raise ValueError(
+            f"Unsupported combination: {n_manifold_dims=}, {n_spatial_dims=}"
+        )
+
     mesh = Mesh(points=points, cells=cells)
-    
+
     # Pre-compute caches
     _ = mesh.cell_areas
     _ = mesh.cell_centroids
     if mesh.codimension == 1:
         _ = mesh.cell_normals
-    
+
     return mesh
 
 
@@ -78,11 +86,13 @@ def validate_caches(mesh, expected_caches: dict[str, bool], atol: float = 1e-6) 
     """Validate that caches exist and are correct."""
     for cache_name, should_exist in expected_caches.items():
         if should_exist:
-            assert cache_name in mesh.cell_data, f"Cache {cache_name} should exist but is missing"
-            
+            assert cache_name in mesh.cell_data, (
+                f"Cache {cache_name} should exist but is missing"
+            )
+
             # Verify cache is correct by deleting and recomputing
             original_value = mesh.cell_data[cache_name].clone()
-            
+
             mesh_no_cache = Mesh(
                 points=mesh.points,
                 cells=mesh.cells,
@@ -91,7 +101,7 @@ def validate_caches(mesh, expected_caches: dict[str, bool], atol: float = 1e-6) 
                 global_data=mesh.global_data,
             )
             del mesh_no_cache.cell_data[cache_name]
-            
+
             # Recompute by accessing property
             if cache_name == "_areas":
                 recomputed = mesh_no_cache.cell_areas
@@ -101,7 +111,7 @@ def validate_caches(mesh, expected_caches: dict[str, bool], atol: float = 1e-6) 
                 recomputed = mesh_no_cache.cell_normals
             else:
                 raise ValueError(f"Unknown cache: {cache_name}")
-            
+
             assert torch.allclose(original_value, recomputed, atol=atol), (
                 f"Cache {cache_name} has incorrect value.\n"
                 f"Max diff: {(original_value - recomputed).abs().max()}"
@@ -142,15 +152,15 @@ class TestTranslation:
             points=tm_mesh.points.to(device),
             cells=tm_mesh.cells.to(device),
         )
-        
+
         offset = np.array([10.0, 20.0, 30.0])
-        
+
         # PyVista translation (on CPU)
         pv_result = pv_mesh.translate(offset, inplace=False)
-        
+
         # torchmesh translation
         tm_result = translate(tm_mesh, offset)
-        
+
         # Compare points
         tm_as_pv = to_pyvista(tm_result.to("cpu"))
         assert np.allclose(tm_as_pv.points, pv_result.points, atol=1e-5)
@@ -162,12 +172,12 @@ class TestTranslation:
         """Test simple translation across dimensions."""
         n_manifold_dims = n_spatial_dims - 1  # Use triangles in 3D, edges in 2D
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         offset = torch.ones(n_spatial_dims, device=device)
         original_points = mesh.points.clone()
-        
+
         translated = translate(mesh, offset)
-        
+
         assert_on_device(translated.points, device)
         expected_points = original_points + offset
         assert torch.allclose(translated.points, expected_points), (
@@ -181,13 +191,13 @@ class TestTranslation:
     def test_translate_preserves_caches(self, n_spatial_dims, n_manifold_dims, device):
         """Verify translation correctly updates caches across dimensions."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         original_areas = mesh.cell_data["_areas"].clone()
         original_centroids = mesh.cell_data["_centroids"].clone()
-        
+
         offset = torch.ones(n_spatial_dims, device=device)
         translated = translate(mesh, offset)
-        
+
         # Validate caches
         expected_caches = {
             "_areas": True,  # Should exist and be unchanged
@@ -196,9 +206,9 @@ class TestTranslation:
         if mesh.codimension == 1:
             original_normals = mesh.cell_data["_normals"].clone()
             expected_caches["_normals"] = True  # Should exist and be unchanged
-        
+
         validate_caches(translated, expected_caches)
-        
+
         # Verify specific values
         assert torch.allclose(translated.cell_data["_areas"], original_areas), (
             "Areas should be unchanged by translation"
@@ -207,7 +217,7 @@ class TestTranslation:
             translated.cell_data["_centroids"],
             original_centroids + offset,
         ), "Centroids should be translated"
-        
+
         if mesh.codimension == 1:
             assert torch.allclose(translated.cell_data["_normals"], original_normals), (
                 "Normals should be unchanged by translation"
@@ -228,11 +238,11 @@ class TestRotation:
             points=tm_mesh.points.to(device),
             cells=tm_mesh.cells.to(device),
         )
-        
+
         # Rotation axis
         axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
         axis = axes[axis_idx]
-        
+
         # PyVista rotation
         if axis_idx == 0:
             pv_result = pv_mesh.rotate_x(angle, inplace=False)
@@ -240,10 +250,10 @@ class TestRotation:
             pv_result = pv_mesh.rotate_y(angle, inplace=False)
         else:
             pv_result = pv_mesh.rotate_z(angle, inplace=False)
-        
+
         # torchmesh rotation
         tm_result = rotate(tm_mesh, axis, np.radians(angle))
-        
+
         # Compare points
         tm_as_pv = to_pyvista(tm_result.to("cpu"))
         assert np.allclose(tm_as_pv.points, pv_result.points, atol=1e-4)
@@ -258,9 +268,9 @@ class TestRotation:
         )
         cells = torch.tensor([[0, 1, 2], [0, 2, 3]], device=device, dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
-        
+
         rotated = rotate(mesh, None, np.pi / 2)
-        
+
         # After 90 degree rotation: [1, 0] -> [0, 1], [0, 1] -> [-1, 0]
         expected = torch.tensor(
             [[0.0, 0.0], [0.0, 1.0], [-1.0, 1.0], [-1.0, 0.0]],
@@ -276,9 +286,9 @@ class TestRotation:
         )
         cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
-        
+
         rotated = rotate(mesh, [0, 0, 1], np.pi / 2)
-        
+
         expected = torch.tensor(
             [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
             device=device,
@@ -286,34 +296,36 @@ class TestRotation:
         assert torch.allclose(rotated.points, expected, atol=1e-6)
 
     @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
-    def test_rotate_preserves_areas_codim1(self, n_spatial_dims, n_manifold_dims, device):
+    def test_rotate_preserves_areas_codim1(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
         """Verify rotation preserves areas but transforms centroids and normals."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         original_areas = mesh.cell_data["_areas"].clone()
         original_centroids = mesh.cell_data["_centroids"].clone()
         original_normals = mesh.cell_data["_normals"].clone()
-        
+
         # Rotate by 45 degrees
         if n_spatial_dims == 2:
             rotated = rotate(mesh, None, np.pi / 4)
         else:
             rotated = rotate(mesh, [1, 0, 0], np.pi / 4)
-        
+
         validate_caches(
             rotated,
             {"_areas": True, "_centroids": True, "_normals": True},
         )
-        
+
         # Areas should be preserved (rotation has det=1)
         assert torch.allclose(rotated.cell_data["_areas"], original_areas), (
             "Areas should be preserved by rotation"
         )
-        
+
         # Centroids and normals should be different (rotated)
-        assert not torch.allclose(rotated.cell_data["_centroids"], original_centroids), (
-            "Centroids should be rotated"
-        )
+        assert not torch.allclose(
+            rotated.cell_data["_centroids"], original_centroids
+        ), "Centroids should be rotated"
         assert not torch.allclose(rotated.cell_data["_normals"], original_normals), (
             "Normals should be rotated"
         )
@@ -332,15 +344,15 @@ class TestScale:
             points=tm_mesh.points.to(device),
             cells=tm_mesh.cells.to(device),
         )
-        
+
         factor = [2.0, 1.5, 0.8]
-        
+
         # PyVista scaling
         pv_result = pv_mesh.scale(factor, inplace=False)
-        
+
         # torchmesh scaling
         tm_result = scale(tm_mesh, factor)
-        
+
         # Compare points
         tm_as_pv = to_pyvista(tm_result.to("cpu"))
         assert np.allclose(tm_as_pv.points, pv_result.points, atol=1e-5)
@@ -352,12 +364,12 @@ class TestScale:
         """Test uniform scaling across dimensions."""
         n_manifold_dims = n_spatial_dims - 1
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         factor = 2.0
         original_points = mesh.points.clone()
-        
+
         scaled = scale(mesh, factor)
-        
+
         assert_on_device(scaled.points, device)
         expected = original_points * factor
         assert torch.allclose(scaled.points, expected)
@@ -366,28 +378,30 @@ class TestScale:
         "n_spatial_dims,n_manifold_dims",
         [(2, 1), (2, 2), (3, 2), (3, 3)],
     )
-    def test_scale_uniform_updates_caches(self, n_spatial_dims, n_manifold_dims, device):
+    def test_scale_uniform_updates_caches(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
         """Verify uniform scaling correctly updates all caches."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         original_areas = mesh.cell_data["_areas"].clone()
         original_centroids = mesh.cell_data["_centroids"].clone()
-        
+
         factor = 2.0
         scaled = scale(mesh, factor)
-        
+
         validate_caches(scaled, {"_areas": True, "_centroids": True})
-        
+
         # Areas should scale by factor^n_manifold_dims
         expected_areas = original_areas * (factor**n_manifold_dims)
         assert torch.allclose(scaled.cell_data["_areas"], expected_areas), (
             "Areas should scale by factor^n_manifold_dims"
         )
-        
+
         # Centroids should be scaled
         expected_centroids = original_centroids * factor
         assert torch.allclose(scaled.cell_data["_centroids"], expected_centroids)
-        
+
         # For codim-1 and positive uniform scaling, normals should be unchanged
         if mesh.codimension == 1:
             original_normals = mesh.cell_data["_normals"].clone()
@@ -395,12 +409,14 @@ class TestScale:
             assert torch.allclose(scaled.cell_data["_normals"], original_normals)
 
     @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
-    def test_scale_negative_invalidates_normals(self, n_spatial_dims, n_manifold_dims, device):
+    def test_scale_negative_invalidates_normals(
+        self, n_spatial_dims, n_manifold_dims, device
+    ):
         """Verify negative scaling invalidates normals."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         scaled = scale(mesh, -1.0)
-        
+
         # Normals should be invalidated due to winding order change
         validate_caches(scaled, {"_areas": True, "_centroids": True, "_normals": False})
 
@@ -410,14 +426,16 @@ class TestScale:
     ):
         """Verify non-uniform scaling invalidates areas and normals."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         factor = torch.ones(n_spatial_dims, device=device)
         factor[0] = 2.0  # Non-uniform
-        
+
         scaled = scale(mesh, factor)
-        
+
         # Both areas and normals should be invalidated
-        validate_caches(scaled, {"_areas": False, "_centroids": True, "_normals": False})
+        validate_caches(
+            scaled, {"_areas": False, "_centroids": True, "_normals": False}
+        )
 
 
 class TestTransform:
@@ -428,10 +446,10 @@ class TestTransform:
         """Test identity transformation leaves mesh unchanged."""
         n_manifold_dims = n_spatial_dims - 1
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         I = torch.eye(n_spatial_dims, device=device)
         transformed = transform(mesh, I)
-        
+
         assert torch.allclose(transformed.points, mesh.points)
 
     def test_transform_shear_2d(self, device):
@@ -442,11 +460,11 @@ class TestTransform:
         )
         cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
-        
+
         # Shear in x direction
         shear = torch.tensor([[1.0, 0.5], [0.0, 1.0]], device=device)
         sheared = transform(mesh, shear)
-        
+
         expected = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], device=device)
         assert torch.allclose(sheared.points, expected)
 
@@ -458,11 +476,11 @@ class TestTransform:
         )
         cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
-        
+
         # Project onto xy-plane
         proj_xy = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], device=device)
         projected = transform(mesh, proj_xy)
-        
+
         expected = torch.tensor([[1.0, 2.0], [4.0, 5.0], [7.0, 8.0]], device=device)
         assert torch.allclose(projected.points, expected)
         assert projected.n_spatial_dims == 2
@@ -476,15 +494,15 @@ class TestEdgeCases:
         points = torch.zeros(0, 3, device=device)
         cells = torch.zeros(0, 3, dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
-        
+
         # All transformations should work on empty mesh
         translated = translate(mesh, [1, 2, 3])
         assert translated.n_points == 0
         assert_on_device(translated.points, device)
-        
+
         rotated = rotate(mesh, [0, 0, 1], np.pi / 2)
         assert rotated.n_points == 0
-        
+
         scaled = scale(mesh, 2.0)
         assert scaled.n_points == 0
 
@@ -493,46 +511,46 @@ class TestEdgeCases:
         """Test that transformations preserve device."""
         n_manifold_dims = n_spatial_dims - 1
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         # All transformations should preserve device
         translated = mesh.translate(torch.ones(n_spatial_dims, device=device))
         assert_on_device(translated.points, device)
         assert_on_device(translated.cells, device)
-        
+
         if n_spatial_dims == 3:
             rotated = mesh.rotate([0, 0, 1], np.pi / 4)
             assert_on_device(rotated.points, device)
-        
+
         scaled = mesh.scale(2.0)
         assert_on_device(scaled.points, device)
 
     def test_rotation_axis_normalization(self, device):
         """Test that rotation axis is automatically normalized."""
         mesh = create_mesh_with_caches(3, 2, device=device)
-        
+
         # Use non-unit axis
         axis_unnormalized = [2.0, 0.0, 0.0]
         axis_normalized = [1.0, 0.0, 0.0]
-        
+
         result1 = rotate(mesh, axis_unnormalized, np.pi / 4)
         result2 = rotate(mesh, axis_normalized, np.pi / 4)
-        
+
         assert torch.allclose(result1.points, result2.points, atol=1e-6)
 
     def test_multiple_transformations_composition(self, device):
         """Test composing multiple transformations with cache tracking."""
         mesh = create_mesh_with_caches(3, 2, device=device)
-        
+
         # Translate -> Rotate -> Scale
         result = mesh.translate([1, 2, 3])
         validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
-        
+
         result = result.rotate([0, 0, 1], np.pi / 4)
         validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
-        
+
         result = result.scale(2.0)
         validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
-        
+
         # Final result should have correctly maintained caches
         # Areas should be scaled by 2^2 = 4
         assert torch.allclose(

@@ -56,22 +56,22 @@ def create_simple_mesh(
     device: str = "cpu",
 ):
     """Create a simple mesh for testing.
-    
+
     Args:
         n_spatial_dims: Dimension of embedding space (2 or 3)
         n_manifold_dims: Dimension of manifold (0, 1, 2, or 3)
         device: Compute device ('cpu' or 'cuda')
-    
+
     Returns:
         A simple Mesh instance appropriate for the given dimensions
     """
     from torchmesh.mesh import Mesh
-    
+
     if n_manifold_dims > n_spatial_dims:
         raise ValueError(
             f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
         )
-    
+
     if n_manifold_dims == 0:
         # Point cloud
         if n_spatial_dims == 2:
@@ -83,7 +83,7 @@ def create_simple_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.arange(len(points), device=device, dtype=torch.int64).unsqueeze(1)
-    
+
     elif n_manifold_dims == 1:
         # Polyline
         if n_spatial_dims == 2:
@@ -98,7 +98,7 @@ def create_simple_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1], [1, 2], [2, 3]], device=device, dtype=torch.int64)
-    
+
     elif n_manifold_dims == 2:
         # Triangular mesh
         if n_spatial_dims == 2:
@@ -113,7 +113,7 @@ def create_simple_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1, 2], [1, 3, 2]], device=device, dtype=torch.int64)
-    
+
     elif n_manifold_dims == 3:
         # Tetrahedral mesh
         if n_spatial_dims == 3:
@@ -127,12 +127,14 @@ def create_simple_mesh(
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -143,12 +145,12 @@ def create_single_cell_mesh(
 ):
     """Create a mesh with a single cell."""
     from torchmesh.mesh import Mesh
-    
+
     if n_manifold_dims > n_spatial_dims:
         raise ValueError(
             f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
         )
-    
+
     if n_manifold_dims == 0:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.5, 0.5]], device=device)
@@ -157,7 +159,7 @@ def create_single_cell_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0]], device=device, dtype=torch.int64)
-    
+
     elif n_manifold_dims == 1:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
@@ -166,7 +168,7 @@ def create_single_cell_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1]], device=device, dtype=torch.int64)
-    
+
     elif n_manifold_dims == 2:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], device=device)
@@ -177,7 +179,7 @@ def create_single_cell_mesh(
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
-    
+
     elif n_manifold_dims == 3:
         if n_spatial_dims == 3:
             points = torch.tensor(
@@ -194,7 +196,7 @@ def create_single_cell_mesh(
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -205,36 +207,38 @@ def assert_mesh_valid(mesh, strict: bool = True) -> None:
     """Assert that a mesh is valid and well-formed."""
     assert mesh.n_points > 0, "Mesh must have at least one point"
     assert mesh.points.ndim == 2, f"Points must be 2D tensor, got {mesh.points.ndim=}"
-    assert (
-        mesh.points.shape[1] == mesh.n_spatial_dims
-    ), f"Points shape mismatch: {mesh.points.shape[1]=} != {mesh.n_spatial_dims=}"
-    
+    assert mesh.points.shape[1] == mesh.n_spatial_dims, (
+        f"Points shape mismatch: {mesh.points.shape[1]=} != {mesh.n_spatial_dims=}"
+    )
+
     if mesh.n_cells > 0:
         assert mesh.cells.ndim == 2, f"Cells must be 2D tensor, got {mesh.cells.ndim=}"
-        assert (
-            mesh.cells.shape[1] == mesh.n_manifold_dims + 1
-        ), f"Cells shape mismatch: {mesh.cells.shape[1]=} != {mesh.n_manifold_dims + 1=}"
+        assert mesh.cells.shape[1] == mesh.n_manifold_dims + 1, (
+            f"Cells shape mismatch: {mesh.cells.shape[1]=} != {mesh.n_manifold_dims + 1=}"
+        )
         assert torch.all(mesh.cells >= 0), "Cell indices must be non-negative"
-        assert torch.all(
-            mesh.cells < mesh.n_points
-        ), f"Cell indices out of bounds: max={mesh.cells.max()}, n_points={mesh.n_points}"
-    
+        assert torch.all(mesh.cells < mesh.n_points), (
+            f"Cell indices out of bounds: max={mesh.cells.max()}, n_points={mesh.n_points}"
+        )
+
     assert mesh.points.dtype in [
         torch.float32,
         torch.float64,
     ], f"Points must be float type, got {mesh.points.dtype=}"
-    assert mesh.cells.dtype == torch.int64, f"Cells must be int64, got {mesh.cells.dtype=}"
-    assert (
-        mesh.points.device == mesh.cells.device
-    ), f"Device mismatch: {mesh.points.device=} != {mesh.cells.device=}"
-    
+    assert mesh.cells.dtype == torch.int64, (
+        f"Cells must be int64, got {mesh.cells.dtype=}"
+    )
+    assert mesh.points.device == mesh.cells.device, (
+        f"Device mismatch: {mesh.points.device=} != {mesh.cells.device=}"
+    )
+
     if strict and mesh.n_cells > 0:
         for i in range(mesh.n_cells):
             cell_verts = mesh.cells[i]
             unique_verts = torch.unique(cell_verts)
-            assert len(unique_verts) == len(
-                cell_verts
-            ), f"Cell {i} has duplicate vertices: {cell_verts.tolist()}"
+            assert len(unique_verts) == len(cell_verts), (
+                f"Cell {i} has duplicate vertices: {cell_verts.tolist()}"
+            )
 
 
 def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:

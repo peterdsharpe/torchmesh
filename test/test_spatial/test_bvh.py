@@ -25,24 +25,32 @@ def get_available_devices() -> list[str]:
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
-        raise ValueError(f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}")
-    
+        raise ValueError(
+            f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
+        )
+
     if n_manifold_dims == 1:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [1.5, 1.0], [0.5, 1.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 1.0]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
         cells = torch.tensor([[0, 1], [1, 2], [2, 3]], device=device, dtype=torch.int64)
     elif n_manifold_dims == 2:
         if n_spatial_dims == 2:
-            points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device)
+            points = torch.tensor(
+                [[0.0, 0.0], [1.0, 0.0], [0.5, 1.0], [1.5, 0.5]], device=device
+            )
         elif n_spatial_dims == 3:
             points = torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]], device=device
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [1.5, 0.5, 0.5]],
+                device=device,
             )
         else:
             raise ValueError(f"Unsupported {n_spatial_dims=}")
@@ -59,12 +67,14 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -336,23 +346,23 @@ class TestBVHParametrized:
     ):
         """Test BVH construction across all dimension combinations."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
-        
+
         bvh = BVH.from_mesh(mesh)
-        
+
         # Verify spatial dimension
         assert bvh.n_spatial_dims == n_spatial_dims, (
             f"BVH spatial dims mismatch: {bvh.n_spatial_dims=} != {n_spatial_dims=}"
         )
-        
+
         # Verify AABB shapes
         assert bvh.node_aabb_min.shape[1] == n_spatial_dims
         assert bvh.node_aabb_max.shape[1] == n_spatial_dims
         assert bvh.node_aabb_min.shape[0] == bvh.node_aabb_max.shape[0]
-        
+
         # Verify device
         assert_on_device(bvh.node_aabb_min, device)
         assert_on_device(bvh.node_aabb_max, device)
-        
+
         # Verify at least one node exists
         assert bvh.node_aabb_min.shape[0] > 0, "BVH should have at least one node"
 
@@ -364,22 +374,20 @@ class TestBVHParametrized:
             (3, 3),
         ],
     )
-    def test_bvh_traversal_parametrized(
-        self, n_spatial_dims, n_manifold_dims, device
-    ):
+    def test_bvh_traversal_parametrized(self, n_spatial_dims, n_manifold_dims, device):
         """Test BVH traversal across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
         bvh = BVH.from_mesh(mesh)
-        
+
         # Create query point inside the mesh bounds
         query_point = torch.zeros(n_spatial_dims, device=device) + 0.5
         query = query_point.unsqueeze(0)
-        
+
         candidates = bvh.find_candidate_cells(query)
-        
+
         # Should return a list with one entry (for one query point)
         assert len(candidates) == 1
-        
+
         # Should find at least one candidate
         assert len(candidates[0]) >= 0  # May be 0 if query is outside all cells
 
@@ -399,11 +407,11 @@ class TestBVHParametrized:
         """Test BVH device transfer across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
         bvh = BVH.from_mesh(mesh)
-        
+
         # BVH should be on the same device as mesh
         assert_on_device(bvh.node_aabb_min, device)
         assert_on_device(bvh.node_aabb_max, device)
-        
+
         # Test explicit device transfer
         if device == "cpu":
             bvh_cpu = bvh.to("cpu")
@@ -426,19 +434,21 @@ class TestBVHParametrized:
         """Test BVH with multiple query points across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
         bvh = BVH.from_mesh(mesh)
-        
+
         # Create multiple query points
         n_queries = 5
         queries = torch.randn(n_queries, n_spatial_dims, device=device)
-        
+
         candidates = bvh.find_candidate_cells(queries)
-        
+
         # Should return list with n_queries entries
         assert len(candidates) == n_queries
-        
+
         # Each entry should be a tensor of candidate cell indices
         for i, cands in enumerate(candidates):
-            assert isinstance(cands, torch.Tensor), f"Candidates[{i}] should be a tensor"
+            assert isinstance(cands, torch.Tensor), (
+                f"Candidates[{i}] should be a tensor"
+            )
 
     @pytest.mark.parametrize(
         "n_spatial_dims,n_manifold_dims",
@@ -456,15 +466,15 @@ class TestBVHParametrized:
         """Test that BVH bounds are correct across dimensions."""
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
         bvh = BVH.from_mesh(mesh)
-        
+
         # Root node should contain all points
         root_min = bvh.node_aabb_min[0]
         root_max = bvh.node_aabb_max[0]
-        
+
         # Verify all mesh points are within root bounds
         mesh_min = mesh.points.min(dim=0)[0]
         mesh_max = mesh.points.max(dim=0)[0]
-        
+
         assert torch.all(root_min <= mesh_min), (
             f"Root min should be <= mesh min: {root_min=}, {mesh_min=}"
         )

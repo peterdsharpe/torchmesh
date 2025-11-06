@@ -25,4 +25,3 @@ __all__ = [
     "get_cell_to_cells_adjacency",
     "get_cells_to_points_adjacency",
 ]
-

@@ -21,28 +21,28 @@ def compute_gradient_points_dec(
     point_values: torch.Tensor,
 ) -> torch.Tensor:
     """Compute gradient at vertices using DEC: grad(f) = ♯(df).
-    
+
     Steps:
         1. Apply exterior derivative d₀ to get 1-form on edges
         2. Apply sharp operator ♯ to convert 1-form to vector field
-    
+
     Args:
         mesh: Simplicial mesh
         point_values: Values at vertices, shape (n_points,) or (n_points, ...)
-    
+
     Returns:
         Gradient vectors at vertices, shape (n_points, n_spatial_dims) or
         (n_points, n_spatial_dims, ...) for tensor fields
     """
     from torchmesh.calculus._exterior_derivative import exterior_derivative_0
     from torchmesh.calculus._sharp_flat import sharp
-    
+
     ### Step 1: Compute df (exterior derivative)
     edge_1form, edges = exterior_derivative_0(mesh, point_values)
-    
+
     ### Step 2: Apply sharp to convert 1-form to vector field
     gradient_vectors = sharp(mesh, edge_1form, edges)
-    
+
     return gradient_vectors
 
 
@@ -53,24 +53,28 @@ def compute_gradient_points_lsq(
     intrinsic: bool = False,
 ) -> torch.Tensor:
     """Compute gradient at vertices using weighted least-squares.
-    
+
     Args:
         mesh: Simplicial mesh
         point_values: Values at vertices, shape (n_points,) or (n_points, ...)
         weight_power: Exponent for inverse distance weighting
         intrinsic: If True and mesh is a manifold, solve LSQ in tangent space
-    
+
     Returns:
         Gradient vectors at vertices, shape (n_points, n_spatial_dims) or
         (n_points, n_spatial_dims, ...) for tensor fields
     """
     if intrinsic and mesh.codimension > 0:
         # Use intrinsic LSQ (solves in tangent space)
-        from torchmesh.calculus._lsq_intrinsic import compute_point_gradient_lsq_intrinsic
+        from torchmesh.calculus._lsq_intrinsic import (
+            compute_point_gradient_lsq_intrinsic,
+        )
+
         return compute_point_gradient_lsq_intrinsic(mesh, point_values, weight_power)
     else:
         # Use standard ambient-space LSQ
         from torchmesh.calculus._lsq_reconstruction import compute_point_gradient_lsq
+
         return compute_point_gradient_lsq(mesh, point_values, weight_power)
 
 
@@ -80,18 +84,18 @@ def compute_gradient_cells_lsq(
     weight_power: float = 2.0,
 ) -> torch.Tensor:
     """Compute gradient at cells using weighted least-squares.
-    
+
     Args:
         mesh: Simplicial mesh
         cell_values: Values at cells, shape (n_cells,) or (n_cells, ...)
         weight_power: Exponent for inverse distance weighting
-    
+
     Returns:
         Gradient vectors at cells, shape (n_cells, n_spatial_dims) or
         (n_cells, n_spatial_dims, ...) for tensor fields
     """
     from torchmesh.calculus._lsq_reconstruction import compute_cell_gradient_lsq
-    
+
     return compute_cell_gradient_lsq(mesh, cell_values, weight_power)
 
 
@@ -101,31 +105,31 @@ def project_to_tangent_space(
     location: Literal["points", "cells"],
 ) -> torch.Tensor:
     """Project gradients onto manifold tangent space for intrinsic derivatives.
-    
+
     For manifolds where n_manifold_dims < n_spatial_dims (e.g., surfaces in 3D),
     the intrinsic gradient lies in the tangent space of the manifold.
-    
+
     Args:
         mesh: Simplicial mesh
         gradients: Extrinsic gradients, shape (n, n_spatial_dims, ...)
         location: Whether gradients are at "points" or "cells"
-    
+
     Returns:
         Intrinsic gradients (projected onto tangent space),
         same shape as input
-    
+
     Algorithm:
         For codimension-1 manifolds:
         1. Get normal vector at each point/cell
         2. Project gradient: grad_intrinsic = grad - (grad·n)n
-        
+
         For higher codimension:
         Use PCA on local neighborhood to estimate tangent space
     """
     if mesh.codimension == 0:
         # Manifold fills the space: intrinsic = extrinsic
         return gradients
-    
+
     elif mesh.codimension == 1:
         ### Codimension-1: use normals for projection
         if location == "cells":
@@ -136,22 +140,24 @@ def project_to_tangent_space(
             # Average normals of adjacent cells
             adjacency = mesh.get_point_to_cells_adjacency()
             neighbor_lists = adjacency.to_list()
-            
+
             normals = torch.zeros(
                 (mesh.n_points, mesh.n_spatial_dims),
                 dtype=gradients.dtype,
                 device=mesh.points.device,
             )
-            
+
             cell_normals = mesh.cell_normals  # (n_cells, n_spatial_dims)
-            
+
             for point_idx in range(mesh.n_points):
                 adjacent_cells = neighbor_lists[point_idx]
                 if len(adjacent_cells) > 0:
                     # Average normals (and renormalize)
                     avg_normal = cell_normals[adjacent_cells].mean(dim=0)
-                    normals[point_idx] = avg_normal / torch.norm(avg_normal).clamp(min=1e-10)
-        
+                    normals[point_idx] = avg_normal / torch.norm(avg_normal).clamp(
+                        min=1e-10
+                    )
+
         ### Project: grad_intrinsic = grad - (grad·n)n
         # grad·n contracts along the spatial dimension (dim=1 for gradients)
         if gradients.ndim == 2:
@@ -162,25 +168,28 @@ def project_to_tangent_space(
             # Tensor gradient: (n, n_spatial_dims, ...)
             # Contract along spatial dimension (dim=1)
             # normals is (n, n_spatial_dims), need to broadcast to match gradient shape
-            
+
             # Expand normals to (n, n_spatial_dims, 1, 1, ...)
             normals_expanded = normals.view(
                 normals.shape[0],  # n
                 normals.shape[1],  # n_spatial_dims
-                *([1] * (gradients.ndim - 2))  # broadcast dimensions
+                *([1] * (gradients.ndim - 2)),  # broadcast dimensions
             )
-            
+
             # Dot product: sum over spatial dimension
-            grad_dot_n = (gradients * normals_expanded).sum(dim=1, keepdim=True)  # (n, 1, ...)
-            
+            grad_dot_n = (gradients * normals_expanded).sum(
+                dim=1, keepdim=True
+            )  # (n, 1, ...)
+
             # Project out normal component
-            grad_intrinsic = gradients - grad_dot_n * normals_expanded  # (n, n_spatial_dims, ...)
-        
+            grad_intrinsic = (
+                gradients - grad_dot_n * normals_expanded
+            )  # (n, n_spatial_dims, ...)
+
         return grad_intrinsic
-    
+
     else:
         ### Higher codimension: use PCA to estimate tangent space
         # This is more complex - for now, return extrinsic gradient
         # TODO: Implement PCA-based tangent space estimation
         return gradients
-

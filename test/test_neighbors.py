@@ -30,7 +30,7 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
         raise ValueError(
             f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
         )
-    
+
     if n_manifold_dims == 0:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]], device=device)
@@ -79,22 +79,26 @@ def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = 
                 ],
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64)
+            cells = torch.tensor(
+                [[0, 1, 2, 3], [1, 2, 3, 4]], device=device, dtype=torch.int64
+            )
         else:
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
-def create_single_cell_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
+def create_single_cell_mesh(
+    n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"
+):
     """Create a mesh with a single cell."""
     if n_manifold_dims > n_spatial_dims:
         raise ValueError(
             f"Manifold dimension {n_manifold_dims} cannot exceed spatial dimension {n_spatial_dims}"
         )
-    
+
     if n_manifold_dims == 0:
         if n_spatial_dims == 2:
             points = torch.tensor([[0.5, 0.5]], device=device)
@@ -137,7 +141,7 @@ def create_single_cell_mesh(n_spatial_dims: int, n_manifold_dims: int, device: s
             raise ValueError("3-simplices require 3D embedding space")
     else:
         raise ValueError(f"Unsupported {n_manifold_dims=}")
-    
+
     return Mesh(points=points, cells=cells)
 
 
@@ -146,17 +150,17 @@ def assert_mesh_valid(mesh, strict: bool = True) -> None:
     assert mesh.n_points > 0
     assert mesh.points.ndim == 2
     assert mesh.points.shape[1] == mesh.n_spatial_dims
-    
+
     if mesh.n_cells > 0:
         assert mesh.cells.ndim == 2
         assert mesh.cells.shape[1] == mesh.n_manifold_dims + 1
         assert torch.all(mesh.cells >= 0)
         assert torch.all(mesh.cells < mesh.n_points)
-    
+
     assert mesh.points.dtype in [torch.float32, torch.float64]
     assert mesh.cells.dtype == torch.int64
     assert mesh.points.device == mesh.cells.device
-    
+
     if strict and mesh.n_cells > 0:
         for i in range(mesh.n_cells):
             cell_verts = mesh.cells[i]
@@ -233,17 +237,17 @@ class TestPointToPointsAdjacency:
             pv_neighbors.append(neighbors)
 
         ### Compare results (order-independent)
-        assert len(tm_neighbors) == len(
-            pv_neighbors
-        ), f"Mismatch in number of points: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
+        assert len(tm_neighbors) == len(pv_neighbors), (
+            f"Mismatch in number of points: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
+        )
 
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             # Sort both for order-independent comparison
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert (
-                tm_sorted == pv_sorted
-            ), f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            assert tm_sorted == pv_sorted, (
+                f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            )
 
     def test_tetbeam_point_neighbors(self, tetbeam_mesh_pair):
         """Validate point-to-points adjacency against PyVista for tetbeam mesh."""
@@ -269,9 +273,9 @@ class TestPointToPointsAdjacency:
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert (
-                tm_sorted == pv_sorted
-            ), f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            assert tm_sorted == pv_sorted, (
+                f"Point {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            )
 
     ### Symmetry Tests on Real-World Meshes ###
 
@@ -348,9 +352,9 @@ class TestPointToPointsAdjacency:
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
-            assert (
-                i not in nbrs
-            ), f"Point {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
+            assert i not in nbrs, (
+                f"Point {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
+            )
 
     @pytest.mark.parametrize(
         "n_spatial_dims,n_manifold_dims",
@@ -424,16 +428,16 @@ class TestCellToCellsAdjacency:
             pv_neighbors.append(neighbors)
 
         ### Compare results (order-independent)
-        assert len(tm_neighbors) == len(
-            pv_neighbors
-        ), f"Mismatch in number of cells: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
+        assert len(tm_neighbors) == len(pv_neighbors), (
+            f"Mismatch in number of cells: torchmesh={len(tm_neighbors)}, pyvista={len(pv_neighbors)}"
+        )
 
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert (
-                tm_sorted == pv_sorted
-            ), f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            assert tm_sorted == pv_sorted, (
+                f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            )
 
     def test_tetbeam_cell_neighbors(self, tetbeam_mesh_pair):
         """Validate cell-to-cells adjacency against PyVista for tetbeam mesh."""
@@ -462,9 +466,9 @@ class TestCellToCellsAdjacency:
         for i, (tm_nbrs, pv_nbrs) in enumerate(zip(tm_neighbors, pv_neighbors)):
             tm_sorted = sorted(tm_nbrs)
             pv_sorted = sorted(pv_nbrs)
-            assert (
-                tm_sorted == pv_sorted
-            ), f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            assert tm_sorted == pv_sorted, (
+                f"Cell {i} neighbors mismatch:\n  torchmesh: {tm_sorted}\n  pyvista:   {pv_sorted}"
+            )
 
     ### Symmetry Tests on Real-World Meshes ###
 
@@ -541,9 +545,9 @@ class TestCellToCellsAdjacency:
         neighbors = adj.to_list()
 
         for i, nbrs in enumerate(neighbors):
-            assert (
-                i not in nbrs
-            ), f"Cell {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
+            assert i not in nbrs, (
+                f"Cell {i} is listed as its own neighbor ({n_spatial_dims=}, {n_manifold_dims=})"
+            )
 
     @pytest.mark.parametrize(
         "n_spatial_dims,n_manifold_dims",
@@ -585,9 +589,7 @@ class TestCellToCellsAdjacency:
         n_spatial_dims = 3
         mesh = create_simple_mesh(n_spatial_dims, n_manifold_dims, device=device)
 
-        adj = mesh.get_cell_to_cells_adjacency(
-            adjacency_codimension=adjacency_codim
-        )
+        adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=adjacency_codim)
         neighbors = adj.to_list()
 
         ### Higher codimension should give same or more neighbors
@@ -901,7 +903,9 @@ class TestAdjacencyValidation:
 
         with pytest.raises(ValueError, match="Offsets array must have length >= 1"):
             Adjacency(
-                offsets=torch.tensor([], device=device),  # Invalid: should be at least [0]
+                offsets=torch.tensor(
+                    [], device=device
+                ),  # Invalid: should be at least [0]
                 indices=torch.tensor([], device=device),
             )
 
@@ -919,13 +923,17 @@ class TestAdjacencyValidation:
         """Test that mismatched last offset raises error."""
         from torchmesh.neighbors import Adjacency
 
-        with pytest.raises(ValueError, match="Last offset must equal length of indices"):
+        with pytest.raises(
+            ValueError, match="Last offset must equal length of indices"
+        ):
             Adjacency(
                 offsets=torch.tensor([0, 2, 5], device=device),  # Says 5 indices
                 indices=torch.tensor([0, 1, 2], device=device),  # But only 3 indices
             )
 
-        with pytest.raises(ValueError, match="Last offset must equal length of indices"):
+        with pytest.raises(
+            ValueError, match="Last offset must equal length of indices"
+        ):
             Adjacency(
                 offsets=torch.tensor([0, 2], device=device),  # Says 2 indices
                 indices=torch.tensor([0, 1, 2, 3], device=device),  # But has 4 indices
@@ -1100,12 +1108,12 @@ class TestEdgeCases:
         ]
 
         for adj in adjacencies:
-            assert (
-                adj.offsets.dtype == torch.int64
-            ), f"Expected offsets dtype int64, got {adj.offsets.dtype}"
-            assert (
-                adj.indices.dtype == torch.int64
-            ), f"Expected indices dtype int64, got {adj.indices.dtype}"
+            assert adj.offsets.dtype == torch.int64, (
+                f"Expected offsets dtype int64, got {adj.offsets.dtype}"
+            )
+            assert adj.indices.dtype == torch.int64, (
+                f"Expected indices dtype int64, got {adj.indices.dtype}"
+            )
 
     def test_neighbor_count_conservation(self, device):
         """Test conservation of neighbor relationships."""

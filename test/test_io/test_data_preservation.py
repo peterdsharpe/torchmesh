@@ -160,12 +160,14 @@ class TestDataPreservationParametrized:
         """Test that data is preserved when transferring to different device."""
         pv_mesh = pv.Sphere(theta_resolution=5, phi_resolution=5)
         pv_mesh.point_data["temp"] = np.random.rand(pv_mesh.n_points).astype(np.float32)
-        pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(np.float32)
+        pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(
+            np.float32
+        )
         pv_mesh.field_data["time"] = np.array([1.5], dtype=np.float32)
-        
+
         # Convert to mesh
         mesh_cpu = from_pyvista(pv_mesh)
-        
+
         # Transfer to device
         mesh = Mesh(
             points=mesh_cpu.points.to(device),
@@ -174,16 +176,16 @@ class TestDataPreservationParametrized:
             cell_data=mesh_cpu.cell_data,
             global_data=mesh_cpu.global_data,
         )
-        
+
         # Verify geometry on device
         assert_on_device(mesh.points, device)
         assert_on_device(mesh.cells, device)
-        
+
         # Verify all data preserved (as CPU tensors in TensorDict)
         assert "temp" in mesh.point_data
         assert "pressure" in mesh.cell_data
         assert "time" in mesh.global_data
-        
+
         # Values should match original
         assert torch.allclose(
             mesh.point_data["temp"],
@@ -200,4 +202,3 @@ class TestDataPreservationParametrized:
             torch.from_numpy(pv_mesh.field_data["time"]),
             atol=1e-6,
         )
-

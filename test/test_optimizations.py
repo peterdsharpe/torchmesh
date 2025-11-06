@@ -476,17 +476,19 @@ class TestOptimizationsParametrized:
         """Test pairwise barycentric across backends and dimensions."""
         # Create query points and cell vertices
         query_points = torch.rand(n_queries, n_spatial_dims, device=device)
-        cell_vertices = torch.rand(n_queries, n_spatial_dims + 1, n_spatial_dims, device=device)
-        
+        cell_vertices = torch.rand(
+            n_queries, n_spatial_dims + 1, n_spatial_dims, device=device
+        )
+
         # Compute pairwise
         bary = compute_barycentric_coordinates_pairwise(query_points, cell_vertices)
-        
+
         # Verify shape
         assert bary.shape == (n_queries, n_spatial_dims + 1)
-        
+
         # Verify device
         assert_on_device(bary, device)
-        
+
         # Verify barycentric coords sum to 1
         sums = bary.sum(dim=1)
         assert torch.allclose(sums, torch.ones(n_queries, device=device), rtol=1e-4)
@@ -495,7 +497,7 @@ class TestOptimizationsParametrized:
     def test_cell_areas_computation_parametrized(self, n_manifold_dims, device):
         """Test cell area computation across backends."""
         n_spatial_dims = 3
-        
+
         if n_manifold_dims == 2:
             points = torch.tensor(
                 [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
@@ -513,13 +515,13 @@ class TestOptimizationsParametrized:
                 device=device,
             )
             cells = torch.tensor([[0, 1, 2, 3]], device=device, dtype=torch.int64)
-        
+
         mesh = Mesh(points=points, cells=cells)
         areas = mesh.cell_areas
-        
+
         # Verify device
         assert_on_device(areas, device)
-        
+
         # Verify areas are positive
         assert torch.all(areas > 0), "All areas should be positive"
 
@@ -537,13 +539,13 @@ class TestOptimizationsParametrized:
                 device=device,
             )
             cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
-        
+
         mesh = Mesh(points=points, cells=cells)
         normals = mesh.cell_normals
-        
+
         # Verify device
         assert_on_device(normals, device)
-        
+
         # Verify unit length
         lengths = torch.norm(normals, dim=1)
         assert torch.allclose(

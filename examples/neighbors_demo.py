@@ -98,8 +98,12 @@ print("\nCell-to-cells adjacency (sharing edges, more permissive):")
 adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=2)
 cell_neighbors_edge = adj.to_list()
 print(f"  Total cell-cell adjacencies: {adj.n_total_neighbors // 2}")
-print(f"  Cell 0 has {len(cell_neighbors_edge[0])} neighbors: {cell_neighbors_edge[0][:10]}...")
-print(f"  Cell 10 has {len(cell_neighbors_edge[10])} neighbors: {cell_neighbors_edge[10][:10]}...")
+print(
+    f"  Cell 0 has {len(cell_neighbors_edge[0])} neighbors: {cell_neighbors_edge[0][:10]}..."
+)
+print(
+    f"  Cell 10 has {len(cell_neighbors_edge[10])} neighbors: {cell_neighbors_edge[10][:10]}..."
+)
 
 # Cells-to-points adjacency (vertices of each cell)
 print("\nCells-to-points adjacency (vertices):")
@@ -112,4 +116,3 @@ print(f"  Cell 10 has vertices: {cell_vertices[10]}")
 print("\n" + "=" * 70)
 print("Demo complete!")
 print("=" * 70)
-

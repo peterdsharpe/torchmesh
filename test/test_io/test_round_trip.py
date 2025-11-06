@@ -153,7 +153,7 @@ class TestRoundTripParametrized:
     def test_round_trip_device_parametrized(self, pv_example_loader, device):
         """Test round-trip conversion with device transfer."""
         pv_original = pv_example_loader()
-        
+
         # Convert to Mesh on specified device
         mesh_cpu = from_pyvista(pv_original)
         mesh = Mesh(
@@ -163,18 +163,18 @@ class TestRoundTripParametrized:
             cell_data=mesh_cpu.cell_data,
             global_data=mesh_cpu.global_data,
         )
-        
+
         # Verify device
         assert_on_device(mesh.points, device)
         assert_on_device(mesh.cells, device)
-        
+
         # Convert back to PyVista (should move to CPU automatically)
         pv_reconstructed = to_pyvista(mesh)
-        
+
         # Verify geometry is preserved
         assert pv_reconstructed.n_points == pv_original.n_points
         assert pv_reconstructed.n_cells == pv_original.n_cells
-        
+
         # Points should match (after moving to CPU)
         expected_points = mesh.points.cpu().numpy()
         assert np.allclose(pv_reconstructed.points, expected_points)
@@ -182,38 +182,38 @@ class TestRoundTripParametrized:
     def test_round_trip_spline_device_parametrized(self, device):
         """Test round-trip with spline (polyline → segments conversion)."""
         pv_original = pv.examples.load_spline()
-        
+
         # Convert to Mesh
         mesh_cpu = from_pyvista(pv_original)
         mesh = Mesh(
             points=mesh_cpu.points.to(device),
             cells=mesh_cpu.cells.to(device),
         )
-        
+
         # Verify device
         assert_on_device(mesh.points, device)
         assert_on_device(mesh.cells, device)
-        
+
         # Convert back
         pv_reconstructed = to_pyvista(mesh)
-        
+
         # Points should be preserved
         assert pv_reconstructed.n_points == pv_original.n_points, (
             f"Point count mismatch: {pv_reconstructed.n_points=} != {pv_original.n_points=}"
         )
-        
+
         # Verify points match
         assert np.allclose(pv_reconstructed.points, pv_original.points), (
             "Points should be preserved in round-trip"
         )
-        
+
         # Cell count: PyVista polyline (1 cell) → torchmesh segments (N-1 cells) → PyVista lines (N-1 cells)
         # This is expected: torchmesh represents 1D manifolds as individual 1-simplices
         expected_n_cells = pv_original.n_points - 1
         assert pv_reconstructed.n_lines == expected_n_cells, (
             f"Expected {expected_n_cells} line segments, got {pv_reconstructed.n_lines}"
         )
-        
+
         # The reconstructed mesh should have line segments, not a polyline
         assert mesh.n_manifold_dims == 1, "Should be 1D manifold (edges)"
         assert mesh.n_cells == expected_n_cells, (
@@ -225,8 +225,10 @@ class TestRoundTripParametrized:
         # Create mesh with data
         pv_mesh = pv.Sphere(theta_resolution=5, phi_resolution=5)
         pv_mesh.point_data["temp"] = np.random.rand(pv_mesh.n_points).astype(np.float32)
-        pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(np.float32)
-        
+        pv_mesh.cell_data["pressure"] = np.random.rand(pv_mesh.n_cells).astype(
+            np.float32
+        )
+
         # Convert and transfer to device
         mesh_cpu = from_pyvista(pv_mesh)
         mesh = Mesh(
@@ -235,21 +237,20 @@ class TestRoundTripParametrized:
             point_data=mesh_cpu.point_data,
             cell_data=mesh_cpu.cell_data,
         )
-        
+
         # Verify data is on correct device
         assert_on_device(mesh.points, device)
         assert_on_device(mesh.cells, device)
-        
+
         # Convert back
         pv_reconstructed = to_pyvista(mesh)
-        
+
         # Verify data values preserved
         assert "temp" in pv_reconstructed.point_data
         assert "pressure" in pv_reconstructed.cell_data
-        
+
         expected_temp = mesh.point_data["temp"].cpu().numpy()
         expected_pressure = mesh.cell_data["pressure"].cpu().numpy()
-        
+
         assert np.allclose(pv_reconstructed.point_data["temp"], expected_temp)
         assert np.allclose(pv_reconstructed.cell_data["pressure"], expected_pressure)
-
