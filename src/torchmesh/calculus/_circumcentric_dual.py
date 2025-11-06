@@ -46,10 +46,15 @@ def compute_circumcenters(
     n_simplices, n_vertices, n_spatial_dims = vertices.shape
     n_manifold_dims = n_vertices - 1
 
-    ### Handle degenerate case
+    ### Handle special cases
     if n_vertices == 1:
         # 0-simplex: circumcenter is the vertex itself
         return vertices.squeeze(1)
+
+    if n_vertices == 2:
+        # 1-simplex (edge): circumcenter is the midpoint
+        # This avoids numerical issues with underdetermined lstsq for edges in higher dimensions
+        return vertices.mean(dim=1)
 
     ### Build linear system for circumcenter
     # Reference vertex (first one)
