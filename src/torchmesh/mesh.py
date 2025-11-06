@@ -893,10 +893,22 @@ class Mesh:
         )
 
         ### Create and return new Mesh
+        # Filter out cached properties from point_data (keys starting with "_")
+        # Cached geometric properties depend on cell connectivity and would be invalid
+        filtered_point_data = TensorDict(
+            {
+                k: v
+                for k, v in self.point_data.items()
+                if not (isinstance(k, str) and k.startswith("_"))
+            },
+            batch_size=self.point_data.batch_size,
+            device=self.point_data.device,
+        )
+        
         return Mesh(
             points=self.points,  # Share the same points
             cells=facet_cells,  # New connectivity for sub-simplices
-            point_data=self.point_data,  # Share point data
+            point_data=filtered_point_data,  # User data only, no cached properties
             cell_data=facet_cell_data,  # Aggregated cell data
             global_data=self.global_data,  # Share global data
         )
