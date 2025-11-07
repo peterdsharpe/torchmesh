@@ -17,7 +17,10 @@ if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
 
-def mean_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
+def mean_curvature_vertices(
+    mesh: "Mesh",
+    include_boundary: bool = False,
+) -> torch.Tensor:
     """Compute extrinsic mean curvature at mesh vertices.
 
     Uses the cotangent Laplace-Beltrami operator:
@@ -37,19 +40,18 @@ def mean_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
 
     Args:
         mesh: Input mesh (must be codimension-1)
+        include_boundary: If False, boundary vertices are set to NaN (default).
+            If True, computes curvature at boundary vertices using available
+            neighbors (Neumann-like boundary condition). This may be less accurate
+            at boundaries but provides complete coverage.
 
     Returns:
         Tensor of shape (n_points,) containing signed mean curvature at each vertex.
-        For isolated vertices and boundary vertices, mean curvature is NaN.
-        Boundary vertices are excluded because the cotangent Laplacian formula
-        assumes a complete neighborhood, which doesn't exist at free boundaries.
+        For isolated vertices, mean curvature is NaN.
+        For boundary vertices, NaN if include_boundary=False, otherwise computed.
 
     Raises:
         ValueError: If mesh is not codimension-1
-    
-    Note:
-        This function sets boundary vertices to NaN. For applications requiring
-        curvature at boundaries, proper boundary conditions must be implemented.
 
     Example:
         >>> # Sphere of radius r has H = 1/r everywhere
@@ -114,20 +116,22 @@ def mean_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
         ),
     )
     
-    ### Set boundary vertices to NaN
+    ### Handle boundary vertices
     # The cotangent Laplacian formula assumes a complete neighborhood around each vertex.
-    # For boundary vertices, the formula is not well-defined without additional
-    # boundary conditions. Standard practice: exclude boundary vertices.
-    # TODO: Implement proper boundary treatment (natural/Neumann boundary conditions)
-    from torchmesh.boundaries import get_boundary_vertices
+    # For boundary vertices, we can either:
+    # 1. Set to NaN (conservative, default)
+    # 2. Compute using available neighbors (Neumann-like boundary condition)
+    
+    if not include_boundary:
+        from torchmesh.boundaries import get_boundary_vertices
 
-    is_boundary_vertex = get_boundary_vertices(mesh)
+        is_boundary_vertex = get_boundary_vertices(mesh)
 
-    # Set boundary vertices to NaN
-    mean_curvature = torch.where(
-        is_boundary_vertex,
-        torch.tensor(float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device),
-        mean_curvature,
-    )
+        # Set boundary vertices to NaN
+        mean_curvature = torch.where(
+            is_boundary_vertex,
+            torch.tensor(float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device),
+            mean_curvature,
+        )
 
     return mean_curvature
