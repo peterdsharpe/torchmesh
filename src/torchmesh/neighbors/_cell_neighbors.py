@@ -49,7 +49,7 @@ def get_cell_to_cells_adjacency(
         >>> adj.to_list()
         [[1], [0]]  # Triangle 0 neighbors triangle 1 (share edge [1,2])
     """
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
 
     ### Handle empty mesh
     if mesh.n_cells == 0:

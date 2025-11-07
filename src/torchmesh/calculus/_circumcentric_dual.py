@@ -251,7 +251,7 @@ def compute_cotan_weights_triangle_mesh(
 
     ### Vectorized cotangent computation
     # Use facet extraction to get candidate edges with parent tracking
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
 
     candidate_edges, parent_cell_indices = extract_candidate_facets(
         mesh.cells,

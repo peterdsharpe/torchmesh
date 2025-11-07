@@ -159,7 +159,7 @@ def compute_loop_edge_positions_2d(
     Returns:
         Edge vertex positions, shape (n_edges, n_spatial_dims)
     """
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
 
     n_edges = len(unique_edges)
     device = mesh.points.device

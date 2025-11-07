@@ -51,7 +51,7 @@ def compute_butterfly_weights_2d(
 
     ### Build edge-to-adjacent-cells mapping
     # For each edge, find which cells contain it
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
 
     candidate_edges, parent_cell_indices = extract_candidate_facets(
         mesh.cells,

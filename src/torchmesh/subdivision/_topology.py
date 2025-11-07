@@ -51,7 +51,7 @@ def extract_unique_edges(mesh: "Mesh") -> tuple[torch.Tensor, torch.Tensor]:
         return unique_edges, inverse_indices
 
     ### General case: n-manifolds with n > 1
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
 
     ### Extract all candidate edges (with duplicates for shared edges)
     # For n-manifold, edges are (n-1)-dimensional facets

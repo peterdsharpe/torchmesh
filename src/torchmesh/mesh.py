@@ -883,7 +883,7 @@ class Mesh:
             )
 
         ### Call kernel to extract facet mesh data
-        from torchmesh.kernels import extract_facet_mesh_data
+        from torchmesh.boundaries import extract_facet_mesh_data
 
         facet_cells, facet_cell_data = extract_facet_mesh_data(
             parent_mesh=self,

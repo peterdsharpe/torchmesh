@@ -422,7 +422,7 @@ class TestButterflySubdivisionCorrectness:
         edge_midpoints = compute_butterfly_weights_2d(mesh, unique_edges)
 
         ### Identify boundary edges (count adjacent cells)
-        from torchmesh.kernels.facet_extraction import extract_candidate_facets
+        from torchmesh.boundaries import extract_candidate_facets
 
         candidate_edges, _ = extract_candidate_facets(
             mesh.cells, manifold_codimension=1

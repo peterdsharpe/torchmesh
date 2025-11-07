@@ -315,7 +315,7 @@ class TestCombinationCache:
 
     def test_triangle_edge_combinations(self):
         """Test triangle edge extraction uses cached combinations."""
-        from torchmesh.kernels.facet_extraction import _generate_combination_indices
+        from torchmesh.boundaries._facet_extraction import _generate_combination_indices
 
         # Should use cache for (3, 2)
         combos = _generate_combination_indices(3, 2)
@@ -324,7 +324,7 @@ class TestCombinationCache:
 
     def test_tetrahedron_face_combinations(self):
         """Test tetrahedron face extraction uses cached combinations."""
-        from torchmesh.kernels.facet_extraction import _generate_combination_indices
+        from torchmesh.boundaries._facet_extraction import _generate_combination_indices
 
         # Should use cache for (4, 3)
         combos = _generate_combination_indices(4, 3)

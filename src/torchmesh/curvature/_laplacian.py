@@ -126,7 +126,7 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
         >>> weights = compute_cotangent_weights(mesh, edges)
         >>> # Use in Laplacian: L_ij = w_ij if connected, else 0
     """
-    from torchmesh.kernels.facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries import extract_candidate_facets
     from torchmesh.curvature._utils import compute_triangle_angles
 
     n_edges = len(edges)

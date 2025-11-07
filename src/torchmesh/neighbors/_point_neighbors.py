@@ -107,7 +107,7 @@ def get_point_to_points_adjacency(mesh: "Mesh") -> Adjacency:
         >>> adj.to_list()
         [[1, 2], [0, 2], [0, 1]]  # Each point connected to the other two
     """
-    from torchmesh.kernels.facet_extraction import _generate_combination_indices
+    from torchmesh.boundaries._facet_extraction import _generate_combination_indices
 
     ### Handle empty mesh
     if mesh.n_cells == 0 or mesh.n_points == 0:
