@@ -1,26 +1,8 @@
-#!/usr/bin/env python
-"""TorchMesh Logo Demo
-
-Demonstrates the complete torchmesh workflow with projection operations:
-1. Text → vector path (matplotlib)
-2. Triangulate → filled 2D mesh [2,2]
-3. Embed → 2D surface [2,3]
-4. Extrude → 3D tetrahedral volume [3,3]
-5. Extract boundary surface for visualization
-6. Subdivide (Butterfly filter) for smoothness
-7. Apply GPU-accelerated Perlin noise coloring
-8. Interactive 3D visualization
-
-This creates a beautiful 3D solid text logo with smooth surface and procedural coloring.
-
-Performance: All operations except text path extraction run on GPU using pure PyTorch.
-"""
-
 import torch
+import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 from matplotlib.path import Path
 from matplotlib.textpath import TextPath
-from matplotlib.tri import Triangulation
 
 from torchmesh import Mesh
 from torchmesh.examples.procedural import perlin_noise_nd
@@ -161,7 +143,7 @@ def text_to_points_and_edges(
         text_path: Original TextPath object (needed for inside/outside testing)
     """
     ### Get text path from matplotlib
-    fp = FontProperties(family="sans-serif", weight="bold")
+    fp = FontProperties(family="monospace", weight="bold")
     text_path = TextPath((0, 0), text, size=font_size, prop=fp)
     
     # Convert matplotlib's numpy arrays to torch tensors
@@ -305,378 +287,430 @@ def _compute_winding_number_multi_contour(points: torch.Tensor, path: Path) -> t
     return total_winding
 
 
-def _resample_contour_at_fixed_arc_length(
-    points: torch.Tensor, target_spacing: float
-) -> torch.Tensor:
-    """Resample a closed contour at fixed arc-length intervals.
+def refine_lineto_segments(
+    points: torch.Tensor, edges: torch.Tensor, max_segment_length: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Refine long edges by subdividing them into smaller segments.
     
-    Adds intermediate points between existing points to ensure consistent
-    resolution. All original points are preserved.
+    For any edge longer than max_segment_length, adds intermediate points
+    to ensure no segment exceeds the maximum length.
     
     Args:
-        points: Contour points in order, shape (n_points, 2). Assumed to form
-            a closed loop (last point connects back to first).
-        target_spacing: Target arc length between consecutive points
+        points: Original points, shape (n_points, 2)
+        edges: Original edge connectivity, shape (n_edges, 2)
+        max_segment_length: Maximum allowed edge length
         
     Returns:
-        Resampled contour points with original + interpolated points, shape (m_points, 2)
+        Tuple of (refined_points, refined_edges) with additional intermediate points
     """
-    if len(points) < 2:
-        return points
+    refined_points = [points]
+    refined_edges = []
+    next_point_idx = len(points)
     
-    resampled_points = []
-    
-    # Process each edge in the contour
-    for i in range(len(points)):
-        p0 = points[i]
-        p1 = points[(i + 1) % len(points)]  # Wrap to close loop
+    for edge in edges:
+        p0_idx, p1_idx = edge[0].item(), edge[1].item()
+        p0, p1 = points[p0_idx], points[p1_idx]
         
-        # Always keep the starting point
-        resampled_points.append(p0)
-        
-        # Compute edge length
         edge_vec = p1 - p0
         edge_length = torch.norm(edge_vec).item()
         
-        # If edge is longer than target spacing, add intermediate points
-        if edge_length > target_spacing:
-            # Number of segments to divide this edge into
-            n_segments = int(torch.ceil(torch.tensor(edge_length / target_spacing)).item())
+        if edge_length <= max_segment_length:
+            # Edge is short enough, keep as is
+            refined_edges.append(edge)
+        else:
+            # Subdivide edge
+            n_segments = int(torch.ceil(torch.tensor(edge_length / max_segment_length)).item())
             
-            # Add intermediate points (excluding endpoints, which are already in the list)
+            # Create intermediate points
+            prev_idx = p0_idx
             for j in range(1, n_segments):
                 t = j / n_segments
                 interp_point = p0 + t * edge_vec
-                resampled_points.append(interp_point)
+                refined_points.append(interp_point.unsqueeze(0))
+                
+                # Add edge from previous to new point
+                refined_edges.append(torch.tensor([prev_idx, next_point_idx], dtype=torch.int64))
+                prev_idx = next_point_idx
+                next_point_idx += 1
+            
+            # Add final edge to p1
+            refined_edges.append(torch.tensor([prev_idx, p1_idx], dtype=torch.int64))
     
-    return torch.stack(resampled_points, dim=0)
+    refined_points = torch.cat(refined_points, dim=0)
+    refined_edges = torch.stack(refined_edges, dim=0)
+    
+    return refined_points, refined_edges
 
 
-def _extract_ordered_contour_points(
-    points: torch.Tensor, component_edges: torch.Tensor
-) -> torch.Tensor:
-    """Extract ordered points along a contour from its edges.
+def _compute_polygon_signed_area(vertices: torch.Tensor | list) -> float:
+    """Compute signed area of a polygon using the shoelace formula.
     
-    Given edges that form a closed loop, reconstruct the ordered sequence of points.
+    Positive area indicates counter-clockwise orientation (outer boundary).
+    Negative area indicates clockwise orientation (hole).
+    
+    Uses the shoelace formula: A = 0.5 * Σ(x[i]*y[i+1] - x[i+1]*y[i])
     
     Args:
-        points: All points, shape (n_points, 2)
-        component_edges: Edges for this contour, shape (n_edges, 2)
+        vertices: Polygon vertices, shape (n, 2) or list of (x, y) pairs
         
     Returns:
-        Ordered points along the contour, shape (n_edges, 2)
-        Note: Returns n_edges points, not n_edges+1, since it's a closed loop
-    """
-    if len(component_edges) == 0:
-        return torch.empty((0, 2), dtype=points.dtype)
-    
-    # Build adjacency for this component
-    adjacency = {}
-    for edge in component_edges:
-        i, j = edge[0].item(), edge[1].item()
-        if i not in adjacency:
-            adjacency[i] = []
-        if j not in adjacency:
-            adjacency[j] = []
-        adjacency[i].append(j)
-        adjacency[j].append(i)
-    
-    # Start from any point and follow the chain
-    start_idx = component_edges[0, 0].item()
-    ordered_indices = [start_idx]
-    current = start_idx
-    prev = None
-    
-    # Follow the chain until we loop back
-    while True:
-        neighbors = adjacency[current]
-        # Find next neighbor (not the one we came from)
-        next_candidates = [n for n in neighbors if n != prev]
-        if not next_candidates:
-            break
-        next_node = next_candidates[0]
-        if next_node == start_idx:
-            break
-        ordered_indices.append(next_node)
-        prev = current
-        current = next_node
-    
-    return points[ordered_indices]
-
-
-def _find_connected_components(edges: torch.Tensor, n_points: int) -> list[torch.Tensor]:
-    """Find connected components in edge graph.
-    
-    Args:
-        edges: Edge connectivity, shape (n_edges, 2)
-        n_points: Total number of points
-        
-    Returns:
-        List of point indices for each connected component
-    """
-    # Build adjacency list
-    adjacency = [set() for _ in range(n_points)]
-    for edge in edges:
-        i, j = edge[0].item(), edge[1].item()
-        adjacency[i].add(j)
-        adjacency[j].add(i)
-    
-    # Find connected components using BFS
-    visited = torch.zeros(n_points, dtype=torch.bool)
-    components = []
-    
-    for start_point in range(n_points):
-        if visited[start_point]:
-            continue
-        
-        component = []
-        queue = [start_point]
-        visited[start_point] = True
-        
-        while queue:
-            current = queue.pop(0)
-            component.append(current)
-            for neighbor in adjacency[current]:
-                if not visited[neighbor]:
-                    visited[neighbor] = True
-                    queue.append(neighbor)
-        
-        components.append(torch.tensor(component, dtype=torch.long))
-    
-    return components
-
-
-def triangulate_path(
-    points: torch.Tensor, edges: torch.Tensor, text_path: Path, interior_spacing: float = 0.5
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Triangulate text by processing each contour independently with interior points.
-    
-    Algorithm:
-    1. Find connected components (each contour is one component)
-    2. For each contour:
-       a. Resample at fixed arc-length intervals for consistent resolution
-       b. Sample interior points on a grid within its bounding box
-       c. Filter interior points to only those inside letter (using winding)
-       d. Combine boundary + interior points
-       e. Triangulate with Delaunay
-       f. Filter triangles using winding number
-    3. Merge all contours
-    
-    Benefits:
-    - Arc-length resampling: eliminates long edges, consistent boundary resolution
-    - Per-contour processing: no cross-letter connections
-    - Interior points: better triangle aspect ratios
-    - Winding filter: handles holes correctly
-    
-    Args:
-        points: 2D boundary points
-        edges: Edge connectivity
-        text_path: Path for winding number test
-        interior_spacing: Grid spacing for interior point sampling
-        
-    Returns:
-        all_points: Boundary + interior points for all contours
-        triangles: Triangle connectivity
+        Signed area (positive = CCW, negative = CW)
     """
     import numpy as np
     
-    ### Find connected components and their edges
-    components = _find_connected_components(edges, len(points))
-    print(f"  Found {len(components)} contours")
+    if isinstance(vertices, torch.Tensor):
+        vertices = vertices.cpu().numpy()
+    vertices = np.array(vertices)
     
-    # Build mapping from component to its edges
-    component_edges_list = []
-    for comp in components:
-        comp_set = set(comp.tolist())
-        # Find edges where both vertices are in this component
-        comp_edge_mask = torch.tensor([
-            (edges[i, 0].item() in comp_set and edges[i, 1].item() in comp_set)
-            for i in range(len(edges))
-        ])
-        comp_edges = edges[comp_edge_mask]
-        component_edges_list.append(comp_edges)
+    n = len(vertices)
+    if n < 3:
+        return 0.0
     
-    ### Process each contour independently
+    # Shoelace formula
+    area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        area += vertices[i][0] * vertices[j][1]
+        area -= vertices[j][0] * vertices[i][1]
+    
+    return area * 0.5
+
+
+def _group_polygons_into_letters(text_path: Path) -> list[dict]:
+    """Group polygons into letters, detecting holes using signed area + containment.
+    
+    Uses the shoelace formula to compute signed area:
+    - Negative area = outer boundary (letter)
+    - Positive area = hole
+    
+    Then uses containment testing to assign holes to their parent letters,
+    since holes can appear before or after their parent in the path.
+    
+    Args:
+        text_path: matplotlib Path object with codes
+        
+    Returns:
+        List of letter groups, each containing:
+        - 'outer': (start_idx, end_idx) for outer boundary
+        - 'holes': list of (start_idx, end_idx) for holes
+    """
+    import numpy as np
+    from matplotlib.path import Path as MplPath
+    
+    path_codes = np.array(text_path.codes)
+    closepoly_indices = np.where(path_codes == Path.CLOSEPOLY)[0]
+    
+    ### Step 1: Split by CLOSEPOLY and classify as outer vs hole
+    outers = []  # List of (start, end, signed_area)
+    holes = []   # List of (start, end, signed_area)
+    start_idx = 0
+    
+    for close_idx in closepoly_indices:
+        end_idx = close_idx + 1
+        polygon_verts = text_path.vertices[start_idx:end_idx]
+        
+        # Compute signed area using shoelace formula
+        signed_area = _compute_polygon_signed_area(polygon_verts)
+        
+        if signed_area < 0:
+            # Negative area = outer boundary
+            outers.append((start_idx, end_idx))
+        else:
+            # Positive area = hole
+            holes.append((start_idx, end_idx))
+        
+        start_idx = end_idx
+    
+    ### Step 2: Assign each hole to its parent outer via containment testing
+    letter_groups = []
+    
+    for outer_start, outer_end in outers:
+        # Create path for this outer polygon
+        if text_path.vertices is None or text_path.codes is None:
+            continue
+        outer_verts = text_path.vertices[outer_start:outer_end]
+        outer_codes = text_path.codes[outer_start:outer_end]
+        outer_path = MplPath(outer_verts, outer_codes)
+        
+        # Find holes contained in this outer
+        contained_holes = []
+        for hole_start, hole_end in holes:
+            # Test if hole is inside this outer
+            # Use first vertex of hole as sample point
+            hole_sample_point = text_path.vertices[hole_start]
+            
+            if outer_path.contains_point(hole_sample_point):
+                contained_holes.append((hole_start, hole_end))
+        
+        letter_groups.append({
+            'outer': (outer_start, outer_end),
+            'holes': contained_holes
+        })
+    
+    return letter_groups
+
+
+def _get_letter_points(
+    points: torch.Tensor,
+    edges: torch.Tensor,
+    text_path: Path,
+    polygon_ranges: list[tuple[int, int]],
+) -> torch.Tensor:
+    """Get all points that belong to a letter (outer boundary + holes).
+    
+    Args:
+        points: All points from sampled path
+        edges: All edges from sampled path
+        text_path: Original text path for reference
+        polygon_ranges: List of (start_idx, end_idx) tuples for all polygons
+                       in this letter (outer + holes)
+        
+    Returns:
+        Indices of points that belong to this letter
+    """
+    import numpy as np
+    
+    letter_point_indices = []
+    
+    # Collect points from all polygons (outer + holes)
+    for start_idx, end_idx in polygon_ranges:
+        polygon_verts = text_path.vertices[start_idx:end_idx]
+        
+        # Find points close to any vertex in this polygon
+        for i, point in enumerate(points):
+            point_np = point.cpu().numpy()
+            distances = np.linalg.norm(polygon_verts - point_np, axis=1)
+            if np.min(distances) < 0.01:  # Tolerance for matching
+                letter_point_indices.append(i)
+    
+    # Include points that are in edges connecting letter points
+    letter_point_set = set(letter_point_indices)
+    for edge in edges:
+        p0, p1 = edge[0].item(), edge[1].item()
+        if p0 in letter_point_set or p1 in letter_point_set:
+            letter_point_set.add(p0)
+            letter_point_set.add(p1)
+    
+    return torch.tensor(sorted(letter_point_set), dtype=torch.long)
+
+
+def triangulate_path(
+    points: torch.Tensor,
+    edges: torch.Tensor,
+    text_path: Path,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Triangulate text by processing each letter independently, handling holes.
+    
+    Algorithm:
+    1. Group polygons into letters (outer + holes) using signed area
+    2. For each letter group:
+       - Get all points from outer boundary AND holes
+       - Delaunay triangulate all points together
+       - Create combined path (outer + holes) for winding number test
+       - Filter triangles by centroid winding number
+    3. Merge all letters
+    
+    Args:
+        points: 2D boundary points (already refined)
+        edges: Edge connectivity (already refined)
+        text_path: Path for winding number test and letter extraction
+        
+    Returns:
+        all_points: All points from all letters
+        triangles: Triangle connectivity
+    """
+    import numpy as np
+    from matplotlib.tri import Triangulation
+    
+    ### Group polygons into letters (outer + holes)
+    letter_groups = _group_polygons_into_letters(text_path)
+    
+    ### Process each letter group independently
     all_points_list = []
     all_triangles = []
     global_point_offset = 0
     
-    for comp, comp_edges in zip(components, component_edges_list):
-        if len(comp) < 3:
-            continue
+    for letter_group in letter_groups:
+        outer = letter_group['outer']
+        holes = letter_group['holes']
         
-        ### Resample contour at fixed arc-length intervals
-        # Extract ordered points along the contour
-        ordered_points = _extract_ordered_contour_points(points, comp_edges)
+        # Collect all polygon ranges (outer + holes)
+        all_polygon_ranges = [outer] + holes
         
-        if len(ordered_points) < 3:
-            continue
-        
-        # Resample with target spacing = interior_spacing / 2
-        target_spacing = interior_spacing / 2.0
-        resampled_points = _resample_contour_at_fixed_arc_length(ordered_points, target_spacing)
-        
-        print(f"    Contour: {len(ordered_points)} → {len(resampled_points)} points after resampling")
-        
-        comp_points = resampled_points
-        comp_points_np = comp_points.cpu().numpy()
-        
-        if len(comp_points) < 3:
-            continue
-        
-        ### Sample interior points for this contour
-        x_min, x_max = comp_points_np[:, 0].min(), comp_points_np[:, 0].max()
-        y_min, y_max = comp_points_np[:, 1].min(), comp_points_np[:, 1].max()
-        
-        # Create grid
-        x_grid = np.arange(x_min, x_max, interior_spacing)
-        y_grid = np.arange(y_min, y_max, interior_spacing)
-        xx, yy = np.meshgrid(x_grid, y_grid)
-        candidate_interior = torch.tensor(
-            np.column_stack([xx.ravel(), yy.ravel()]), dtype=torch.float32
+        # Get points belonging to this letter (from outer + holes)
+        letter_point_indices = _get_letter_points(
+            points, edges, text_path, all_polygon_ranges
         )
         
-        # Filter interior points using winding number
-        winding_interior = _compute_winding_number_multi_contour(candidate_interior, text_path)
-        inside_mask = winding_interior != 0
-        interior_points = candidate_interior[inside_mask]
+        if len(letter_point_indices) < 3:
+            continue
         
-        ### Combine boundary + interior for this contour
-        if len(interior_points) > 0:
-            contour_all_points = torch.cat([comp_points, interior_points], dim=0)
-        else:
-            contour_all_points = comp_points
+        letter_points = points[letter_point_indices]
+        letter_points_np = letter_points.cpu().numpy()
         
-        contour_all_points_np = contour_all_points.cpu().numpy()
+        ### Delaunay triangulate all letter points (full convex hull)
+        tri = Triangulation(letter_points_np[:, 0], letter_points_np[:, 1])
         
-        ### Delaunay triangulation
-        tri = Triangulation(contour_all_points_np[:, 0], contour_all_points_np[:, 1])
+        ### Filter triangles using centroid winding number
+        # Create a combined path for this letter (outer + holes)
+        if text_path.vertices is None or text_path.codes is None:
+            continue
         
-        ### Filter triangles using winding number
-        centroids_np = contour_all_points_np[tri.triangles].mean(axis=1)
+        # Build combined vertices and codes from outer + holes
+        combined_verts = []
+        combined_codes = []
+        
+        for start_idx, end_idx in all_polygon_ranges:
+            polygon_verts = text_path.vertices[start_idx:end_idx]
+            polygon_codes = text_path.codes[start_idx:end_idx]
+            combined_verts.append(polygon_verts)
+            combined_codes.append(polygon_codes)
+        
+        combined_verts = np.vstack(combined_verts)
+        combined_codes = np.hstack(combined_codes)
+        
+        from matplotlib.path import Path as MplPath
+        letter_path = MplPath(combined_verts, combined_codes)
+        
+        # Compute triangle centroids
+        centroids_np = letter_points_np[tri.triangles].mean(axis=1)
         centroids_torch = torch.tensor(centroids_np, dtype=torch.float32)
-        winding = _compute_winding_number_multi_contour(centroids_torch, text_path)
-        inside_mask_tri = winding != 0
         
-        contour_triangles = tri.triangles[inside_mask_tri.cpu().numpy()]
+        # Check if centroids are inside the letter shape (non-zero winding)
+        winding = _compute_winding_number_multi_contour(centroids_torch, letter_path)
+        inside_mask = winding != 0
         
-        ### Remap to global indices and add offset
-        contour_triangles_global = contour_triangles + global_point_offset
+        letter_triangles = tri.triangles[inside_mask.cpu().numpy()]
         
-        if len(contour_triangles_global) > 0:
-            all_triangles.append(contour_triangles_global)
+        ### Remap to global indices
+        letter_triangles_global = letter_triangles + global_point_offset
         
-        all_points_list.append(contour_all_points)
-        global_point_offset += len(contour_all_points)
+        if len(letter_triangles_global) > 0:
+            all_triangles.append(letter_triangles_global)
+        
+        all_points_list.append(letter_points)
+        global_point_offset += len(letter_points)
     
-    ### Merge all contours
+    ### Merge all letters
     if all_points_list:
         all_points = torch.cat(all_points_list, dim=0)
     else:
         all_points = points
     
-    if all_triangles:
-        triangles = torch.from_numpy(np.vstack(all_triangles)).long()
-    else:
-        triangles = torch.empty((0, 3), dtype=torch.long)
-    
-    print(f"  Total: {len(all_points)} points ({len(points)} boundary + {len(all_points)-len(points)} interior), "
-          f"{len(triangles)} triangles")
+    triangles = (
+        torch.from_numpy(np.vstack(all_triangles)).long()
+        if all_triangles
+        else torch.empty((0, 3), dtype=torch.long)
+    )
     
     return all_points, triangles
 
-
-def main() -> None:
-    """Create and visualize the TorchMesh logo."""
-    print("=" * 60)
-    print("TorchMesh Logo Demo")
-    print("=" * 60)
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    ### Detect and use GPU if available
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print(f"\n✓ Using GPU: {torch.cuda.get_device_name(0)}")
-        
-        # Warm up CUDA context to avoid first-operation overhead
-        _ = torch.zeros(1, device=device)
-        torch.cuda.synchronize()
-    else:
-        device = torch.device("cpu")
-        print("\n⚠ GPU not available, using CPU")
+    ### Configuration
+    MAX_SEGMENT_LENGTH = 0.25  # Maximum length for edge segments after refinement
     
-    ### 1. Convert text to 1D path in 2D space
-    print("\n[1/7] Converting text 'TorchMesh' to vector path...")
+    ### Convert text to 1D path, triangulate, and build full pipeline
     points_2d, edges, text_path = text_to_points_and_edges(
         "TorchMesh",
         font_size=12.0,
-        samples_per_unit=10  # Increase for smoother boundary representation
-    )
-    print(f"  Generated {len(points_2d)} points, {len(edges)} edges (boundary)")
-    
-    ### 2. Triangulate to create filled 2D mesh [2,2]
-    print("\n[2/7] Triangulating to fill text outline [2,2]...")
-    print("  Triangulating each letter independently...")
-    points_2d_filled, triangles = triangulate_path(points_2d, edges, text_path)
-    mesh_2d_2d = Mesh(
-        points=points_2d_filled.to(device),
-        cells=triangles.to(device),
-    )
-    print(f"  Mesh: [{mesh_2d_2d.n_manifold_dims}, {mesh_2d_2d.n_spatial_dims}]")
-    print(f"  Points: {mesh_2d_2d.n_points}, Cells: {mesh_2d_2d.n_cells} (filled surface)")
-    
-    ### 3. Embed to 3D space [2,3]
-    print("\n[3/7] Embedding into 3D space [2,3]...")
-    mesh_2d_3d = embed_in_spatial_dims(mesh_2d_2d, target_n_spatial_dims=3)
-    print(f"  Mesh: [{mesh_2d_3d.n_manifold_dims}, {mesh_2d_3d.n_spatial_dims}]")
-    print(f"  Codimension: {mesh_2d_3d.codimension}")
-    
-    ### 4. Extrude to create 3D volume [3,3]
-    print("\n[4/7] Extruding to create 3D volume [3,3]...")
-    extrusion_height = 2
-    volume = extrude(mesh_2d_3d, vector=torch.tensor([0.0, 0.0, extrusion_height], device=device))
-    print(f"  Mesh: [{volume.n_manifold_dims}, {volume.n_spatial_dims}]")
-    print(f"  Points: {volume.n_points}, Cells: {volume.n_cells} (tetrahedra)")
-    print(f"  Extrusion height: {extrusion_height}")
-    
-    ### 5. Extract boundary surface for visualization and subdivision
-    print("\n[5/7] Extracting boundary surface for visualization...")
-    surface = volume.get_boundary_mesh(data_source="cells")
-    print(f"  Surface: [{surface.n_manifold_dims}, {surface.n_spatial_dims}]")
-    print(f"  Points: {surface.n_points}, Cells: {surface.n_cells} (triangles)")
-    
-    ### 6. Apply butterfly subdivision for smoothness
-    print("\n[6/7] Applying butterfly subdivision (2 levels) to surface...")
-    print("  This may take a moment...")
-    smooth = surface.subdivide(levels=0, filter="loop")
-    print(f"  Subdivided surface: {smooth.n_points} points, {smooth.n_cells} cells")
-    
-    ### 7. Generate Perlin noise at cell centroids (GPU-accelerated)
-    print(f"\n[7/8] Generating Perlin noise coloring on {device}...")
-    centroids = smooth.cell_centroids  # Keep on GPU
-    # Use lower frequency (scale=0.5) for smoother variation across the logo
-    noise_values = perlin_noise_nd(centroids, scale=0.5, seed=42)  # Dimension-agnostic, stays on GPU
-    
-    # Normalize to [0, 1] for better visualization (all on GPU)
-    noise_normalized = (noise_values - noise_values.min()) / (
-        noise_values.max() - noise_values.min()
+        samples_per_unit=10,
     )
     
-    # Add to cell data (already on GPU)
-    smooth.cell_data["noise"] = noise_normalized
-    print(f"  Noise range: [{noise_values.min().item():.3f}, {noise_values.max().item():.3f}]")
-    print(f"  All computations performed on {device}")
+    ### Refine LINETO segments
+    points_2d_refined, edges_refined = refine_lineto_segments(
+        points_2d, edges, MAX_SEGMENT_LENGTH
+    )
     
-    ### 8. Visualize
-    print("\n[8/8] Launching visualization...")
-    print("\nClose the visualization window to exit.")
-    print("=" * 60)
+    ### Visualize text_path for debugging
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    mesh_2d_2d.draw(alpha_points=0, show=False)
-    import matplotlib.pyplot as plt
+    # Left: Original text_path with codes
+    ax1.set_title("Text Path (from font)")
+    ax1.set_aspect("equal")
+    if text_path.vertices is not None and text_path.codes is not None:
+        for i, (vert, code) in enumerate(zip(text_path.vertices, text_path.codes)):
+            color = {
+                Path.MOVETO: "green",
+                Path.LINETO: "blue", 
+                Path.CURVE3: "orange",
+                Path.CURVE4: "red",
+                Path.CLOSEPOLY: "purple"
+            }.get(code, "black")
+            ax1.plot(vert[0], vert[1], "o", color=color, markersize=3)
+            if i % 20 == 0:  # Label every 20th point
+                ax1.text(vert[0], vert[1], f"{i}", fontsize=6, alpha=0.5)
+    
+    # Draw path outline
+    from matplotlib.patches import PathPatch
+    patch = PathPatch(text_path, facecolor="lightgray", edgecolor="black", alpha=0.3, linewidth=0.5)
+    ax1.add_patch(patch)
+    ax1.legend(
+        [plt.Line2D([0], [0], marker="o", color=c, linestyle="") 
+         for c in ["green", "blue", "orange", "red", "purple"]],
+        ["MOVETO", "LINETO", "CURVE3", "CURVE4", "CLOSEPOLY"],
+        loc="upper right",
+        fontsize=8
+    )
+    
+    # Right: Refined points and edges
+    ax2.set_title(f"Refined Path ({len(points_2d_refined)} points, {len(edges_refined)} edges)")
+    ax2.set_aspect("equal")
+    ax2.plot(points_2d_refined[:, 0].numpy(), points_2d_refined[:, 1].numpy(), "o", markersize=2, color="blue", alpha=0.5)
+    
+    # Draw edges
+    for edge in edges_refined:
+        p0, p1 = points_2d_refined[edge[0]], points_2d_refined[edge[1]]
+        ax2.plot([p0[0], p1[0]], [p0[1], p1[1]], "k-", linewidth=0.5, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig("/tmp/text_path_debug.png", dpi=150)
+    print("Text path visualization saved to /tmp/text_path_debug.png")
+    print(f"  Original: {len(points_2d)} points, {len(edges)} edges")
+    print(f"  Refined: {len(points_2d_refined)} points, {len(edges_refined)} edges")
+    print(f"  Total vertices in text_path: {len(text_path.vertices)}")
+    print("  Code breakdown:")
+    from collections import Counter
+    code_names = {
+        Path.MOVETO: "MOVETO",
+        Path.LINETO: "LINETO",
+        Path.CURVE3: "CURVE3",
+        Path.CURVE4: "CURVE4",
+        Path.CLOSEPOLY: "CLOSEPOLY",
+    }
+    for code, count in Counter(text_path.codes).items():
+        print(f"    {code_names.get(code, code)}: {count}")
+    plt.show()
+    
+    ### Triangulate using letter-by-letter approach
+    points_2d_filled, triangles = triangulate_path(
+        points_2d_refined,
+        edges_refined,
+        text_path,
+    )
+    
+    ### Chain operations: 2D mesh -> embed 3D -> extrude -> boundary -> smooth -> subdivide
+    from torchmesh.smoothing import smooth_laplacian
+    
+    m22 = Mesh(points=points_2d_filled.to(device), cells=triangles.to(device))
+
+    from torchmesh.repair import repair_mesh
+    m22, stats = repair_mesh(m22)
+    m23 = embed_in_spatial_dims(m22, target_n_spatial_dims=3)
+    m33 = extrude(m23, vector=torch.tensor([0.0, 0.0, 2.0], device=device))
+    m33 = m33.get_boundary_mesh(data_source="cells")
+    m33 = smooth_laplacian(m33, n_iter=20, relaxation_factor=0.01, boundary_smoothing=False, feature_smoothing=False)
+    m33 = m33.subdivide(levels=0, filter="loop")
+    m33.cell_data["noise"] = perlin_noise_nd(m33.cell_centroids, scale=0.5, seed=42)
+    
+    ### Visualize
+    
+    m22.draw(alpha_points=0, show=False)
     plt.gcf().set_dpi(800)
     plt.show()
 
-    smooth.draw(
+    m33.draw(
         cell_scalars="noise",
         cmap="plasma",
         show_edges=False,
@@ -686,7 +720,3 @@ def main() -> None:
         backend="pyvista",
         show=True,
     )
-
-if __name__ == "__main__":
-    main()
-
