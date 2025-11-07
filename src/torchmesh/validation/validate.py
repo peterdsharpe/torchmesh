@@ -69,7 +69,7 @@ def validate_mesh(
         "valid": True,
     }
     
-    ### Check for out-of-bounds indices
+    ### Check for out-of-bounds indices FIRST (before any geometric computations)
     if check_out_of_bounds:
         if mesh.n_cells > 0:
             min_index = mesh.cells.min()
@@ -94,6 +94,15 @@ def validate_mesh(
                     )
         else:
             results["n_out_of_bounds_cells"] = 0
+    
+    ### Early return if out-of-bounds indices found (can't compute geometry)
+    if check_out_of_bounds and results.get("n_out_of_bounds_cells", 0) > 0:
+        if raise_on_error:
+            # Already raised above
+            pass
+        else:
+            # Skip remaining geometric checks
+            return results
     
     ### Check for duplicate vertices
     if check_duplicate_vertices:
