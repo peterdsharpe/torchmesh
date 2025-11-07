@@ -1,7 +1,6 @@
 """Spatial dimension embedding and projection operations."""
 
 import torch
-from tensordict import TensorDict
 
 from torchmesh.mesh import Mesh
 

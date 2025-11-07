@@ -4,7 +4,7 @@ Implements geometry-aware smoothing using cotangent weights, with options for
 preserving boundaries and sharp features.
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import torch
 

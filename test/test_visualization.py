@@ -205,7 +205,6 @@ def test_pyvista_backend_2d_in_2d():
 
 def test_pyvista_points_padded_to_3d():
     """Test that PyVista mesh has 3D points even for low-dimensional input."""
-    import pyvista as pv
     from torchmesh.io.io_pyvista import to_pyvista
 
     # Create 2D mesh in 2D space
