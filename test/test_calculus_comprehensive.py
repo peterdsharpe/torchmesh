@@ -557,8 +557,8 @@ class TestProjectionEdgeCases:
 
         assert torch.allclose(projected, gradients)
 
-    def test_projection_higher_codimension_fallback(self):
-        """Test projection on codim>1 returns input (not yet implemented)."""
+    def test_projection_higher_codimension_pca(self):
+        """Test projection on codim>1 uses PCA to find tangent space."""
         torch.manual_seed(42)
         # 1D curve in 3D (codimension=2)
         t = torch.linspace(0, 1, 10)
@@ -571,8 +571,18 @@ class TestProjectionEdgeCases:
         gradients = torch.randn(mesh.n_points, 3)
         projected = project_to_tangent_space(mesh, gradients, "points")
 
-        # Should return input for codim>1 (not yet implemented)
-        assert torch.allclose(projected, gradients)
+        # Should project to tangent space (1D manifold)
+        # Projected gradient should have smaller norm than original (normal component removed)
+        assert projected.shape == gradients.shape
+        
+        # Check that projection actually happened (not identity)
+        assert not torch.allclose(projected, gradients)
+        
+        # Projected gradient should generally have smaller or equal norm
+        projected_norms = torch.norm(projected, dim=-1)
+        original_norms = torch.norm(gradients, dim=-1)
+        # Most should be smaller (allowing some numerical tolerance)
+        assert (projected_norms <= original_norms + 1e-5).float().mean() > 0.7
 
 
 class TestExteriorDerivative1:
