@@ -115,13 +115,13 @@ def mean_curvature_vertices(
             float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device
         ),
     )
-    
+
     ### Handle boundary vertices
     # The cotangent Laplacian formula assumes a complete neighborhood around each vertex.
     # For boundary vertices, we can either:
     # 1. Set to NaN (conservative, default)
     # 2. Compute using available neighbors (Neumann-like boundary condition)
-    
+
     if not include_boundary:
         from torchmesh.boundaries import get_boundary_vertices
 
@@ -130,7 +130,9 @@ def mean_curvature_vertices(
         # Set boundary vertices to NaN
         mean_curvature = torch.where(
             is_boundary_vertex,
-            torch.tensor(float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device),
+            torch.tensor(
+                float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device
+            ),
             mean_curvature,
         )
 

@@ -33,13 +33,13 @@ class TestVolumeExamples:
         """Test cube volume subdivision."""
         cube_coarse = examples.volumes.cube_volume.load(n_subdivisions=2)
         cube_fine = examples.volumes.cube_volume.load(n_subdivisions=4)
-        
+
         assert cube_fine.n_cells > cube_coarse.n_cells
 
     def test_tetrahedron_single_cell(self):
         """Test that single tetrahedron has exactly one cell."""
         tet = examples.volumes.tetrahedron_volume.load()
-        
+
         assert tet.n_cells == 1
         assert tet.n_points == 4
         assert tet.cells.shape == (1, 4)
@@ -49,7 +49,6 @@ class TestVolumeExamples:
         """Test Delaunay-based volume meshes."""
         example_module = getattr(examples.volumes, example_name)
         mesh = example_module.load(resolution=15)
-        
+
         # Should have reasonable number of cells
         assert mesh.n_cells > 10
-

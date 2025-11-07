@@ -30,7 +30,9 @@ class TestCurveExamples:
             ("spline_3d", 1, 3),
         ],
     )
-    def test_curve_mesh(self, example_name, expected_manifold_dims, expected_spatial_dims):
+    def test_curve_mesh(
+        self, example_name, expected_manifold_dims, expected_spatial_dims
+    ):
         """Test that curve mesh loads with correct dimensions."""
         example_module = getattr(examples.curves, example_name)
         mesh = example_module.load()
@@ -45,7 +47,7 @@ class TestCurveExamples:
         # Test n_points parameter
         helix_coarse = examples.curves.helix_3d.load(n_points=20)
         helix_fine = examples.curves.helix_3d.load(n_points=100)
-        
+
         assert helix_fine.n_points > helix_coarse.n_points
         assert helix_fine.n_cells > helix_coarse.n_cells
 
@@ -53,9 +55,9 @@ class TestCurveExamples:
         """Test that closed curves have correct topology."""
         # Circle should be closed (no boundary edges)
         circle = examples.curves.circle_2d.load(n_points=32)
-        
+
         # For a closed curve, each vertex should appear in exactly 2 edges
         from collections import Counter
+
         vertex_counts = Counter(circle.cells.flatten().tolist())
         assert all(count == 2 for count in vertex_counts.values())
-

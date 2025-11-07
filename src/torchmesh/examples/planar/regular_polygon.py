@@ -48,4 +48,3 @@ def load(n_sides: int = 6, radius: float = 1.0, device: str = "cpu") -> Mesh:
 
     cells = torch.tensor(cells, dtype=torch.int64, device=device)
     return Mesh(points=points, cells=cells)
-

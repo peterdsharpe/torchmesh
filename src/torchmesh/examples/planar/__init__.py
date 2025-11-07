@@ -25,4 +25,3 @@ __all__ = [
     "l_shape",
     "structured_grid",
 ]
-

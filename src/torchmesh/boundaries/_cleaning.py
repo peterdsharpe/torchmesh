@@ -57,7 +57,12 @@ def merge_duplicate_points(
     dtype = points.dtype
 
     if n_points == 0:
-        return points, cells, point_data, torch.arange(0, device=device, dtype=torch.int64)
+        return (
+            points,
+            cells,
+            point_data,
+            torch.arange(0, device=device, dtype=torch.int64),
+        )
 
     ### Use pairwise distance computation for small meshes
     # For large meshes, we should use spatial hashing or KD-tree, but those
@@ -67,10 +72,10 @@ def merge_duplicate_points(
     ### Compute pairwise distances efficiently using broadcasting
     # For very large meshes (>100k points), this may run out of memory
     # In such cases, we process in chunks
-    
+
     chunk_size = 10000  # Process in chunks to avoid OOM
     point_mapping = torch.arange(n_points, device=device, dtype=torch.int64)
-    
+
     if n_points <= chunk_size:
         ### Small mesh: compute all pairwise distances at once
         point_mapping = _merge_points_pairwise(points, rtol, atol)
@@ -81,20 +86,22 @@ def merge_duplicate_points(
     ### Get unique points and remap connectivity
     unique_indices = torch.unique(point_mapping)
     n_unique = len(unique_indices)
-    
+
     ### Create reverse mapping from old unique indices to new compact indices
     reverse_mapping = torch.zeros(n_points, device=device, dtype=torch.int64)
-    reverse_mapping[unique_indices] = torch.arange(n_unique, device=device, dtype=torch.int64)
-    
+    reverse_mapping[unique_indices] = torch.arange(
+        n_unique, device=device, dtype=torch.int64
+    )
+
     ### Apply reverse mapping to point_mapping to get final compact indices
     final_point_mapping = reverse_mapping[point_mapping]
-    
+
     ### Extract merged points
     merged_points = points[unique_indices]
-    
+
     ### Update cell connectivity
     updated_cells = final_point_mapping[cells]
-    
+
     ### Merge point data by averaging
     merged_point_data = _merge_point_data(
         point_data=point_data,
@@ -102,7 +109,7 @@ def merge_duplicate_points(
         unique_indices=unique_indices,
         n_unique=n_unique,
     )
-    
+
     return merged_points, updated_cells, merged_point_data, final_point_mapping
 
 
@@ -123,37 +130,37 @@ def _merge_points_pairwise(
     """
     n_points = len(points)
     device = points.device
-    
+
     ### Compute pairwise distances: ||pi - pj||
     # Shape: (n_points, n_points)
     diff = points.unsqueeze(0) - points.unsqueeze(1)  # (n_points, n_points, n_dims)
     distances = torch.norm(diff, dim=-1)  # (n_points, n_points)
-    
+
     ### Compute threshold for each pair: atol + rtol * ||pi||
     # Shape: (n_points,)
     point_norms = torch.norm(points, dim=-1)
-    
+
     ### Threshold matrix: atol + rtol * max(||pi||, ||pj||)
     # Use max to ensure symmetry
     threshold_matrix = atol + rtol * torch.maximum(
         point_norms.unsqueeze(1),
         point_norms.unsqueeze(0),
     )
-    
+
     ### Find duplicate pairs: distance <= threshold
     is_duplicate = distances <= threshold_matrix
-    
+
     ### Build connected components using union-find
     # Start with each point mapping to itself
     point_mapping = torch.arange(n_points, device=device, dtype=torch.int64)
-    
+
     ### Process each point and merge with lower-indexed duplicates only
     # This avoids unintended transitive closures
     for i in range(n_points):
         if point_mapping[i] != i:
             # Already merged to a lower index
             continue
-            
+
         # Find all points that should merge with i
         # Only consider j < i to avoid double-processing
         for j in range(i):
@@ -164,7 +171,7 @@ def _merge_points_pairwise(
                 # Merge i into j (j has lower index)
                 point_mapping[i] = j
                 break
-    
+
     return point_mapping
 
 
@@ -188,65 +195,67 @@ def _merge_points_spatial_hash(
     """
     n_points = len(points)
     device = points.device
-    
+
     ### Compute a conservative grid size based on tolerance
     # We want cells large enough that duplicates are in same or adjacent cells
     # Use the larger of atol and rtol * typical_scale
     typical_scale = torch.norm(points.max(dim=0)[0] - points.min(dim=0)[0])
     cell_size = atol + rtol * typical_scale
-    
+
     ### Ensure cell size is positive
     cell_size = max(cell_size, 1e-20)
-    
+
     ### Map points to grid cells
     # Shape: (n_points, n_dims)
     grid_coords = (points / cell_size).floor().long()
-    
+
     ### Create a hash for each grid cell
     # Use a simple hash function that maps n-dimensional grid coords to 1D
     # Hash = x + y * prime1 + z * prime2 + ...
-    primes = torch.tensor([1, 999983, 999979, 999961, 999959], device=device)[:points.shape[1]]
+    primes = torch.tensor([1, 999983, 999979, 999961, 999959], device=device)[
+        : points.shape[1]
+    ]
     grid_hashes = (grid_coords * primes).sum(dim=-1)
-    
+
     ### Sort points by grid hash for efficient processing
     sorted_indices = torch.argsort(grid_hashes)
     sorted_points = points[sorted_indices]
     sorted_hashes = grid_hashes[sorted_indices]
-    
+
     ### Find groups of points in the same grid cell
     # Points with same hash are potentially close
     unique_hashes, hash_inverse = torch.unique(sorted_hashes, return_inverse=True)
-    
+
     ### Initialize mapping
     point_mapping = torch.arange(n_points, device=device, dtype=torch.int64)
-    
+
     ### For each unique hash, check points within that cell and adjacent cells
     for hash_idx in range(len(unique_hashes)):
         ### Get points in this hash bucket
         mask = hash_inverse == hash_idx
         indices_in_bucket = torch.where(mask)[0]
-        
+
         if len(indices_in_bucket) <= 1:
             continue
-        
+
         ### Extract points in this bucket
         bucket_points = sorted_points[indices_in_bucket]
         bucket_original_indices = sorted_indices[indices_in_bucket]
-        
+
         ### Compute pairwise distances within bucket
         diff = bucket_points.unsqueeze(0) - bucket_points.unsqueeze(1)
         distances = torch.norm(diff, dim=-1)
-        
+
         ### Compute thresholds
         point_norms = torch.norm(bucket_points, dim=-1)
         threshold_matrix = atol + rtol * torch.maximum(
             point_norms.unsqueeze(1),
             point_norms.unsqueeze(0),
         )
-        
+
         ### Find duplicates within bucket
         is_duplicate = distances <= threshold_matrix
-        
+
         ### Update mapping for duplicates
         for i in range(len(indices_in_bucket)):
             duplicates_local = torch.where(is_duplicate[i])[0]
@@ -254,14 +263,14 @@ def _merge_points_spatial_hash(
                 duplicates_global = bucket_original_indices[duplicates_local]
                 min_idx = torch.min(duplicates_global)
                 point_mapping[duplicates_global] = min_idx
-    
+
     ### Apply transitive closure
     for _ in range(10):
         old_mapping = point_mapping.clone()
         point_mapping = point_mapping[point_mapping]
         if torch.all(point_mapping == old_mapping):
             break
-    
+
     return point_mapping
 
 
@@ -288,31 +297,33 @@ def _merge_point_data(
             batch_size=torch.Size([n_unique]),
             device=point_data.device,
         )
-    
+
     ### For each unique point, average the data from all points that map to it
     def _merge_tensor(tensor: torch.Tensor) -> torch.Tensor:
         ### Compute indices after remapping
         # For each unique index, find all original points that map to it
         device = tensor.device
         dtype = tensor.dtype
-        
+
         ### Create output tensor
         merged = torch.zeros(
             (n_unique, *tensor.shape[1:]),
             dtype=dtype,
             device=device,
         )
-        
+
         ### Count how many points map to each unique point
         counts = torch.zeros(n_unique, dtype=torch.float32, device=device)
-        
+
         ### Create reverse mapping: unique_indices[i] corresponds to output index i
         reverse_map = torch.zeros(len(point_mapping), dtype=torch.int64, device=device)
-        reverse_map[unique_indices] = torch.arange(n_unique, device=device, dtype=torch.int64)
-        
+        reverse_map[unique_indices] = torch.arange(
+            n_unique, device=device, dtype=torch.int64
+        )
+
         ### Get output indices for all input points
         output_indices = reverse_map[point_mapping]
-        
+
         ### Scatter add the data
         data_shape = tensor.shape[1:]
         merged.scatter_add_(
@@ -320,20 +331,20 @@ def _merge_point_data(
             index=output_indices.view(-1, *([1] * len(data_shape))).expand_as(tensor),
             src=tensor,
         )
-        
+
         ### Count contributions
         counts.scatter_add_(
             dim=0,
             index=output_indices,
             src=torch.ones_like(output_indices, dtype=torch.float32),
         )
-        
+
         ### Average
         counts = counts.clamp(min=1.0)
         merged = merged / counts.view(-1, *([1] * len(data_shape)))
-        
+
         return merged
-    
+
     return point_data.apply(
         _merge_tensor,
         batch_size=torch.Size([n_unique]),
@@ -367,17 +378,17 @@ def remove_duplicate_cells(
     """
     if len(cells) == 0:
         return cells, cell_data
-    
+
     ### Sort vertices within each cell to canonical form
     sorted_cells = torch.sort(cells, dim=-1)[0]
-    
+
     ### Use a different strategy: mark duplicates and filter
     n_cells = len(cells)
     keep_mask = torch.ones(n_cells, dtype=torch.bool, device=cells.device)
-    
+
     ### For each pair of cells, check if they're duplicates
     # This is O(n^2) but correct. For large meshes, we'd want a hash-based approach.
-    
+
     if n_cells < 10000:
         ### Small mesh: pairwise comparison
         for i in range(n_cells):
@@ -397,7 +408,7 @@ def remove_duplicate_cells(
             dim=0,
             return_inverse=True,
         )
-        
+
         ### Keep only first occurrence of each unique cell
         # For each unique cell, find its first occurrence
         unique_cell_ids = torch.unique(inverse_indices)
@@ -405,15 +416,19 @@ def remove_duplicate_cells(
             occurrences = torch.where(inverse_indices == cell_id)[0]
             if len(occurrences) > 1:
                 keep_mask[occurrences[1:]] = False
-    
+
     ### Filter cells and data
     unique_cells = cells[keep_mask]
-    unique_cell_data = cell_data[keep_mask] if len(cell_data.keys()) > 0 else TensorDict(
-        {},
-        batch_size=torch.Size([keep_mask.sum().item()]),
-        device=cell_data.device,
+    unique_cell_data = (
+        cell_data[keep_mask]
+        if len(cell_data.keys()) > 0
+        else TensorDict(
+            {},
+            batch_size=torch.Size([keep_mask.sum().item()]),
+            device=cell_data.device,
+        )
     )
-    
+
     return unique_cells, unique_cell_data
 
 
@@ -447,7 +462,7 @@ def remove_unused_points(
     """
     n_points = len(points)
     device = points.device
-    
+
     if len(cells) == 0:
         ### No cells means no points are used
         return (
@@ -456,30 +471,34 @@ def remove_unused_points(
             TensorDict({}, batch_size=torch.Size([0]), device=device),
             torch.full((n_points,), -1, dtype=torch.int64, device=device),
         )
-    
+
     ### Find which points are used by cells
     used_mask = torch.zeros(n_points, dtype=torch.bool, device=device)
     used_mask.scatter_(0, cells.flatten(), True)
-    
+
     ### Get indices of used points
     used_indices = torch.where(used_mask)[0]
     n_used = len(used_indices)
-    
+
     ### Create mapping from old to new indices
     point_mapping = torch.full((n_points,), -1, dtype=torch.int64, device=device)
     point_mapping[used_indices] = torch.arange(n_used, device=device, dtype=torch.int64)
-    
+
     ### Extract used points and data
     used_points = points[used_indices]
-    used_point_data = point_data[used_indices] if len(point_data.keys()) > 0 else TensorDict(
-        {},
-        batch_size=torch.Size([n_used]),
-        device=device,
+    used_point_data = (
+        point_data[used_indices]
+        if len(point_data.keys()) > 0
+        else TensorDict(
+            {},
+            batch_size=torch.Size([n_used]),
+            device=device,
+        )
     )
-    
+
     ### Update cell connectivity
     updated_cells = point_mapping[cells]
-    
+
     return used_points, updated_cells, used_point_data, point_mapping
 
 
@@ -522,7 +541,7 @@ def clean_mesh(
     point_data = mesh.point_data.exclude("_cache")
     cell_data = mesh.cell_data.exclude("_cache")
     global_data = mesh.global_data
-    
+
     ### Step 1: Merge duplicate points
     if merge_points:
         points, cells, point_data, _ = merge_duplicate_points(
@@ -532,14 +551,14 @@ def clean_mesh(
             rtol=rtol,
             atol=atol,
         )
-    
+
     ### Step 2: Remove duplicate cells
     if remove_duplicate_cells_flag:
         cells, cell_data = remove_duplicate_cells(
             cells=cells,
             cell_data=cell_data,
         )
-    
+
     ### Step 3: Remove unused points
     if remove_unused_points_flag:
         points, cells, point_data, _ = remove_unused_points(
@@ -547,10 +566,10 @@ def clean_mesh(
             cells=cells,
             point_data=point_data,
         )
-    
+
     ### Create cleaned mesh
     from torchmesh.mesh import Mesh
-    
+
     return Mesh(
         points=points,
         cells=cells,
@@ -558,4 +577,3 @@ def clean_mesh(
         cell_data=cell_data,
         global_data=global_data,
     )
-

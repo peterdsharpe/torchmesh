@@ -28,7 +28,12 @@ class TestMergeDuplicatePoints:
     def test_merge_exact_duplicates(self, device):
         """Merge points at exactly the same location."""
         points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 0.0], [1.0, 1.0]],  # Points 0 and 2 are duplicates
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+                [1.0, 1.0],
+            ],  # Points 0 and 2 are duplicates
             device=device,
         )
         cells = torch.tensor([[0, 1, 3], [2, 1, 3]], device=device, dtype=torch.int64)
@@ -38,7 +43,7 @@ class TestMergeDuplicatePoints:
 
         ### Should merge points 0 and 2
         assert cleaned.n_points == 3
-        
+
         ### After merging points, both cells reference the same vertices, so become duplicates
         ### Only 1 cell should remain after duplicate cell removal
         assert cleaned.n_cells == 1
@@ -47,7 +52,12 @@ class TestMergeDuplicatePoints:
     def test_merge_within_tolerance(self, device):
         """Merge points within specified tolerance."""
         points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [1e-13, 1e-13], [1.0, 1.0]],  # Points 0 and 2 are close
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [1e-13, 1e-13],
+                [1.0, 1.0],
+            ],  # Points 0 and 2 are close
             device=device,
         )
         cells = torch.tensor([[0, 1, 3], [2, 1, 3]], device=device, dtype=torch.int64)
@@ -65,7 +75,12 @@ class TestMergeDuplicatePoints:
     def test_no_merge_outside_tolerance(self, device):
         """Don't merge points outside tolerance."""
         points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [1e-6, 1e-6], [1.0, 1.0]],  # Points 0 and 2 are far
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [1e-6, 1e-6],
+                [1.0, 1.0],
+            ],  # Points 0 and 2 are far
             device=device,
         )
         cells = torch.tensor([[0, 1, 3], [2, 1, 3]], device=device, dtype=torch.int64)
@@ -108,9 +123,11 @@ class TestMergeDuplicatePoints:
             device=device,
         )
         cells = torch.tensor([[0, 1, 3], [2, 1, 3]], device=device, dtype=torch.int64)
-        
+
         ### Add point data
-        point_data = {"temperature": torch.tensor([10.0, 20.0, 30.0, 40.0], device=device)}
+        point_data = {
+            "temperature": torch.tensor([10.0, 20.0, 30.0, 40.0], device=device)
+        }
         mesh = Mesh(points=points, cells=cells, point_data=point_data)
 
         cleaned = mesh.clean()
@@ -118,7 +135,7 @@ class TestMergeDuplicatePoints:
         ### Point data should be averaged: (10 + 30) / 2 = 20
         assert "temperature" in cleaned.point_data.keys()
         assert len(cleaned.point_data["temperature"]) == cleaned.n_points
-        
+
         ### Check that merged point has averaged value
         ### The merged point should have temperature (10 + 30) / 2 = 20
         temperatures = cleaned.point_data["temperature"]
@@ -417,10 +434,10 @@ class TestToleranceSettings:
         """Different tolerances merge different sets of points."""
         points = torch.tensor(
             [
-                [0.0, 0.0],      # 0
+                [0.0, 0.0],  # 0
                 [1e-13, 1e-13],  # 1 - very close to 0
-                [1e-8, 1e-8],    # 2 - medium close to 0
-                [1e-3, 1e-3],    # 3 - far from 0
+                [1e-8, 1e-8],  # 2 - medium close to 0
+                [1e-3, 1e-3],  # 3 - far from 0
             ],
             device=device,
         )
@@ -439,4 +456,3 @@ class TestToleranceSettings:
         ### Loose tolerance: merge all
         cleaned_loose = mesh.clean(atol=1e-2, rtol=1e-2)
         assert cleaned_loose.n_points == 1
-

@@ -54,4 +54,3 @@ __all__ = [
     "remove_unused_points",
     "clean_mesh",
 ]
-

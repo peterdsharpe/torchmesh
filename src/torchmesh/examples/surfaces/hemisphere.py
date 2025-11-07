@@ -28,7 +28,9 @@ def load(
         Mesh with n_manifold_dims=2, n_spatial_dims=3
     """
     if theta_resolution < 3:
-        raise ValueError(f"theta_resolution must be at least 3, got {theta_resolution=}")
+        raise ValueError(
+            f"theta_resolution must be at least 3, got {theta_resolution=}"
+        )
     if phi_resolution < 2:
         raise ValueError(f"phi_resolution must be at least 2, got {phi_resolution=}")
 
@@ -55,8 +57,13 @@ def load(
 
             # Two triangles per quad
             cells.append([idx, idx + next_j - j, idx + theta_resolution])
-            cells.append([idx + next_j - j, idx + theta_resolution + next_j - j, idx + theta_resolution])
+            cells.append(
+                [
+                    idx + next_j - j,
+                    idx + theta_resolution + next_j - j,
+                    idx + theta_resolution,
+                ]
+            )
 
     cells = torch.tensor(cells, dtype=torch.int64, device=device)
     return Mesh(points=points, cells=cells)
-

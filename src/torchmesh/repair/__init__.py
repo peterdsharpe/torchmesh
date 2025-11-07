@@ -5,7 +5,7 @@ holes, and orientation issues.
 """
 
 from torchmesh.repair.duplicate_removal import remove_duplicate_vertices
-from torchmesh.repair.degenerate_removal import remove_degenerate_cells  
+from torchmesh.repair.degenerate_removal import remove_degenerate_cells
 from torchmesh.repair.isolated_removal import remove_isolated_vertices
 from torchmesh.repair.orientation import fix_orientation
 from torchmesh.repair.hole_filling import fill_holes
@@ -21,4 +21,3 @@ __all__ = [
     "split_nonmanifold_edges",
     "repair_mesh",
 ]
-

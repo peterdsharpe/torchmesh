@@ -209,4 +209,3 @@ def get_boundary_edges(mesh: "Mesh") -> torch.Tensor:
     boundary_edges = edges[is_boundary_edge]
 
     return boundary_edges
-

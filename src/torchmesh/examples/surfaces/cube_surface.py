@@ -29,4 +29,3 @@ def load(size: float = 1.0, device: str = "cpu") -> Mesh:
         mesh = mesh.to(device)
 
     return mesh
-

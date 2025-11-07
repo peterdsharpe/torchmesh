@@ -21,10 +21,10 @@ def repair_mesh(
     max_hole_edges: int = 10,
 ) -> tuple["Mesh", dict[str, dict]]:
     """Apply multiple repair operations in sequence.
-    
+
     Applies a series of mesh repair operations to clean up common problems.
     Operations are applied in a specific order to maximize effectiveness.
-    
+
     Order of operations:
     1. Remove degenerate cells (zero area)
     2. Remove duplicate vertices
@@ -32,7 +32,7 @@ def repair_mesh(
     4. Fix orientation (if enabled)
     5. Fill holes (if enabled)
     6. Make manifold (if enabled)
-    
+
     Args:
         mesh: Input mesh to repair
         remove_duplicates: Merge coincident vertices
@@ -43,11 +43,11 @@ def repair_mesh(
         make_manifold: Split non-manifold edges (changes topology)
         tolerance: Distance/area tolerance for various checks
         max_hole_edges: Maximum hole size to fill
-    
+
     Returns:
         Tuple of (repaired_mesh, all_stats) where all_stats is a dict mapping
         operation name to its individual stats dict
-    
+
     Example:
         >>> mesh_clean, stats = repair_mesh(
         ...     mesh,
@@ -59,57 +59,64 @@ def repair_mesh(
     """
     current_mesh = mesh
     all_stats = {}
-    
+
     ### Operation 1: Remove degenerate cells
     if remove_degenerates:
-        from torchmesh.repair.degenerate_removal import remove_degenerate_cells as remove_deg
-        
+        from torchmesh.repair.degenerate_removal import (
+            remove_degenerate_cells as remove_deg,
+        )
+
         current_mesh, stats = remove_deg(current_mesh, area_tolerance=tolerance)
         all_stats["degenerates"] = stats
-    
+
     ### Operation 2: Remove duplicate vertices
     if remove_duplicates:
-        from torchmesh.repair.duplicate_removal import remove_duplicate_vertices as remove_dup
-        
+        from torchmesh.repair.duplicate_removal import (
+            remove_duplicate_vertices as remove_dup,
+        )
+
         current_mesh, stats = remove_dup(current_mesh, tolerance=tolerance)
         all_stats["duplicates"] = stats
-    
+
     ### Operation 3: Remove isolated vertices
     if remove_isolated:
-        from torchmesh.repair.isolated_removal import remove_isolated_vertices as remove_iso
-        
+        from torchmesh.repair.isolated_removal import (
+            remove_isolated_vertices as remove_iso,
+        )
+
         current_mesh, stats = remove_iso(current_mesh)
         all_stats["isolated"] = stats
-    
+
     ### Operation 4: Fix orientation
     if fix_orientation:
         if mesh.n_manifold_dims == 2 and mesh.n_spatial_dims == 3:
             from torchmesh.repair.orientation import fix_orientation as fix_orient
-            
+
             current_mesh, stats = fix_orient(current_mesh)
             all_stats["orientation"] = stats
         else:
             all_stats["orientation"] = {"skipped": "Only for 2D manifolds in 3D"}
-    
+
     ### Operation 5: Fill holes
     if fill_holes:
         if mesh.n_manifold_dims == 2:
             from torchmesh.repair.hole_filling import fill_holes as fill_h
-            
+
             current_mesh, stats = fill_h(current_mesh, max_hole_edges=max_hole_edges)
             all_stats["holes"] = stats
         else:
             all_stats["holes"] = {"skipped": "Only for 2D manifolds"}
-    
+
     ### Operation 6: Make manifold
     if make_manifold:
         if mesh.n_manifold_dims == 2:
-            from torchmesh.repair.manifold_repair import split_nonmanifold_edges as split_nm
-            
+            from torchmesh.repair.manifold_repair import (
+                split_nonmanifold_edges as split_nm,
+            )
+
             current_mesh, stats = split_nm(current_mesh)
             all_stats["manifold"] = stats
         else:
             all_stats["manifold"] = {"skipped": "Only for 2D manifolds"}
-    
-    return current_mesh, all_stats
 
+    return current_mesh, all_stats

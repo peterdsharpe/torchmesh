@@ -38,4 +38,3 @@ __all__ = [
     "trefoil_knot_3d",
     "spline_3d",
 ]
-

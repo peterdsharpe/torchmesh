@@ -32,7 +32,9 @@ class TestBasicExamples:
             ("two_tetrahedra", 3, 3),
         ],
     )
-    def test_basic_mesh(self, example_name, expected_manifold_dims, expected_spatial_dims):
+    def test_basic_mesh(
+        self, example_name, expected_manifold_dims, expected_spatial_dims
+    ):
         """Test that basic mesh loads with correct dimensions."""
         example_module = getattr(examples.basic, example_name)
         mesh = example_module.load()
@@ -43,15 +45,18 @@ class TestBasicExamples:
         assert mesh.n_cells > 0
         assert mesh.points.device.type == "cpu"
 
-    @pytest.mark.parametrize("example_name", [
-        "single_point_2d",
-        "single_triangle_2d",
-        "single_tetrahedron",
-    ])
+    @pytest.mark.parametrize(
+        "example_name",
+        [
+            "single_point_2d",
+            "single_triangle_2d",
+            "single_tetrahedron",
+        ],
+    )
     def test_device_transfer(self, example_name):
         """Test that meshes can be loaded on different devices."""
         example_module = getattr(examples.basic, example_name)
-        
+
         # Test CPU
         mesh_cpu = example_module.load(device="cpu")
         assert mesh_cpu.points.device.type == "cpu"
@@ -60,4 +65,3 @@ class TestBasicExamples:
         if torch.cuda.is_available():
             mesh_gpu = example_module.load(device="cuda")
             assert mesh_gpu.points.device.type == "cuda"
-

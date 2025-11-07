@@ -21,7 +21,9 @@ def load(radius: float = 1.0, resolution: int = 20, device: str = "cpu") -> Mesh
         Mesh with n_manifold_dims=3, n_spatial_dims=3
     """
     # Create surface sphere
-    surface = pv.Sphere(radius=radius, theta_resolution=resolution, phi_resolution=resolution)
+    surface = pv.Sphere(
+        radius=radius, theta_resolution=resolution, phi_resolution=resolution
+    )
 
     # Fill with tetrahedra using Delaunay 3D
     volume = surface.delaunay_3d()
@@ -33,4 +35,3 @@ def load(radius: float = 1.0, resolution: int = 20, device: str = "cpu") -> Mesh
         mesh = mesh.to(device)
 
     return mesh
-

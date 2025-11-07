@@ -29,7 +29,9 @@ def load(
         Mesh with n_manifold_dims=2, n_spatial_dims=2
     """
     if inner_radius >= outer_radius:
-        raise ValueError(f"inner_radius must be < outer_radius, got {inner_radius=}, {outer_radius=}")
+        raise ValueError(
+            f"inner_radius must be < outer_radius, got {inner_radius=}, {outer_radius=}"
+        )
 
     # Use PyVista to create a disk with a hole
     pv_disk = pv.Disc(
@@ -52,4 +54,3 @@ def load(
         mesh = mesh.to(device)
 
     return mesh
-

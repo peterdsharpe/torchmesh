@@ -36,14 +36,14 @@ class TestPyVistaDatasetExamples:
     def test_bunny_is_large(self):
         """Test that bunny has reasonable number of vertices."""
         bunny = examples.pyvista_datasets.bunny.load()
-        
+
         # Stanford bunny should have a good number of vertices
         assert bunny.n_points > 1000
 
     def test_tetbeam_is_tetrahedral(self):
         """Test that tetbeam contains tetrahedra."""
         tetbeam = examples.pyvista_datasets.tetbeam.load()
-        
+
         # Should be 3D volume mesh
         assert tetbeam.n_manifold_dims == 3
         # Each cell should have 4 vertices (tetrahedron)
@@ -53,7 +53,7 @@ class TestPyVistaDatasetExamples:
     def test_device_transfer(self, example_name):
         """Test that PyVista datasets can be moved to different devices."""
         example_module = getattr(examples.pyvista_datasets, example_name)
-        
+
         # Test CPU
         mesh_cpu = example_module.load(device="cpu")
         assert mesh_cpu.points.device.type == "cpu"
@@ -62,4 +62,3 @@ class TestPyVistaDatasetExamples:
         if torch.cuda.is_available():
             mesh_gpu = example_module.load(device="cuda")
             assert mesh_gpu.points.device.type == "cuda"
-

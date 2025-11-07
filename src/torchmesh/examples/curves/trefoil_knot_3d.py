@@ -42,10 +42,14 @@ def load(scale: float = 1.0, n_points: int = 100, device: str = "cpu") -> Mesh:
     cells = torch.stack(
         [
             torch.arange(n_points, device=device),
-            torch.cat([torch.arange(1, n_points, device=device), torch.tensor([0], device=device)]),
+            torch.cat(
+                [
+                    torch.arange(1, n_points, device=device),
+                    torch.tensor([0], device=device),
+                ]
+            ),
         ],
         dim=1,
     )
 
     return Mesh(points=points, cells=cells)
-

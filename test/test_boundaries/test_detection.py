@@ -3,7 +3,12 @@
 import pytest
 import torch
 
-from torchmesh import Mesh, get_boundary_vertices, get_boundary_cells, get_boundary_edges
+from torchmesh import (
+    Mesh,
+    get_boundary_vertices,
+    get_boundary_cells,
+    get_boundary_edges,
+)
 
 
 @pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
@@ -88,7 +93,9 @@ class TestBoundaryVertices:
                 idx = i * n_circ + j
                 next_j = (j + 1) % n_circ
                 cells.append([idx, idx + next_j - j, idx + n_circ])
-                cells.append([idx + next_j - j, idx + n_circ + next_j - j, idx + n_circ])
+                cells.append(
+                    [idx + next_j - j, idx + n_circ + next_j - j, idx + n_circ]
+                )
         cells = torch.tensor(cells, dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
 
@@ -101,9 +108,9 @@ class TestBoundaryVertices:
         # Verify boundary vertices are at z=±1
         boundary_points = mesh.points[is_boundary]
         z_coords = boundary_points[:, 2]
-        assert torch.allclose(
-            z_coords.abs(), torch.ones_like(z_coords), atol=1e-5
-        ), "Boundary vertices should be at z=±1"
+        assert torch.allclose(z_coords.abs(), torch.ones_like(z_coords), atol=1e-5), (
+            "Boundary vertices should be at z=±1"
+        )
 
     def test_empty_mesh(self, device):
         """Empty mesh should have no boundary vertices."""
@@ -281,12 +288,14 @@ class TestBoundaryConsistency:
 
         # All boundary edge vertices should be marked as boundary
         boundary_verts_from_edges = torch.unique(boundary_edges.flatten())
-        is_boundary_from_edges = torch.zeros(mesh.n_points, dtype=torch.bool, device=device)
+        is_boundary_from_edges = torch.zeros(
+            mesh.n_points, dtype=torch.bool, device=device
+        )
         is_boundary_from_edges[boundary_verts_from_edges] = True
 
-        assert torch.equal(
-            is_boundary_vertex, is_boundary_from_edges
-        ), "Boundary vertices should match boundary edge endpoints"
+        assert torch.equal(is_boundary_vertex, is_boundary_from_edges), (
+            "Boundary vertices should match boundary edge endpoints"
+        )
 
     def test_boundary_cells_contain_boundary_vertices(self, device):
         """Boundary cells should contain at least one boundary vertex."""
@@ -306,4 +315,3 @@ class TestBoundaryConsistency:
             assert is_boundary_vertex[cell_vertices].any(), (
                 f"Boundary cell {cell_idx} should contain at least one boundary vertex"
             )
-

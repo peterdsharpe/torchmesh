@@ -607,7 +607,10 @@ class TestRotateDataTransformEdgeCases:
 
         # Cache should not be transformed (not included in user data transformation)
         # The cache is preserved but not included in the transformation
-        assert "_cache" not in rotated.cell_data or get_cached(rotated.cell_data, "test_vector") is None
+        assert (
+            "_cache" not in rotated.cell_data
+            or get_cached(rotated.cell_data, "test_vector") is None
+        )
 
     def test_rotate_cell_data_wrong_shape_raises(self):
         """Test rotate raises for cell_data with wrong shape."""
@@ -649,7 +652,10 @@ class TestScaleDataTransformEdgeCases:
         scaled = scale(mesh, factor=2.0, transform_data=True)
 
         # Cache should not be transformed (excluded from user data transformation)
-        assert "_cache" not in scaled.point_data or get_cached(scaled.point_data, "test_vector") is None
+        assert (
+            "_cache" not in scaled.point_data
+            or get_cached(scaled.point_data, "test_vector") is None
+        )
 
     def test_scale_data_wrong_shape_raises(self):
         """Test scale raises for fields with wrong shape."""

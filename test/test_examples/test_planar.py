@@ -36,7 +36,7 @@ class TestPlanarExamples:
         """Test that subdivision parameter works."""
         square_coarse = examples.planar.unit_square.load(n_subdivisions=0)
         square_fine = examples.planar.unit_square.load(n_subdivisions=2)
-        
+
         assert square_fine.n_points > square_coarse.n_points
         assert square_fine.n_cells > square_coarse.n_cells
 
@@ -45,7 +45,7 @@ class TestPlanarExamples:
         # Triangle
         tri = examples.planar.regular_polygon.load(n_sides=3)
         assert tri.n_cells >= 3
-        
+
         # Hexagon
         hex = examples.planar.regular_polygon.load(n_sides=6)
         assert hex.n_cells >= 6
@@ -53,9 +53,8 @@ class TestPlanarExamples:
     def test_annulus(self):
         """Test annulus (ring) creation."""
         annulus = examples.planar.annulus_2d.load(inner_radius=0.5, outer_radius=1.0)
-        
+
         # Check that points span the expected radial range
         radii = torch.norm(annulus.points, dim=1)
         assert radii.min() >= 0.5 - 0.1  # Allow some tolerance
         assert radii.max() <= 1.0 + 0.1
-

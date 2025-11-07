@@ -55,7 +55,9 @@ def load(
 
             # Two triangles per quad
             cells_side.append([idx, idx + next_j - j, idx + n_circ])
-            cells_side.append([idx + next_j - j, idx + n_circ + next_j - j, idx + n_circ])
+            cells_side.append(
+                [idx + next_j - j, idx + n_circ + next_j - j, idx + n_circ]
+            )
 
     ### Add caps
     # Bottom cap center
@@ -75,10 +77,11 @@ def load(
     top_ring_offset = (n_height - 1) * n_circ
     for j in range(n_circ):
         next_j = (j + 1) % n_circ
-        cells_side.append([top_center_idx, top_ring_offset + j, top_ring_offset + next_j])
+        cells_side.append(
+            [top_center_idx, top_ring_offset + j, top_ring_offset + next_j]
+        )
 
     points = torch.tensor(points_side, dtype=torch.float32, device=device)
     cells = torch.tensor(cells_side, dtype=torch.int64, device=device)
 
     return Mesh(points=points, cells=cells)
-

@@ -162,9 +162,11 @@ class TestPointNormalsAreaWeighting:
         for i in [0, 1]:
             norm = torch.norm(point_normals[i])
             assert torch.abs(norm - 1.0) < 1e-5
-        
+
         # Verify cell normals are also unit vectors
-        assert torch.allclose(torch.norm(cell_normals, dim=1), torch.ones(2, device=device), atol=1e-5)
+        assert torch.allclose(
+            torch.norm(cell_normals, dim=1), torch.ones(2, device=device), atol=1e-5
+        )
         # Both cell normals should point in the same direction (both coplanar in xy-plane, pointing +z)
         assert torch.allclose(cell_normals[0], cell_normals[1], atol=1e-5), (
             "Both triangles are coplanar, so normals should be identical"
@@ -179,7 +181,9 @@ class TestPointNormalsAreaWeighting:
         cell_normals = mesh.cell_normals
 
         # Verify cell normals are unit vectors
-        assert torch.allclose(torch.norm(cell_normals, dim=1), torch.ones(2, device=device), atol=1e-5)
+        assert torch.allclose(
+            torch.norm(cell_normals, dim=1), torch.ones(2, device=device), atol=1e-5
+        )
 
         # Points 0 and 1 are shared by both triangles
         # Their normals should be some average of the two cell normals
@@ -189,8 +193,12 @@ class TestPointNormalsAreaWeighting:
             # Dot product with both cell normals should be positive (same hemisphere)
             dot0 = (shared_point_normals[i] * cell_normals[0]).sum()
             dot1 = (shared_point_normals[i] * cell_normals[1]).sum()
-            assert dot0 > 0.5, f"Shared point {i} normal should be similar to cell 0 normal"
-            assert dot1 > 0.5, f"Shared point {i} normal should be similar to cell 1 normal"
+            assert dot0 > 0.5, (
+                f"Shared point {i} normal should be similar to cell 0 normal"
+            )
+            assert dot1 > 0.5, (
+                f"Shared point {i} normal should be similar to cell 1 normal"
+            )
 
         # Points 2 and 3 are only in one triangle each
         # Point 2 in triangle 0 only

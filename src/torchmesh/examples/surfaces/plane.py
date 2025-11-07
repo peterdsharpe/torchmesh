@@ -55,7 +55,11 @@ def load(
 
             # Rodrigues' rotation formula
             K = torch.tensor(
-                [[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]],
+                [
+                    [0, -axis[2], axis[1]],
+                    [axis[2], 0, -axis[0]],
+                    [-axis[1], axis[0], 0],
+                ],
                 dtype=torch.float32,
                 device=device,
             )
@@ -81,4 +85,3 @@ def load(
 
     cells = torch.tensor(cells, dtype=torch.int64, device=device)
     return Mesh(points=points, cells=cells)
-

@@ -153,4 +153,3 @@ def extract_boundary_mesh_data(
         raise ValueError(f"Invalid {data_source=}. Must be one of: 'points', 'cells'")
 
     return boundary_facets, boundary_cell_data
-

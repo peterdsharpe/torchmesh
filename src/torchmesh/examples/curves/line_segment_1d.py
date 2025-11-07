@@ -35,4 +35,3 @@ def load(length: float = 1.0, n_points: int = 2, device: str = "cpu") -> Mesh:
     )
 
     return Mesh(points=points, cells=cells)
-

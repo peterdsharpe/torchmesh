@@ -76,4 +76,3 @@ def load(
         cell_data=mesh.cell_data,
         global_data=mesh.global_data,
     )
-

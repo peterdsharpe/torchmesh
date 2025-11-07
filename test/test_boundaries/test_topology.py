@@ -127,11 +127,11 @@ class TestWatertight3D:
         ### Create octahedron: 6 vertices, 8 tetrahedral cells
         points = torch.tensor(
             [
-                [1.0, 0.0, 0.0],   # 0: +X
+                [1.0, 0.0, 0.0],  # 0: +X
                 [-1.0, 0.0, 0.0],  # 1: -X
-                [0.0, 1.0, 0.0],   # 2: +Y
+                [0.0, 1.0, 0.0],  # 2: +Y
                 [0.0, -1.0, 0.0],  # 3: -Y
-                [0.0, 0.0, 1.0],   # 4: +Z
+                [0.0, 0.0, 1.0],  # 4: +Z
                 [0.0, 0.0, -1.0],  # 5: -Z
             ],
             device=device,
@@ -155,7 +155,7 @@ class TestWatertight3D:
         ### This specific configuration should be watertight
         ### Actually, let me reconsider - we need proper tets that tile the octahedron
         ### Let me use a simpler watertight example
-        
+
         ### Actually, for a proper watertight 3D mesh, we need all faces shared by exactly 2 tets
         ### A simple example is 2 tets + 2 more tets that close the gap
         ### For simplicity, skip this test for now and just check the logic works
@@ -378,4 +378,3 @@ class TestEmptyMesh:
 
         assert mesh.is_watertight()
         assert mesh.is_manifold()
-

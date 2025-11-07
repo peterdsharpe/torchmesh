@@ -209,18 +209,18 @@ class TestTranslation:
         validate_caches(translated, expected_caches)
 
         # Verify specific values
-        assert torch.allclose(get_cached(translated.cell_data, "areas"), original_areas), (
-            "Areas should be unchanged by translation"
-        )
+        assert torch.allclose(
+            get_cached(translated.cell_data, "areas"), original_areas
+        ), "Areas should be unchanged by translation"
         assert torch.allclose(
             get_cached(translated.cell_data, "centroids"),
             original_centroids + offset,
         ), "Centroids should be translated"
 
         if mesh.codimension == 1:
-            assert torch.allclose(get_cached(translated.cell_data, "normals"), original_normals), (
-                "Normals should be unchanged by translation"
-            )
+            assert torch.allclose(
+                get_cached(translated.cell_data, "normals"), original_normals
+            ), "Normals should be unchanged by translation"
 
 
 class TestRotation:
@@ -325,9 +325,9 @@ class TestRotation:
         assert not torch.allclose(
             get_cached(rotated.cell_data, "centroids"), original_centroids
         ), "Centroids should be rotated"
-        assert not torch.allclose(get_cached(rotated.cell_data, "normals"), original_normals), (
-            "Normals should be rotated"
-        )
+        assert not torch.allclose(
+            get_cached(rotated.cell_data, "normals"), original_normals
+        ), "Normals should be rotated"
 
 
 class TestScale:
@@ -399,13 +399,17 @@ class TestScale:
 
         # Centroids should be scaled
         expected_centroids = original_centroids * factor
-        assert torch.allclose(get_cached(scaled.cell_data, "centroids"), expected_centroids)
+        assert torch.allclose(
+            get_cached(scaled.cell_data, "centroids"), expected_centroids
+        )
 
         # For codim-1 and positive uniform scaling, normals should be unchanged
         if mesh.codimension == 1:
             original_normals = get_cached(mesh.cell_data, "normals").clone()
             validate_caches(scaled, {"normals": True})
-            assert torch.allclose(get_cached(scaled.cell_data, "normals"), original_normals)
+            assert torch.allclose(
+                get_cached(scaled.cell_data, "normals"), original_normals
+            )
 
     @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
     def test_scale_negative_invalidates_normals(
@@ -432,9 +436,7 @@ class TestScale:
         scaled = scale(mesh, factor)
 
         # Both areas and normals should be invalidated
-        validate_caches(
-            scaled, {"areas": False, "centroids": True, "normals": False}
-        )
+        validate_caches(scaled, {"areas": False, "centroids": True, "normals": False})
 
 
 class TestTransform:

@@ -27,11 +27,14 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
         [0.0, 0.0, 0.0],
         [side_length, 0.0, 0.0],
         [side_length / 2, side_length * math.sqrt(3) / 2, 0.0],
-        [side_length / 2, side_length * math.sqrt(3) / 6, side_length * math.sqrt(2 / 3)],
+        [
+            side_length / 2,
+            side_length * math.sqrt(3) / 6,
+            side_length * math.sqrt(2 / 3),
+        ],
     ]
 
     points = torch.tensor(vertices, dtype=torch.float32, device=device)
     cells = torch.tensor([[0, 1, 2, 3]], dtype=torch.int64, device=device)
 
     return Mesh(points=points, cells=cells)
-

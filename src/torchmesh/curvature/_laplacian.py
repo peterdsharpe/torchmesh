@@ -211,31 +211,31 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
     elif n_manifold_dims == 3:
         ### 3D tetrahedra: Dihedral angle cotangents
         # For each edge, compute cotangent of dihedral angles in adjacent tets
-        
+
         ### Step 1: For each edge, find the two triangular faces sharing it
         # This requires finding which faces contain both edge vertices
-        
+
         # For now, implement a simplified approximation based on edge-tet geometry
         # Full implementation requires face-based data structures
-        
+
         # Extract edge-tet adjacency (which tets contain each edge)
         unique_edges_with_inverse, inverse_indices = torch.unique(
             torch.sort(edge_mesh.cells, dim=1).values,
             dim=0,
             return_inverse=True,
         )
-        
+
         # Count how many tets each edge appears in
         edge_counts = torch.bincount(inverse_indices, minlength=len(sorted_edges))
-        
+
         # For tetrahedral meshes, use geometric approximation for cotangent weights
         # Based on edge length and local tet geometry
         # This is an approximation; exact formula requires dihedral angles
-        
+
         # Use edge lengths as basis for weights (longer edges get smaller weights)
         edge_vectors = mesh.points[sorted_edges[:, 1]] - mesh.points[sorted_edges[:, 0]]
         edge_lengths = torch.norm(edge_vectors, dim=-1)
-        
+
         # Weight inversely proportional to edge length (standard for tet meshes)
         weights = 1.0 / edge_lengths.clamp(min=1e-10)
 

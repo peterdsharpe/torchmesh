@@ -44,4 +44,3 @@ def set_cached(data: TensorDict, key: str, value: torch.Tensor) -> None:
     if "_cache" not in data:
         data["_cache"] = TensorDict({}, batch_size=data.batch_size, device=data.device)
     data[("_cache", key)] = value
-

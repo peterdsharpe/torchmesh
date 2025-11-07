@@ -107,7 +107,9 @@ class TestClosedCurveAngleSums:
         # With 1% noise, should still be essentially exact
         assert not torch.isnan(total_angle_noisy)
         assert total_angle_noisy > 0
-        assert relative_error < 1e-5, f"Relative error {relative_error:.3f} unexpectedly large for 1% noise"
+        assert relative_error < 1e-5, (
+            f"Relative error {relative_error:.3f} unexpectedly large for 1% noise"
+        )
 
 
 ### Test 2D Manifolds (Closed Surfaces)

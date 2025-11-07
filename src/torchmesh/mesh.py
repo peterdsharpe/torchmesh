@@ -680,7 +680,6 @@ class Mesh:
         new_point_data = self.point_data.clone()
 
         for key, cell_values in self.cell_data.exclude("_cache").items():
-
             ### Vectorized approach: use scatter operations to accumulate
             # For each cell, we need to add its value to all its vertices
             # Then divide by the count of cells touching each vertex
@@ -798,7 +797,6 @@ class Mesh:
         new_cell_data = self.cell_data.clone()
 
         for key, point_values in self.point_data.exclude("_cache").items():
-
             # Get point values for each cell and average
             # cell_point_values shape: (n_cells, n_vertices_per_cell, ...)
             cell_point_values = point_values[self.cells]
@@ -1538,7 +1536,7 @@ class Mesh:
             gradient_type=gradient_type,
             order=order,
         )
-    
+
     def validate(
         self,
         check_degenerate_cells: bool = True,
@@ -1550,9 +1548,9 @@ class Mesh:
         raise_on_error: bool = False,
     ):
         """Validate mesh integrity and detect common errors.
-        
+
         Convenience method that delegates to torchmesh.validation.validate_mesh.
-        
+
         Args:
             check_degenerate_cells: Check for zero/negative area cells
             check_duplicate_vertices: Check for coincident vertices
@@ -1561,17 +1559,17 @@ class Mesh:
             check_manifoldness: Check manifold topology (2D only)
             tolerance: Tolerance for geometric checks
             raise_on_error: Raise ValueError on first error vs return report
-        
+
         Returns:
             Dictionary with validation results
-        
+
         Example:
             >>> report = mesh.validate()
             >>> if not report["valid"]:
             >>>     print(f"Validation failed: {report}")
         """
         from torchmesh.validation import validate_mesh
-        
+
         return validate_mesh(
             mesh=self,
             check_degenerate_cells=check_degenerate_cells,
@@ -1582,40 +1580,40 @@ class Mesh:
             tolerance=tolerance,
             raise_on_error=raise_on_error,
         )
-    
+
     @property
     def quality_metrics(self):
         """Compute geometric quality metrics for all cells.
-        
+
         Returns TensorDict with per-cell quality metrics:
         - aspect_ratio: max_edge / characteristic_length
         - edge_length_ratio: max_edge / min_edge
         - min_angle, max_angle: Interior angles (triangles only)
         - quality_score: Combined metric in [0,1] (1.0 is perfect)
-        
+
         Example:
             >>> metrics = mesh.quality_metrics
             >>> poor_cells = metrics["quality_score"] < 0.3
             >>> print(f"Found {poor_cells.sum()} poor quality cells")
         """
         from torchmesh.validation import compute_quality_metrics
-        
+
         return compute_quality_metrics(self)
-    
+
     @property
     def statistics(self):
         """Compute summary statistics for mesh.
-        
+
         Returns dictionary with mesh statistics including counts,
         edge length distributions, area distributions, and quality metrics.
-        
+
         Example:
             >>> stats = mesh.statistics
             >>> print(f"Mesh: {stats['n_points']} points, {stats['n_cells']} cells")
             >>> print(f"Edge lengths: min={stats['edge_length_stats'][0]:.3f}")
         """
         from torchmesh.validation import compute_mesh_statistics
-        
+
         return compute_mesh_statistics(self)
 
     def subdivide(

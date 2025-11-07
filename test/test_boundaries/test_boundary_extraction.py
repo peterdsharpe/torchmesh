@@ -39,7 +39,10 @@ class TestBoundaryExtraction2D:
 
         ### Boundary should contain all edges
         expected_edges = torch.tensor([[0, 1], [0, 2], [1, 2]], device=device)
-        assert torch.all(torch.sort(boundary.cells, dim=-1)[0] == torch.sort(expected_edges, dim=-1)[0])
+        assert torch.all(
+            torch.sort(boundary.cells, dim=-1)[0]
+            == torch.sort(expected_edges, dim=-1)[0]
+        )
 
     @pytest.mark.parametrize("device", get_available_devices())
     def test_two_triangles_shared_edge(self, device):
@@ -124,7 +127,7 @@ class TestBoundaryExtraction3D:
         )
         boundary_sorted = torch.sort(boundary.cells, dim=-1)[0]
         expected_sorted = torch.sort(expected_faces, dim=-1)[0]
-        
+
         ### Check that boundary contains all expected faces
         for expected_face in expected_sorted:
             matches = torch.all(boundary_sorted == expected_face.unsqueeze(0), dim=1)
@@ -200,7 +203,9 @@ class TestBoundaryExtraction1D:
 
         ### Check that boundary vertices are 0 and 3
         boundary_vertices = boundary.cells.flatten()
-        assert torch.all(torch.sort(boundary_vertices)[0] == torch.tensor([0, 3], device=device))
+        assert torch.all(
+            torch.sort(boundary_vertices)[0] == torch.tensor([0, 3], device=device)
+        )
 
     @pytest.mark.parametrize("device", get_available_devices())
     def test_closed_loop_no_boundary(self, device):
@@ -233,7 +238,7 @@ class TestBoundaryDataInheritance:
             device=device,
         )
         cells = torch.tensor([[0, 1, 2], [1, 3, 2]], device=device, dtype=torch.int64)
-        
+
         ### Add cell data
         cell_data = {"pressure": torch.tensor([1.0, 2.0], device=device)}
         mesh = Mesh(points=points, cells=cells, cell_data=cell_data)
@@ -252,7 +257,7 @@ class TestBoundaryDataInheritance:
             device=device,
         )
         cells = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int64)
-        
+
         ### Add point data
         point_data = {"temperature": torch.tensor([10.0, 20.0, 15.0], device=device)}
         mesh = Mesh(points=points, cells=cells, point_data=point_data)
@@ -278,4 +283,3 @@ class TestBoundaryEmptyMesh:
 
         assert boundary.n_cells == 0
         assert boundary.n_points == 0
-

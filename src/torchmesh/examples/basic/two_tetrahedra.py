@@ -31,8 +31,5 @@ def load(device: str = "cpu") -> Mesh:
         dtype=torch.float32,
         device=device,
     )
-    cells = torch.tensor(
-        [[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.int64, device=device
-    )
+    cells = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.int64, device=device)
     return Mesh(points=points, cells=cells)
-

@@ -329,7 +329,10 @@ class TestMeanCurvature:
         """Test that cylinder has H = 1/(2r) (curved in one direction only)."""
         radius = 1.0
         mesh = create_cylinder_mesh(
-            radius=radius, n_circ=64, n_height=32, device=device  # Use finer mesh
+            radius=radius,
+            n_circ=64,
+            n_height=32,
+            device=device,  # Use finer mesh
         )
 
         H_vertices = mesh.mean_curvature_vertices
@@ -339,9 +342,9 @@ class TestMeanCurvature:
 
         # Check interior vertices only (boundary vertices are NaN)
         interior_H = H_vertices[~torch.isnan(H_vertices)]
-        
+
         assert len(interior_H) > 0, "Should have interior vertices"
-        
+
         mean_H = interior_H.mean()
         relative_error = torch.abs(mean_H - expected_H) / expected_H
 
@@ -563,10 +566,10 @@ class TestPrincipalCurvatures:
         # Mean curvature should match expected value
         mean_H = H.mean()
         mean_K = K.mean()
-        
+
         H_rel_error = torch.abs(mean_H - expected_k) / expected_k
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
-        
+
         # With subdivision level 1, should be within tight tolerance
         assert H_rel_error < 0.01, (
             f"Mean curvature error {H_rel_error:.1%} exceeds 1%. "
@@ -576,7 +579,7 @@ class TestPrincipalCurvatures:
             f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "
             f"Got {mean_K:.4f}, expected {expected_K:.4f}"
         )
-        
+
         # Verify K ≈ H² for sphere (identity for sphere)
         K_from_H = H**2
         K_identity_error = (K - K_from_H).abs() / (K.abs() + 1e-10)
@@ -623,7 +626,9 @@ class TestCurvatureNumerical:
     def test_small_radius_sphere(self, device):
         """Test curvature on very small sphere."""
         radius = 0.01
-        mesh = create_sphere_mesh(radius=radius, subdivisions=1, device=device)  # Use subdiv 1
+        mesh = create_sphere_mesh(
+            radius=radius, subdivisions=1, device=device
+        )  # Use subdiv 1
 
         K = mesh.gaussian_curvature_vertices
         H = mesh.mean_curvature_vertices
@@ -638,10 +643,10 @@ class TestCurvatureNumerical:
 
         mean_K = K.mean()
         mean_H = H.mean()
-        
+
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
         H_rel_error = torch.abs(mean_H - expected_H) / expected_H
-        
+
         # Should be within tight tolerance even for small radius
         assert K_rel_error < 0.09, (
             f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "
@@ -655,7 +660,9 @@ class TestCurvatureNumerical:
     def test_large_radius_sphere(self, device):
         """Test curvature on very large sphere."""
         radius = 100.0
-        mesh = create_sphere_mesh(radius=radius, subdivisions=1, device=device)  # Use subdiv 1
+        mesh = create_sphere_mesh(
+            radius=radius, subdivisions=1, device=device
+        )  # Use subdiv 1
 
         K = mesh.gaussian_curvature_vertices
         H = mesh.mean_curvature_vertices
@@ -666,10 +673,10 @@ class TestCurvatureNumerical:
 
         mean_K = K.mean()
         mean_H = H.mean()
-        
+
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
         H_rel_error = torch.abs(mean_H - expected_H) / expected_H
-        
+
         # Should be within tight tolerance even for large radius
         assert K_rel_error < 0.09, (
             f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "

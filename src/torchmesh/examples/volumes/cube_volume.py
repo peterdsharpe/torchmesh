@@ -47,4 +47,3 @@ def load(size: float = 1.0, n_subdivisions: int = 5, device: str = "cpu") -> Mes
         mesh = mesh.to(device)
 
     return mesh
-

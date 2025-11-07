@@ -43,4 +43,3 @@ def load(
         mesh = mesh.to(device)
 
     return mesh
-

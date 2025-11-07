@@ -553,7 +553,7 @@ class TestManifolds:
         assert dot_products_intrinsic.abs().max() < 1e-2, (
             f"Intrinsic gradient not orthogonal to normal: max dot product = {dot_products_intrinsic.abs().max():.6f}"
         )
-        
+
         # Extrinsic gradient should be finite and have correct shape
         assert torch.all(torch.isfinite(grad_extrinsic))
         assert grad_extrinsic.shape == grad_intrinsic.shape
@@ -570,7 +570,7 @@ class TestCalculusIdentities:
         # For LINEAR potential, curl of gradient should be near-exact zero
         # Use phi = x + y for exact test (quadratic fields have O(h) discretization error)
         from torchmesh.calculus.curl import compute_curl_points_lsq
-        
+
         phi_linear = mesh.points[:, 0] + mesh.points[:, 1]
         mesh.point_data["phi_linear"] = phi_linear
         mesh_grad_linear = mesh.compute_point_derivatives(

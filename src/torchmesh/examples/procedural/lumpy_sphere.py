@@ -29,7 +29,9 @@ def load(
         Mesh with n_manifold_dims=2, n_spatial_dims=3
     """
     # Create base sphere
-    mesh = sphere_icosahedral.load(radius=radius, subdivisions=subdivisions, device=device)
+    mesh = sphere_icosahedral.load(
+        radius=radius, subdivisions=subdivisions, device=device
+    )
 
     # Add radial noise
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -48,4 +50,3 @@ def load(
         cell_data=mesh.cell_data,
         global_data=mesh.global_data,
     )
-

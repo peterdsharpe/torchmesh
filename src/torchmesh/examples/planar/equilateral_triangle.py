@@ -10,7 +10,9 @@ import torch
 from torchmesh.mesh import Mesh
 
 
-def load(side_length: float = 1.0, n_subdivisions: int = 0, device: str = "cpu") -> Mesh:
+def load(
+    side_length: float = 1.0, n_subdivisions: int = 0, device: str = "cpu"
+) -> Mesh:
     """Create an equilateral triangle in 2D space.
 
     Args:
@@ -40,4 +42,3 @@ def load(side_length: float = 1.0, n_subdivisions: int = 0, device: str = "cpu")
         mesh = mesh.subdivide(levels=n_subdivisions, filter="linear")
 
     return mesh
-

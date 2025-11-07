@@ -32,4 +32,3 @@ def load(device: str = "cpu") -> Mesh:
         mesh = mesh.to(device)
 
     return mesh
-

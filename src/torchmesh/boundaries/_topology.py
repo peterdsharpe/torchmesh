@@ -194,29 +194,31 @@ def _check_edges_manifold(mesh: "Mesh") -> bool:
         ### For each edge, check that the cells around it form a valid configuration
         # In a manifold, the triangular faces around an edge should form a cycle
         # (for interior edges) or a fan (for boundary edges)
-        
+
         ### Simple check: count cells per edge
         # In a 3D manifold, an edge can be shared by any number of tetrahedra,
         # but the triangular faces around the edge must form a valid fan/cycle
-        
+
         ### For now, we do a simpler check: ensure each edge appears in at least one cell
         # A more sophisticated check would require analyzing the link of the edge
-        edge_counts = torch.zeros(len(unique_edges), dtype=torch.int64, device=mesh.cells.device)
+        edge_counts = torch.zeros(
+            len(unique_edges), dtype=torch.int64, device=mesh.cells.device
+        )
         edge_counts.scatter_add_(
             dim=0,
             index=inverse_indices,
             src=torch.ones_like(inverse_indices),
         )
-        
+
         ### All edges should be used by at least one cell
         if torch.any(edge_counts == 0):
             return False
-            
+
         ### Additional check: extract the triangular faces around each edge
         # and verify they form a topological disk or circle
         # This is more complex and requires analyzing face adjacency
         # For now, we rely on the facet check which catches most non-manifold cases
-        
+
         return True
 
     ### For higher dimensions, we don't have specific checks yet
@@ -281,25 +283,29 @@ def _check_2d_vertex_manifold(mesh: "Mesh") -> bool:
     ### For each vertex, count how many boundary edges are incident
     # In a manifold with boundary, each boundary vertex should have exactly 2 boundary edges
     # In a closed manifold, no vertex should have boundary edges
-    
+
     boundary_edge_mask = edge_counts == 1
     boundary_edges = unique_edges[boundary_edge_mask]
-    
+
     if len(boundary_edges) > 0:
         ### Count boundary edges per vertex
-        vertex_boundary_count = torch.zeros(mesh.n_points, dtype=torch.int64, device=mesh.cells.device)
+        vertex_boundary_count = torch.zeros(
+            mesh.n_points, dtype=torch.int64, device=mesh.cells.device
+        )
         vertex_boundary_count.scatter_add_(
             dim=0,
             index=boundary_edges.flatten(),
-            src=torch.ones(boundary_edges.numel(), dtype=torch.int64, device=mesh.cells.device),
+            src=torch.ones(
+                boundary_edges.numel(), dtype=torch.int64, device=mesh.cells.device
+            ),
         )
-        
+
         ### Each boundary vertex should have exactly 2 boundary edges (forms a chain)
         # Non-boundary vertices should have 0
         valid_counts = (vertex_boundary_count == 0) | (vertex_boundary_count == 2)
         if not torch.all(valid_counts):
             return False
-    
+
     return True
 
 
@@ -319,13 +325,12 @@ def _check_3d_vertex_manifold(mesh: "Mesh") -> bool:
     ### This is a complex check that requires analyzing face connectivity
     ### around each vertex. For now, we rely on the facet and edge checks
     ### which catch most non-manifold configurations.
-    
+
     ### A proper implementation would:
     ### 1. For each vertex, extract all incident triangular faces
     ### 2. Build the face adjacency graph (faces sharing an edge)
     ### 3. Check that this graph forms a single connected component
     ### 4. Check that it has the topology of a sphere (for interior) or disk (for boundary)
-    
+
     ### This requires significant computation, so we defer to simpler checks for now
     return True
-

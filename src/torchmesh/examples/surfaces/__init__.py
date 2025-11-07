@@ -42,4 +42,3 @@ __all__ = [
     # Special surfaces
     "mobius_strip",
 ]
-

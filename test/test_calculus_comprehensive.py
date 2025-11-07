@@ -338,7 +338,9 @@ class TestKeyParsing:
         mesh = simple_tet_mesh
         mesh.point_data["field1"] = torch.ones(mesh.n_points)
         mesh.point_data["field2"] = torch.ones(mesh.n_points)
-        set_cached(mesh.point_data, "test_value", torch.ones(mesh.n_points))  # Should skip
+        set_cached(
+            mesh.point_data, "test_value", torch.ones(mesh.n_points)
+        )  # Should skip
 
         mesh_grad = mesh.compute_point_derivatives(keys=None)
 
@@ -574,10 +576,10 @@ class TestProjectionEdgeCases:
         # Should project to tangent space (1D manifold)
         # Projected gradient should have smaller norm than original (normal component removed)
         assert projected.shape == gradients.shape
-        
+
         # Check that projection actually happened (not identity)
         assert not torch.allclose(projected, gradients)
-        
+
         # Projected gradient should generally have smaller or equal norm
         projected_norms = torch.norm(projected, dim=-1)
         original_norms = torch.norm(gradients, dim=-1)

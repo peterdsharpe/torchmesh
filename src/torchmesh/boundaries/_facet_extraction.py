@@ -210,8 +210,6 @@ def _aggregate_tensor_data(
     return aggregated_data
 
 
-
-
 def deduplicate_and_aggregate_facets(
     candidate_facets: torch.Tensor,  # shape: (n_candidate_facets, n_vertices_per_facet)
     parent_cell_indices: torch.Tensor,  # shape: (n_candidate_facets,)

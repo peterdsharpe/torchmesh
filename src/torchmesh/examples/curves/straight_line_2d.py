@@ -44,4 +44,3 @@ def load(
     )
 
     return Mesh(points=points, cells=cells)
-

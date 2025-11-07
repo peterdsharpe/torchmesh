@@ -48,14 +48,16 @@ class TestSurfaceExamples:
         sphere0 = examples.surfaces.sphere_icosahedral.load(subdivisions=0)
         sphere1 = examples.surfaces.sphere_icosahedral.load(subdivisions=1)
         sphere2 = examples.surfaces.sphere_icosahedral.load(subdivisions=2)
-        
+
         assert sphere0.n_cells < sphere1.n_cells < sphere2.n_cells
 
     def test_sphere_radius(self):
         """Test that sphere has correct radius."""
         radius = 2.5
-        sphere = examples.surfaces.sphere_icosahedral.load(radius=radius, subdivisions=2)
-        
+        sphere = examples.surfaces.sphere_icosahedral.load(
+            radius=radius, subdivisions=2
+        )
+
         # All points should be approximately at the specified radius
         radii = torch.norm(sphere.points, dim=1)
         assert torch.allclose(radii, torch.full_like(radii, radius), atol=1e-5)
@@ -70,7 +72,7 @@ class TestSurfaceExamples:
             n_major=32,
             n_minor=16,
         )
-        
+
         # Check that points are in expected range
         radii_xy = torch.norm(torus.points[:, :2], dim=1)
         assert radii_xy.min() >= major_radius - minor_radius - 0.1
@@ -80,11 +82,10 @@ class TestSurfaceExamples:
         """Test that closed and open surfaces have correct topology."""
         # Closed cylinder should have no boundary
         cylinder_closed = examples.surfaces.cylinder.load(n_circ=16, n_height=5)
-        
+
         # Open cylinder should have boundary
         cylinder_open = examples.surfaces.cylinder_open.load(n_circ=16, n_height=5)
-        
+
         # Both should have points
         assert cylinder_closed.n_points > 0
         assert cylinder_open.n_points > 0
-

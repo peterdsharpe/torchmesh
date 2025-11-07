@@ -97,4 +97,3 @@ def load(radius: float = 1.0, subdivisions: int = 2, device: str = "cpu") -> Mes
         )
 
     return mesh
-

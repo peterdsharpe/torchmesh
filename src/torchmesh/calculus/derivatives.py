@@ -66,7 +66,11 @@ def compute_point_derivatives(
     ### Parse keys: normalize to list of key paths
     if keys is None:
         # All non-cached fields
-        key_list = list(mesh.point_data.exclude("_cache").keys(include_nested=True, leaves_only=True))
+        key_list = list(
+            mesh.point_data.exclude("_cache").keys(
+                include_nested=True, leaves_only=True
+            )
+        )
     elif isinstance(keys, (str, tuple)):
         key_list = [keys]
     elif isinstance(keys, Sequence):
@@ -103,10 +107,14 @@ def compute_point_derivatives(
             grad_extrinsic = compute_gradient_points_dec(mesh, field_values)
 
             if gradient_type == "intrinsic":
-                grad_intrinsic = project_to_tangent_space(mesh, grad_extrinsic, "points")
+                grad_intrinsic = project_to_tangent_space(
+                    mesh, grad_extrinsic, "points"
+                )
                 grad_extrinsic = None
             elif gradient_type == "both":
-                grad_intrinsic = project_to_tangent_space(mesh, grad_extrinsic, "points")
+                grad_intrinsic = project_to_tangent_space(
+                    mesh, grad_extrinsic, "points"
+                )
             else:  # extrinsic
                 grad_intrinsic = None
         else:
@@ -114,16 +122,32 @@ def compute_point_derivatives(
 
         ### Store gradients in mesh.point_data
         if gradient_type == "extrinsic":
-            out_key = f"{key}_gradient" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient",)
+            out_key = (
+                f"{key}_gradient"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient",)
+            )
             mesh.point_data[out_key] = grad_extrinsic
 
         elif gradient_type == "intrinsic":
-            out_key = f"{key}_gradient" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient",)
+            out_key = (
+                f"{key}_gradient"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient",)
+            )
             mesh.point_data[out_key] = grad_intrinsic
 
         elif gradient_type == "both":
-            out_key_ext = f"{key}_gradient_extrinsic" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient_extrinsic",)
-            out_key_int = f"{key}_gradient_intrinsic" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient_intrinsic",)
+            out_key_ext = (
+                f"{key}_gradient_extrinsic"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient_extrinsic",)
+            )
+            out_key_int = (
+                f"{key}_gradient_intrinsic"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient_intrinsic",)
+            )
             mesh.point_data[out_key_ext] = grad_extrinsic
             mesh.point_data[out_key_int] = grad_intrinsic
 
@@ -160,7 +184,9 @@ def compute_cell_derivatives(
 
     ### Parse keys: normalize to list of key paths
     if keys is None:
-        key_list = list(mesh.cell_data.exclude("_cache").keys(include_nested=True, leaves_only=True))
+        key_list = list(
+            mesh.cell_data.exclude("_cache").keys(include_nested=True, leaves_only=True)
+        )
     elif isinstance(keys, (str, tuple)):
         key_list = [keys]
     elif isinstance(keys, Sequence):
@@ -185,18 +211,34 @@ def compute_cell_derivatives(
 
         ### Store gradients in mesh.cell_data
         if gradient_type == "extrinsic":
-            out_key = f"{key}_gradient" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient",)
+            out_key = (
+                f"{key}_gradient"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient",)
+            )
             mesh.cell_data[out_key] = grad_extrinsic
 
         elif gradient_type == "intrinsic":
             grad_intrinsic = project_to_tangent_space(mesh, grad_extrinsic, "cells")
-            out_key = f"{key}_gradient" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient",)
+            out_key = (
+                f"{key}_gradient"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient",)
+            )
             mesh.cell_data[out_key] = grad_intrinsic
 
         elif gradient_type == "both":
             grad_intrinsic = project_to_tangent_space(mesh, grad_extrinsic, "cells")
-            out_key_ext = f"{key}_gradient_extrinsic" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient_extrinsic",)
-            out_key_int = f"{key}_gradient_intrinsic" if isinstance(key, str) else key[:-1] + (key[-1] + "_gradient_intrinsic",)
+            out_key_ext = (
+                f"{key}_gradient_extrinsic"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient_extrinsic",)
+            )
+            out_key_int = (
+                f"{key}_gradient_intrinsic"
+                if isinstance(key, str)
+                else key[:-1] + (key[-1] + "_gradient_intrinsic",)
+            )
             mesh.cell_data[out_key_ext] = grad_extrinsic
             mesh.cell_data[out_key_int] = grad_intrinsic
 

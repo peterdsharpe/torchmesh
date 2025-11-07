@@ -19,4 +19,3 @@ __all__ = [
     "tetrahedron_volume",
     "beam_volume",
 ]
-

@@ -37,4 +37,3 @@ __all__ = [
     "single_tetrahedron",
     "two_tetrahedra",
 ]
-

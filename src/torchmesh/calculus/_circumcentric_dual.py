@@ -205,7 +205,7 @@ def compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
     else:
         ### For other dimensions, use barycentric approximation
         # Each vertex receives an equal share of each incident cell's volume
-        # 
+        #
         # Note: For 2D this gives different results than the circumcentric
         # computation above. For 3D and higher, true Voronoi volumes would
         # require computing complex polyhedra. The barycentric approximation

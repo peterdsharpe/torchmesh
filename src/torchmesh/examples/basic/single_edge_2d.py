@@ -20,4 +20,3 @@ def load(device: str = "cpu") -> Mesh:
     points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], dtype=torch.float32, device=device)
     cells = torch.tensor([[0, 1]], dtype=torch.int64, device=device)
     return Mesh(points=points, cells=cells)
-
