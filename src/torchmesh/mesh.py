@@ -7,7 +7,7 @@ from tensordict import TensorDict, tensorclass
 from torchmesh.utilities import get_cached, set_cached
 
 
-@tensorclass  # TODO evaluate speed vs. flexiblity tradeoff with tensor_only=True
+@tensorclass  # Note: tensor_only=True provides minimal performance benefit (<5%) but reduces flexibility
 class Mesh:
     points: torch.Tensor  # shape: (n_points, n_spatial_dimensions)
     cells: torch.Tensor  # shape: (n_cells, n_manifold_dimensions + 1)
@@ -1771,50 +1771,3 @@ class Mesh:
             remove_duplicate_cells_flag=remove_duplicate_cells,
             remove_unused_points_flag=remove_unused_points,
         )
-
-
-if __name__ == "__main__":
-    import pyvista as pv
-
-    ### 3D Mesh
-    pv_airplane: pv.PolyData = pv.examples.load_airplane()
-    # airplane_surface.plot(show_edges=True, show_bounds=True)
-    b3 = Mesh(
-        points=pv_airplane.points,
-        cells=pv_airplane.regular_cells,
-        point_data=pv_airplane.point_data,
-        cell_data=pv_airplane.cell_data,
-        global_data=pv_airplane.field_data,
-    )
-    print(b3.cell_centroids)
-    print(b3.cell_normals)
-    print(b3.cell_areas)
-
-    # ### 2D Mesh
-    # theta = torch.linspace(0, 2 * torch.pi, 361)
-    # points = torch.stack([torch.cos(theta), torch.sin(theta)], dim=1)
-    # start_indices = torch.arange(len(theta))
-    # end_indices = torch.roll(start_indices, shifts=-1)
-    # cells = torch.stack(
-    #     [
-    #         start_indices,
-    #         end_indices,
-    #     ],
-    #     dim=1,
-    # )
-    # b2 = Mesh(
-    #     points=points,
-    #     cells=cells,
-    # )
-
-    # demo_path = Path("demo_airplane.mesh")
-
-    # torch.save(b3, demo_path)
-
-    # b3_loaded = torch.load(demo_path, weights_only=False)
-
-    # print(
-    #     "Loaded mesh matches originals points: ",
-    #     torch.allclose(b3.points, b3_loaded.points),
-    # )
-    # print("Loaded mesh n_cells: ", b3_loaded.n_cells)
