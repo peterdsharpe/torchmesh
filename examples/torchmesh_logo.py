@@ -164,9 +164,9 @@ def text_to_points_and_edges(
     fp = FontProperties(family="sans-serif", weight="bold")
     text_path = TextPath((0, 0), text, size=font_size, prop=fp)
     
-    # Convert matplotlib's numpy arrays to torch tensors immediately
-    verts = torch.from_numpy(text_path.vertices).float().clone()  # clone to make writable
-    codes = torch.from_numpy(text_path.codes).long().clone()
+    # Convert matplotlib's numpy arrays to torch tensors
+    verts = torch.as_tensor(text_path.vertices, dtype=torch.float32)
+    codes = torch.as_tensor(text_path.codes, dtype=torch.int64)
     
     ### Process path segments
     all_points: list[torch.Tensor] = []
@@ -235,51 +235,141 @@ def text_to_points_and_edges(
     return points, edges, text_path
 
 
-def triangulate_path(points: torch.Tensor, text_path: Path) -> torch.Tensor:
-    """Triangulate text path properly handling holes and multiple components.
+def _compute_winding_number_multi_contour(points: torch.Tensor, path: Path) -> torch.Tensor:
+    """Compute winding number for path with multiple contours (handles holes).
     
-    Uses matplotlib's Path winding semantics to determine which triangles are
-    "inside" the text. This correctly handles:
+    Properly handles matplotlib Path objects with:
+    - Multiple MOVETO commands (separate contours)
+    - CLOSEPOLY commands
+    - Holes (contours wound opposite direction)
+    
+    Args:
+        points: Query points, shape (N, 2)
+        path: matplotlib Path object with vertices and codes
+        
+    Returns:
+        Winding numbers, shape (N,). Non-zero means inside, zero means outside/hole.
+    """
+    import numpy as np
+    
+    # Extract path structure
+    path_codes = np.array(path.codes)
+    
+    # Extract contours from path based on MOVETO commands
+    moveto_indices = np.where(path_codes == Path.MOVETO)[0]
+    
+    # Total winding is sum of winding from each contour
+    total_winding = torch.zeros(len(points), dtype=torch.float32, device=points.device)
+    
+    for i, start_idx in enumerate(moveto_indices):
+        # Find end of this contour
+        if i < len(moveto_indices) - 1:
+            end_idx = int(moveto_indices[i + 1])
+        else:
+            end_idx = len(path_codes)
+        
+        # Extract this contour's vertices
+        contour_verts = torch.tensor(path.vertices[start_idx:end_idx], dtype=torch.float32)
+        
+        # Compute winding for this contour using ray casting
+        winding_contour = torch.zeros(len(points), dtype=torch.float32, device=points.device)
+        
+        # Create edges (including closing edge)
+        for j in range(len(contour_verts)):
+            v0 = contour_verts[j]
+            v1 = contour_verts[(j + 1) % len(contour_verts)]  # Wrap around
+            
+            # Skip if edge is horizontal
+            if v0[1] == v1[1]:
+                continue
+            
+            # Check if edge straddles each point's y-coordinate
+            y_low = torch.minimum(v0[1], v1[1])
+            y_high = torch.maximum(v0[1], v1[1])
+            y_in_range = (points[:, 1] >= y_low) & (points[:, 1] < y_high)
+            
+            # Compute x-intersection
+            t = (points[:, 1] - v0[1]) / (v1[1] - v0[1])
+            x_intersect = v0[0] + t * (v1[0] - v0[0])
+            
+            # Count crossings to the right
+            crosses = y_in_range & (x_intersect > points[:, 0])
+            
+            # Add signed contribution
+            direction = torch.sign(v1[1] - v0[1])
+            winding_contour = winding_contour + crosses.float() * direction
+        
+        # Add this contour's contribution
+        total_winding = total_winding + winding_contour
+    
+    return total_winding
+
+
+def triangulate_path(
+    points: torch.Tensor, text_path: Path, point_density: float = 1.0
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Triangulate text path properly handling holes using winding numbers.
+    
+    Uses custom winding number computation to respect holes in text.
+    Works for:
     - Multiple disconnected letters
-    - Non-convex shapes (T, L, etc.)
+    - Non-convex shapes
     - Holes (o, e, A, etc.)
-    
-    Algorithm:
-    1. Triangulate all boundary points with Delaunay (unconstrained)
-    2. Compute triangle centroids
-    3. Test centroids using Path.contains_points() with winding rule
-    4. Keep only interior triangles
-    
-    This uses the exact same winding number logic matplotlib uses to fill text.
     
     Args:
         points: 2D boundary points, shape (N, 2)
-        text_path: matplotlib TextPath object defining inside/outside
+        text_path: matplotlib Path object (used to extract structure)
+        point_density: Spacing between interior sample points
         
     Returns:
-        triangles: Triangle connectivity for interior only, shape (M, 3)
+        all_points: Combined boundary + interior points, shape (M, 2)
+        triangles: Triangle connectivity, shape (K, 3)
     """
-    # Convert to numpy for matplotlib I/O
+    import numpy as np
+    
     points_np = points.cpu().numpy()
     
-    # Unconstrained Delaunay triangulation of all boundary points
-    tri = Triangulation(points_np[:, 0], points_np[:, 1])
+    ### Sample interior points on coarser grid
+    x_min, x_max = points_np[:, 0].min(), points_np[:, 0].max()
+    y_min, y_max = points_np[:, 1].min(), points_np[:, 1].max()
     
-    # Compute triangle centroids
-    # Shape: (n_triangles, 3, 2) -> (n_triangles, 2)
-    centroids = points_np[tri.triangles].mean(axis=1)
+    # Create grid
+    x_grid = np.arange(x_min, x_max, point_density)
+    y_grid = np.arange(y_min, y_max, point_density)
+    xx, yy = np.meshgrid(x_grid, y_grid)
+    candidate_points = torch.tensor(
+        np.column_stack([xx.ravel(), yy.ravel()]), dtype=torch.float32
+    )
     
-    # Test which centroids are inside the text path using winding rule
-    # This handles holes, multiple components, and non-convex shapes correctly
-    inside = text_path.contains_points(centroids, radius=0.0)
+    ### Compute winding number for each candidate point using proper multi-contour method
+    winding = _compute_winding_number_multi_contour(candidate_points, text_path)
     
-    # Keep only interior triangles
-    interior_triangles = tri.triangles[inside]
+    # Keep points with non-zero winding number (inside filled region, not in holes)
+    inside_mask = winding != 0
+    interior_points = candidate_points[inside_mask]
     
-    # Convert back to torch tensor
+    print(f"  Added {len(interior_points)} interior points to {len(points)} boundary points")
+    
+    # Combine boundary and interior
+    all_points = torch.cat([points, interior_points], dim=0)
+    all_points_np = all_points.cpu().numpy()
+    
+    ### Delaunay triangulation
+    tri = Triangulation(all_points_np[:, 0], all_points_np[:, 1])
+    
+    ### Filter triangles using winding number
+    centroids_torch = torch.tensor(
+        all_points_np[tri.triangles].mean(axis=1), dtype=torch.float32
+    )
+    centroid_winding = _compute_winding_number_multi_contour(centroids_torch, text_path)
+    
+    # Keep triangles with non-zero winding (inside, not in holes)
+    inside = centroid_winding != 0
+    interior_triangles = tri.triangles[inside.cpu().numpy()]
+    
     triangles = torch.from_numpy(interior_triangles).long()
     
-    return triangles
+    return all_points, triangles
 
 
 def main() -> None:
@@ -305,16 +395,16 @@ def main() -> None:
     points_2d, edges, text_path = text_to_points_and_edges(
         "TorchMesh",
         font_size=12.0,
-        samples_per_unit=3
+        samples_per_unit=10  # Increase for smoother boundary representation
     )
     print(f"  Generated {len(points_2d)} points, {len(edges)} edges (boundary)")
     
     ### 2. Triangulate to create filled 2D mesh [2,2]
     print("\n[2/7] Triangulating to fill text outline [2,2]...")
-    print("  Using Path winding semantics to respect holes and letter boundaries...")
-    triangles = triangulate_path(points_2d, text_path)
+    print("  Using winding number algorithm to respect holes and letter boundaries...")
+    all_points_2d, triangles = triangulate_path(points_2d, text_path, point_density=0.5)
     mesh_2d_2d = Mesh(
-        points=points_2d.to(device),
+        points=all_points_2d.to(device),
         cells=triangles.to(device),
     )
     print(f"  Mesh: [{mesh_2d_2d.n_manifold_dims}, {mesh_2d_2d.n_spatial_dims}]")
@@ -343,7 +433,7 @@ def main() -> None:
     ### 6. Apply butterfly subdivision for smoothness
     print("\n[6/7] Applying butterfly subdivision (2 levels) to surface...")
     print("  This may take a moment...")
-    smooth = surface.subdivide(levels=2, filter="butterfly")
+    smooth = surface.subdivide(levels=2, filter="loop")
     print(f"  Subdivided surface: {smooth.n_points} points, {smooth.n_cells} cells")
     
     ### 7. Generate Perlin noise at cell centroids (GPU-accelerated)
