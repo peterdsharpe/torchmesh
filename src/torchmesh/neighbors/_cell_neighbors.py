@@ -193,7 +193,6 @@ def get_cell_to_cells_adjacency(
     # Each cell needs (facet_size - 1) pairs
     facet_sizes_per_cell = valid_facet_sizes[facet_ids_per_cell]
     n_pairs_per_cell = facet_sizes_per_cell - 1
-    total_pairs = n_pairs_per_cell.sum().item()
     
     # Repeat source cells by (facet_size - 1)
     source_cells = torch.repeat_interleave(cells_in_valid_facets, n_pairs_per_cell)
@@ -210,6 +209,8 @@ def get_cell_to_cells_adjacency(
     # Same vectorization approach as local_indices
     
     # Create cumulative index for all pair positions
+    # Total pairs = length of the repeated source_cells tensor
+    total_pairs = len(source_cells)
     pair_cumulative_idx = torch.arange(total_pairs, dtype=torch.int64, device=mesh.cells.device)
     
     # Compute cumulative starts for each cell's target block
