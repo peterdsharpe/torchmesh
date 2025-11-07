@@ -22,55 +22,44 @@ from torchmesh.smoothing import smooth_laplacian
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    ### Configuration
-    TEXT = "TorchMesh"
-    FONT_SIZE = 12.0
-    SAMPLES_PER_UNIT = 10
-    MAX_SEGMENT_LENGTH = 0.25
-    EXTRUSION_HEIGHT = 2.0
-    SMOOTHING_ITERATIONS = 100
-    SUBDIVISION_LEVELS = 2
-    
+
     ### Generate 2D flat logo and 3D boundary surface
     m22 = text_2d_2d(
-        text=TEXT,
-        font_size=FONT_SIZE,
-        samples_per_unit=SAMPLES_PER_UNIT,
-        max_segment_length=MAX_SEGMENT_LENGTH,
+        text="TorchMesh",
         device=device,
     )
-    
     m33 = text_2d_3d(
-        text=TEXT,
-        font_size=FONT_SIZE,
-        samples_per_unit=SAMPLES_PER_UNIT,
-        max_segment_length=MAX_SEGMENT_LENGTH,
-        extrusion_height=EXTRUSION_HEIGHT,
+        text="TorchMesh",
+        extrusion_height=2.0,
         device=device,
     )
-    
+
     ### Apply smoothing and subdivision for final quality
     m33 = smooth_laplacian(
         m33,
-        n_iter=SMOOTHING_ITERATIONS,
+        n_iter=100,
         relaxation_factor=0.02,
         boundary_smoothing=False,
         feature_smoothing=False,
     )
-    m33 = m33.subdivide(levels=SUBDIVISION_LEVELS, filter="butterfly")
-    
+    m33 = m33.subdivide(levels=2, filter="butterfly")
+
     ### Add procedural coloring
-    noise_values = perlin_noise_nd(m33.cell_centroids, scale=0.5, seed=42)
-    m33.cell_data["noise"] = (noise_values - noise_values.min()) / (
-        noise_values.max() - noise_values.min()
-    )
-    
+    m22.cell_data["noise"] = perlin_noise_nd(m22.cell_centroids, scale=0.5, seed=42)
+    m33.cell_data["noise"] = perlin_noise_nd(m33.cell_centroids, scale=0.5, seed=42)
+
     ### Visualize 2D flat logo
-    m22.draw(alpha_points=0, show=False)
+    m22.draw(
+        cell_scalars="noise",
+        cmap="plasma",
+        show_edges=False,
+        alpha_points=0,
+        alpha_cells=1.0,
+        show=False,
+    )
     plt.gcf().set_dpi(800)
     plt.show()
-    
+
     ### Visualize 3D extruded logo with procedural coloring
     m33.draw(
         cell_scalars="noise",
