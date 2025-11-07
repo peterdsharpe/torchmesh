@@ -172,6 +172,6 @@ def project_to_tangent_space(
 
     else:
         ### Higher codimension: use PCA to estimate tangent space
-        # This is more complex - for now, return extrinsic gradient
-        # TODO: Implement PCA-based tangent space estimation
-        return gradients
+        from torchmesh.calculus._pca_tangent import project_gradient_to_tangent_space_pca
+        
+        return project_gradient_to_tangent_space_pca(mesh, gradients)
