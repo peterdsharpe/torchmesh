@@ -305,71 +305,117 @@ def _compute_winding_number_multi_contour(points: torch.Tensor, path: Path) -> t
     return total_winding
 
 
-def triangulate_path(
-    points: torch.Tensor, text_path: Path, point_density: float = 1.0
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Triangulate text path properly handling holes using winding numbers.
-    
-    Uses custom winding number computation to respect holes in text.
-    Works for:
-    - Multiple disconnected letters
-    - Non-convex shapes
-    - Holes (o, e, A, etc.)
+def _find_connected_components(edges: torch.Tensor, n_points: int) -> list[torch.Tensor]:
+    """Find connected components in edge graph.
     
     Args:
-        points: 2D boundary points, shape (N, 2)
-        text_path: matplotlib Path object (used to extract structure)
-        point_density: Spacing between interior sample points
+        edges: Edge connectivity, shape (n_edges, 2)
+        n_points: Total number of points
         
     Returns:
-        all_points: Combined boundary + interior points, shape (M, 2)
-        triangles: Triangle connectivity, shape (K, 3)
+        List of point indices for each connected component
+    """
+    # Build adjacency list
+    adjacency = [set() for _ in range(n_points)]
+    for edge in edges:
+        i, j = edge[0].item(), edge[1].item()
+        adjacency[i].add(j)
+        adjacency[j].add(i)
+    
+    # Find connected components using BFS
+    visited = torch.zeros(n_points, dtype=torch.bool)
+    components = []
+    
+    for start_point in range(n_points):
+        if visited[start_point]:
+            continue
+        
+        component = []
+        queue = [start_point]
+        visited[start_point] = True
+        
+        while queue:
+            current = queue.pop(0)
+            component.append(current)
+            for neighbor in adjacency[current]:
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    queue.append(neighbor)
+        
+        components.append(torch.tensor(component, dtype=torch.long))
+    
+    return components
+
+
+def triangulate_path(
+    points: torch.Tensor, edges: torch.Tensor, text_path: Path
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Triangulate text by processing each contour independently.
+    
+    Simple, robust algorithm:
+    1. Find connected components (each contour is one component)
+    2. Triangulate each contour independently
+    3. Filter ALL triangles using winding number
+    
+    The winding number filter does the heavy lifting:
+    - Triangles in letter bodies: non-zero winding → kept
+    - Triangles in holes: zero winding → removed
+    - Cross-letter triangles: impossible (contours separate)
+    
+    Note: Letters with holes (o, e) will have disconnected meshes, but
+    winding filter ensures hole interiors are empty.
+    
+    Args:
+        points: 2D boundary points
+        edges: Edge connectivity
+        text_path: Path for winding number test
+        
+    Returns:
+        points: Same boundary points
+        triangles: Triangle connectivity
     """
     import numpy as np
     
-    points_np = points.cpu().numpy()
+    ### Find connected components (one per contour)
+    components = _find_connected_components(edges, len(points))
+    print(f"  Found {len(components)} contours")
     
-    ### Sample interior points on coarser grid
-    x_min, x_max = points_np[:, 0].min(), points_np[:, 0].max()
-    y_min, y_max = points_np[:, 1].min(), points_np[:, 1].max()
+    ### Triangulate each contour independently
+    all_triangles = []
     
-    # Create grid
-    x_grid = np.arange(x_min, x_max, point_density)
-    y_grid = np.arange(y_min, y_max, point_density)
-    xx, yy = np.meshgrid(x_grid, y_grid)
-    candidate_points = torch.tensor(
-        np.column_stack([xx.ravel(), yy.ravel()]), dtype=torch.float32
-    )
+    for comp in components:
+        comp_points = points[comp]
+        comp_points_np = comp_points.cpu().numpy()
+        
+        if len(comp_points) < 3:
+            continue
+        
+        # Delaunay triangulation of this contour
+        tri = Triangulation(comp_points_np[:, 0], comp_points_np[:, 1])
+        
+        # Filter using winding number
+        centroids_np = comp_points_np[tri.triangles].mean(axis=1)
+        centroids_torch = torch.tensor(centroids_np, dtype=torch.float32)
+        winding = _compute_winding_number_multi_contour(centroids_torch, text_path)
+        inside_mask = winding != 0
+        
+        comp_triangles = tri.triangles[inside_mask.cpu().numpy()]
+        
+        # Remap to global indices
+        comp_triangles_global = comp[comp_triangles].cpu().numpy()
+        
+        if len(comp_triangles_global) > 0:
+            all_triangles.append(comp_triangles_global)
     
-    ### Compute winding number for each candidate point using proper multi-contour method
-    winding = _compute_winding_number_multi_contour(candidate_points, text_path)
+    # Merge all triangles
+    if all_triangles:
+        triangles = torch.from_numpy(np.vstack(all_triangles)).long()
+    else:
+        triangles = torch.empty((0, 3), dtype=torch.long)
     
-    # Keep points with non-zero winding number (inside filled region, not in holes)
-    inside_mask = winding != 0
-    interior_points = candidate_points[inside_mask]
+    print(f"  Total: {len(triangles)} triangles")
     
-    print(f"  Added {len(interior_points)} interior points to {len(points)} boundary points")
-    
-    # Combine boundary and interior
-    all_points = torch.cat([points, interior_points], dim=0)
-    all_points_np = all_points.cpu().numpy()
-    
-    ### Delaunay triangulation
-    tri = Triangulation(all_points_np[:, 0], all_points_np[:, 1])
-    
-    ### Filter triangles using winding number
-    centroids_torch = torch.tensor(
-        all_points_np[tri.triangles].mean(axis=1), dtype=torch.float32
-    )
-    centroid_winding = _compute_winding_number_multi_contour(centroids_torch, text_path)
-    
-    # Keep triangles with non-zero winding (inside, not in holes)
-    inside = centroid_winding != 0
-    interior_triangles = tri.triangles[inside.cpu().numpy()]
-    
-    triangles = torch.from_numpy(interior_triangles).long()
-    
-    return all_points, triangles
+    return points, triangles
 
 
 def main() -> None:
@@ -401,10 +447,10 @@ def main() -> None:
     
     ### 2. Triangulate to create filled 2D mesh [2,2]
     print("\n[2/7] Triangulating to fill text outline [2,2]...")
-    print("  Using winding number algorithm to respect holes and letter boundaries...")
-    all_points_2d, triangles = triangulate_path(points_2d, text_path, point_density=0.5)
+    print("  Triangulating each letter independently...")
+    points_2d_filled, triangles = triangulate_path(points_2d, edges, text_path)
     mesh_2d_2d = Mesh(
-        points=all_points_2d.to(device),
+        points=points_2d_filled.to(device),
         cells=triangles.to(device),
     )
     print(f"  Mesh: [{mesh_2d_2d.n_manifold_dims}, {mesh_2d_2d.n_spatial_dims}]")
@@ -433,7 +479,7 @@ def main() -> None:
     ### 6. Apply butterfly subdivision for smoothness
     print("\n[6/7] Applying butterfly subdivision (2 levels) to surface...")
     print("  This may take a moment...")
-    smooth = surface.subdivide(levels=2, filter="loop")
+    smooth = surface.subdivide(levels=0, filter="loop")
     print(f"  Subdivided surface: {smooth.n_points} points, {smooth.n_cells} cells")
     
     ### 7. Generate Perlin noise at cell centroids (GPU-accelerated)
