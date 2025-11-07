@@ -149,6 +149,90 @@ def test_explicit_pyvista_backend_3d():
     plotter.close()
 
 
+def test_pyvista_backend_1d_in_1d():
+    """Test PyVista backend with 1D mesh in 1D space [1,1]."""
+    import pyvista as pv
+    
+    # Create 1D mesh in 1D space
+    points = torch.linspace(0, 10, 20).unsqueeze(1)  # (20, 1)
+    cells = torch.stack([torch.arange(19), torch.arange(1, 20)], dim=1)
+    mesh = Mesh(points=points, cells=cells)
+    
+    assert mesh.n_manifold_dims == 1
+    assert mesh.n_spatial_dims == 1
+    
+    # Should work with PyVista (requires 3D padding internally)
+    plotter = mesh.draw(backend="pyvista", show=False)
+    assert isinstance(plotter, pv.Plotter)
+    plotter.close()
+
+
+def test_pyvista_backend_1d_in_2d():
+    """Test PyVista backend with 1D mesh in 2D space [1,2]."""
+    import pyvista as pv
+    
+    # Create 1D mesh in 2D space
+    points = torch.tensor([[0., 0.], [1., 0.], [1., 1.], [0., 1.]])
+    cells = torch.tensor([[0, 1], [1, 2], [2, 3]])
+    mesh = Mesh(points=points, cells=cells)
+    
+    assert mesh.n_manifold_dims == 1
+    assert mesh.n_spatial_dims == 2
+    
+    # Should work with PyVista (requires 3D padding internally)
+    plotter = mesh.draw(backend="pyvista", show=False)
+    assert isinstance(plotter, pv.Plotter)
+    plotter.close()
+
+
+def test_pyvista_backend_2d_in_2d():
+    """Test PyVista backend with 2D mesh in 2D space [2,2]."""
+    import pyvista as pv
+    
+    # Create 2D mesh in 2D space (triangle in 2D)
+    points = torch.tensor([[0., 0.], [1., 0.], [0.5, 1.]])
+    cells = torch.tensor([[0, 1, 2]])
+    mesh = Mesh(points=points, cells=cells)
+    
+    assert mesh.n_manifold_dims == 2
+    assert mesh.n_spatial_dims == 2
+    
+    # Should work with PyVista (requires 3D padding internally)
+    plotter = mesh.draw(backend="pyvista", show=False)
+    assert isinstance(plotter, pv.Plotter)
+    plotter.close()
+
+
+def test_pyvista_points_padded_to_3d():
+    """Test that PyVista mesh has 3D points even for low-dimensional input."""
+    import pyvista as pv
+    from torchmesh.io.io_pyvista import to_pyvista
+    
+    # Create 2D mesh in 2D space
+    points = torch.tensor([[0., 0.], [1., 0.], [0.5, 1.]])
+    cells = torch.tensor([[0, 1, 2]])
+    mesh = Mesh(points=points, cells=cells)
+    
+    # Convert to PyVista
+    pv_mesh = to_pyvista(mesh)
+    
+    # PyVista mesh should have 3D points (padded with zeros)
+    assert pv_mesh.points.shape[1] == 3
+    assert pv_mesh.points.shape[0] == mesh.n_points
+    
+    # First two columns should match original, third should be zero
+    assert torch.allclose(
+        torch.from_numpy(pv_mesh.points[:, :2]),
+        mesh.points,
+        atol=1e-6
+    )
+    assert torch.allclose(
+        torch.from_numpy(pv_mesh.points[:, 2]),
+        torch.zeros(mesh.n_points),
+        atol=1e-6
+    )
+
+
 def test_unsupported_spatial_dims():
     """Test that meshes with >3 spatial dimensions raise error."""
     torch.manual_seed(42)

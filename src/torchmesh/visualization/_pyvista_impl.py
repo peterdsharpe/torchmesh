@@ -121,8 +121,8 @@ def draw_mesh_pyvista(
     # PyVista's point rendering can be controlled via render_points_as_spheres
     # For now, we'll use a simple approach: if alpha_points > 0, show points
     if alpha_points > 0 and mesh.n_points > 0:
-        # Create a point cloud from the mesh points
-        point_cloud = pv.PolyData(mesh.points.cpu().numpy())
+        # Create a point cloud from the PyVista mesh points (already 3D-padded)
+        point_cloud = pv.PolyData(pv_mesh.points)
 
         # Add point scalar data if present
         if active_scalar_source == "points" and point_scalar_values is not None:

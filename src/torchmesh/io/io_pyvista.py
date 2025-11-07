@@ -197,8 +197,18 @@ def to_pyvista(mesh: Mesh) -> pv.PolyData | pv.UnstructuredGrid | pv.PointSet:
     Raises:
         ValueError: If manifold dimension is not supported
     """
-    ### Convert points to numpy
+    ### Convert points to numpy and pad to 3D if needed (PyVista requires 3D points)
     points_np = mesh.points.cpu().numpy()
+    
+    if mesh.n_spatial_dims < 3:
+        # Pad with zeros to make 3D
+        padding_width = 3 - mesh.n_spatial_dims
+        points_np = np.pad(
+            points_np,
+            ((0, 0), (0, padding_width)),
+            mode="constant",
+            constant_values=0.0,
+        )
 
     ### Convert based on manifold dimension
     if mesh.n_manifold_dims == 0:
