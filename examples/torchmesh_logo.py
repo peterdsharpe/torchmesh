@@ -143,7 +143,7 @@ def text_to_points_and_edges(
         text_path: Original TextPath object (needed for inside/outside testing)
     """
     ### Get text path from matplotlib
-    fp = FontProperties(family="monospace", weight="bold")
+    fp = FontProperties(family="sans-serif", weight="bold")
     text_path = TextPath((0, 0), text, size=font_size, prop=fp)
     
     # Convert matplotlib's numpy arrays to torch tensors
