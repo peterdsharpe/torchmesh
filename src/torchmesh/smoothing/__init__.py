@@ -7,4 +7,3 @@ important features like boundaries and sharp edges.
 from torchmesh.smoothing.laplacian import smooth_laplacian
 
 __all__ = ["smooth_laplacian"]
-

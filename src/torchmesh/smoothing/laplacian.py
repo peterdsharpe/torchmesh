@@ -363,9 +363,7 @@ def _detect_sharp_edges(
 
     # Build hash-to-index mapping for unique edges
     max_hash = unique_edge_hashes.max().item()
-    edge_hash_to_idx = torch.full(
-        (max_hash + 1,), -1, dtype=torch.long, device=device
-    )
+    edge_hash_to_idx = torch.full((max_hash + 1,), -1, dtype=torch.long, device=device)
     edge_hash_to_idx[unique_edge_hashes] = torch.arange(
         len(unique_edge_hashes), device=device
     )
@@ -389,7 +387,7 @@ def _detect_sharp_edges(
 
     ### For each interior edge, collect its two adjacent cells (vectorized)
     # Strategy: Sort candidates by edge index, then use cumulative counting
-    
+
     # Sort candidates by their unique edge index
     sorted_order = torch.argsort(candidate_to_unique)
     sorted_edge_ids = candidate_to_unique[sorted_order]
@@ -398,54 +396,68 @@ def _detect_sharp_edges(
     # For each position in sorted array, compute how many times we've seen this edge before
     # This is the "occurrence index" (0 for first, 1 for second, etc.)
     # Vectorized approach: use cumsum on a binary indicator of edge boundaries
-    
+
     # Mark boundaries: True where edge_id changes (first occurrence of each edge)
-    edge_changes = torch.cat([
-        torch.tensor([True], device=device),
-        sorted_edge_ids[1:] != sorted_edge_ids[:-1]
-    ])
-    
+    edge_changes = torch.cat(
+        [
+            torch.tensor([True], device=device),
+            sorted_edge_ids[1:] != sorted_edge_ids[:-1],
+        ]
+    )
+
     # Cumsum to get group numbers for each unique edge in the sorted array
     group_numbers = torch.cumsum(edge_changes.long(), dim=0) - 1
-    
+
     # For each group, compute running index within that group
     # Start indices for each group
     group_starts = torch.where(edge_changes)[0]
-    
+
     # Broadcast group_starts to all positions in that group
-    group_start_for_each_pos = torch.zeros(len(sorted_order), dtype=torch.long, device=device)
-    group_start_for_each_pos.scatter_(
-        0,
-        torch.arange(len(sorted_order), device=device),
-        group_starts[group_numbers]
+    group_start_for_each_pos = torch.zeros(
+        len(sorted_order), dtype=torch.long, device=device
     )
-    
+    group_start_for_each_pos.scatter_(
+        0, torch.arange(len(sorted_order), device=device), group_starts[group_numbers]
+    )
+
     # Occurrence index = position - group_start
-    occurrence_indices = torch.arange(len(sorted_order), device=device) - group_start_for_each_pos
-    
+    occurrence_indices = (
+        torch.arange(len(sorted_order), device=device) - group_start_for_each_pos
+    )
+
     # Map back to original candidate order
-    occurrence_in_original_order = torch.zeros(len(candidate_edges), dtype=torch.long, device=device)
+    occurrence_in_original_order = torch.zeros(
+        len(candidate_edges), dtype=torch.long, device=device
+    )
     occurrence_in_original_order[sorted_order] = occurrence_indices
-    
+
     # Split into first (0) and second (1) occurrences
     is_first = occurrence_in_original_order == 0
     is_second = occurrence_in_original_order == 1
-    
+
     # Build edge-to-cells mapping
     edge_first_cell = torch.full((len(edges),), -1, dtype=torch.long, device=device)
     edge_second_cell = torch.full((len(edges),), -1, dtype=torch.long, device=device)
-    
+
     # Use scatter to assign (will keep last value if multiple, but we expect exactly one)
-    edge_first_cell.scatter_(0, candidate_to_unique[is_first], parent_cell_indices[is_first])
-    edge_second_cell.scatter_(0, candidate_to_unique[is_second], parent_cell_indices[is_second])
+    edge_first_cell.scatter_(
+        0, candidate_to_unique[is_first], parent_cell_indices[is_first]
+    )
+    edge_second_cell.scatter_(
+        0, candidate_to_unique[is_second], parent_cell_indices[is_second]
+    )
 
     ### Compute dihedral angles for interior edges (vectorized)
     interior_first_cells = edge_first_cell[interior_edge_indices]
     interior_second_cells = edge_second_cell[interior_edge_indices]
 
     # Get normals for both cells
-    normals_first = mesh.cell_normals[interior_first_cells]  # (n_interior, n_spatial_dims)
-    normals_second = mesh.cell_normals[interior_second_cells]  # (n_interior, n_spatial_dims)
+    normals_first = mesh.cell_normals[
+        interior_first_cells
+    ]  # (n_interior, n_spatial_dims)
+    normals_second = mesh.cell_normals[
+        interior_second_cells
+    ]  # (n_interior, n_spatial_dims)
 
     # Compute angles
     cos_angles = (normals_first * normals_second).sum(dim=-1)
@@ -462,4 +474,3 @@ def _detect_sharp_edges(
 
     sharp_edges = edges[sharp_edge_indices]
     return sharp_edges
-

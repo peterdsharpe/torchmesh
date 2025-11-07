@@ -1220,7 +1220,7 @@ class TestEdgeCases:
 
 class TestDisjointMeshNeighborhood:
     """Test neighbor computation on disjoint meshes.
-    
+
     Verifies that merging two spatially-separated meshes produces connectivity
     identical to computing connectivity separately, accounting for index offsets.
     """
@@ -1229,13 +1229,13 @@ class TestDisjointMeshNeighborhood:
     def sphere_pair(self, device):
         """Create two spheres with different resolutions, spatially separated."""
         from torchmesh.examples.surfaces.sphere_icosahedral import load as load_sphere
-        
+
         # Create sphere A with subdivision level 1
         sphere_a = load_sphere(radius=1.0, subdivisions=1, device=device)
-        
+
         # Create sphere B with subdivision level 2 (different resolution)
         sphere_b_base = load_sphere(radius=1.0, subdivisions=2, device=device)
-        
+
         # Translate sphere B far away to ensure disjoint (100 units in x-direction)
         translation = torch.tensor([100.0, 0.0, 0.0], device=device)
         sphere_b = Mesh(
@@ -1245,28 +1245,28 @@ class TestDisjointMeshNeighborhood:
             cell_data=sphere_b_base.cell_data,
             global_data=sphere_b_base.global_data,
         )
-        
+
         return sphere_a, sphere_b
 
     def test_point_to_points_disjoint(self, sphere_pair):
         """Verify point-to-points adjacency for disjoint meshes."""
         sphere_a, sphere_b = sphere_pair
-        
+
         # Compute adjacency for individual meshes
         adj_a = sphere_a.get_point_to_points_adjacency()
         adj_b = sphere_b.get_point_to_points_adjacency()
-        
+
         neighbors_a = adj_a.to_list()
         neighbors_b = adj_b.to_list()
-        
+
         # Merge the meshes
         merged = Mesh.merge([sphere_a, sphere_b])
         adj_merged = merged.get_point_to_points_adjacency()
         neighbors_merged = adj_merged.to_list()
-        
+
         # Validate merged connectivity
         n_points_a = sphere_a.n_points
-        
+
         # Check sphere A's points in merged mesh (indices 0 to n_points_a-1)
         for i in range(n_points_a):
             expected = sorted(neighbors_a[i])
@@ -1276,7 +1276,7 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Check sphere B's points in merged mesh (indices n_points_a onwards)
         for i in range(sphere_b.n_points):
             # Sphere B's neighbors should be offset by n_points_a
@@ -1287,14 +1287,14 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Verify no cross-mesh connections (critical for disjoint property)
         for i in range(n_points_a):
             for neighbor in neighbors_merged[i]:
                 assert neighbor < n_points_a, (
                     f"Point {i} in sphere A has neighbor {neighbor} from sphere B (disjoint violation)"
                 )
-        
+
         for i in range(sphere_b.n_points):
             merged_idx = i + n_points_a
             for neighbor in neighbors_merged[merged_idx]:
@@ -1305,22 +1305,22 @@ class TestDisjointMeshNeighborhood:
     def test_cell_to_cells_disjoint(self, sphere_pair):
         """Verify cell-to-cells adjacency for disjoint meshes."""
         sphere_a, sphere_b = sphere_pair
-        
+
         # Compute adjacency for individual meshes
         adj_a = sphere_a.get_cell_to_cells_adjacency(adjacency_codimension=1)
         adj_b = sphere_b.get_cell_to_cells_adjacency(adjacency_codimension=1)
-        
+
         neighbors_a = adj_a.to_list()
         neighbors_b = adj_b.to_list()
-        
+
         # Merge the meshes
         merged = Mesh.merge([sphere_a, sphere_b])
         adj_merged = merged.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_merged = adj_merged.to_list()
-        
+
         # Validate merged connectivity
         n_cells_a = sphere_a.n_cells
-        
+
         # Check sphere A's cells in merged mesh
         for i in range(n_cells_a):
             expected = sorted(neighbors_a[i])
@@ -1330,7 +1330,7 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Check sphere B's cells in merged mesh
         for i in range(sphere_b.n_cells):
             # Sphere B's cell neighbors should be offset by n_cells_a
@@ -1341,14 +1341,14 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Verify no cross-mesh connections
         for i in range(n_cells_a):
             for neighbor in neighbors_merged[i]:
                 assert neighbor < n_cells_a, (
                     f"Cell {i} in sphere A has neighbor {neighbor} from sphere B (disjoint violation)"
                 )
-        
+
         for i in range(sphere_b.n_cells):
             merged_idx = i + n_cells_a
             for neighbor in neighbors_merged[merged_idx]:
@@ -1359,23 +1359,23 @@ class TestDisjointMeshNeighborhood:
     def test_point_to_cells_disjoint(self, sphere_pair):
         """Verify point-to-cells adjacency for disjoint meshes."""
         sphere_a, sphere_b = sphere_pair
-        
+
         # Compute adjacency for individual meshes
         adj_a = sphere_a.get_point_to_cells_adjacency()
         adj_b = sphere_b.get_point_to_cells_adjacency()
-        
+
         stars_a = adj_a.to_list()
         stars_b = adj_b.to_list()
-        
+
         # Merge the meshes
         merged = Mesh.merge([sphere_a, sphere_b])
         adj_merged = merged.get_point_to_cells_adjacency()
         stars_merged = adj_merged.to_list()
-        
+
         # Validate merged connectivity
         n_points_a = sphere_a.n_points
         n_cells_a = sphere_a.n_cells
-        
+
         # Check sphere A's points in merged mesh
         for i in range(n_points_a):
             expected = sorted(stars_a[i])
@@ -1385,7 +1385,7 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Check sphere B's points in merged mesh
         for i in range(sphere_b.n_points):
             # Sphere B's cell indices should be offset by n_cells_a
@@ -1396,14 +1396,14 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Verify no cross-mesh connections
         for i in range(n_points_a):
             for cell in stars_merged[i]:
                 assert cell < n_cells_a, (
                     f"Point {i} in sphere A is in cell {cell} from sphere B (disjoint violation)"
                 )
-        
+
         for i in range(sphere_b.n_points):
             merged_idx = i + n_points_a
             for cell in stars_merged[merged_idx]:
@@ -1414,23 +1414,23 @@ class TestDisjointMeshNeighborhood:
     def test_cells_to_points_disjoint(self, sphere_pair):
         """Verify cells-to-points adjacency for disjoint meshes."""
         sphere_a, sphere_b = sphere_pair
-        
+
         # Compute adjacency for individual meshes
         adj_a = sphere_a.get_cells_to_points_adjacency()
         adj_b = sphere_b.get_cells_to_points_adjacency()
-        
+
         vertices_a = adj_a.to_list()
         vertices_b = adj_b.to_list()
-        
+
         # Merge the meshes
         merged = Mesh.merge([sphere_a, sphere_b])
         adj_merged = merged.get_cells_to_points_adjacency()
         vertices_merged = adj_merged.to_list()
-        
+
         # Validate merged connectivity
         n_points_a = sphere_a.n_points
         n_cells_a = sphere_a.n_cells
-        
+
         # Check sphere A's cells in merged mesh
         for i in range(n_cells_a):
             expected = vertices_a[i]  # Order matters for cells-to-points
@@ -1440,7 +1440,7 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Check sphere B's cells in merged mesh
         for i in range(sphere_b.n_cells):
             # Sphere B's point indices should be offset by n_points_a
@@ -1451,14 +1451,14 @@ class TestDisjointMeshNeighborhood:
                 f"  expected: {expected}\n"
                 f"  actual:   {actual}"
             )
-        
+
         # Verify no cross-mesh vertex references
         for i in range(n_cells_a):
             for vertex in vertices_merged[i]:
                 assert vertex < n_points_a, (
                     f"Cell {i} in sphere A references vertex {vertex} from sphere B (disjoint violation)"
                 )
-        
+
         for i in range(sphere_b.n_cells):
             merged_idx = i + n_cells_a
             for vertex in vertices_merged[merged_idx]:
@@ -1469,7 +1469,7 @@ class TestDisjointMeshNeighborhood:
 
 class TestNeighborTransformationInvariance:
     """Test that neighbor computation is invariant under geometric transformations.
-    
+
     Verifies that translation, rotation, and reflection preserve topological
     connectivity, as they should since these operations don't change mesh topology.
     """
@@ -1478,29 +1478,29 @@ class TestNeighborTransformationInvariance:
     def sphere_mesh(self, device):
         """Create a sphere mesh for transformation testing."""
         from torchmesh.examples.surfaces.sphere_icosahedral import load as load_sphere
-        
+
         return load_sphere(radius=1.0, subdivisions=2, device=device)
 
     def _create_rotation_matrix(
         self, axis: torch.Tensor, angle_rad: float
     ) -> torch.Tensor:
         """Create a 3D rotation matrix using Rodrigues' rotation formula.
-        
+
         Args:
             axis: Rotation axis (will be normalized), shape (3,)
             angle_rad: Rotation angle in radians
-            
+
         Returns:
             Rotation matrix, shape (3, 3)
         """
         # Normalize axis
         axis = axis / torch.norm(axis)
         x, y, z = axis[0], axis[1], axis[2]
-        
+
         c = torch.cos(torch.tensor(angle_rad, device=axis.device))
         s = torch.sin(torch.tensor(angle_rad, device=axis.device))
         t = 1 - c
-        
+
         # Rodrigues' rotation matrix
         rotation = torch.tensor(
             [
@@ -1511,34 +1511,36 @@ class TestNeighborTransformationInvariance:
             device=axis.device,
             dtype=axis.dtype,
         )
-        
+
         return rotation
 
     def _create_reflection_matrix(self, normal: torch.Tensor) -> torch.Tensor:
         """Create a 3D reflection matrix across a plane.
-        
+
         Args:
             normal: Plane normal vector (will be normalized), shape (3,)
-            
+
         Returns:
             Reflection matrix, shape (3, 3)
         """
         # Normalize normal
         n = normal / torch.norm(normal)
-        
+
         # Householder reflection: I - 2*n*n^T
-        reflection = torch.eye(3, device=n.device, dtype=n.dtype) - 2 * torch.outer(n, n)
-        
+        reflection = torch.eye(3, device=n.device, dtype=n.dtype) - 2 * torch.outer(
+            n, n
+        )
+
         return reflection
 
     def test_translation_invariance_point_to_points(self, sphere_mesh):
         """Verify point-to-points adjacency is invariant under translation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_points_adjacency()
         neighbors_original = adj_original.to_list()
-        
+
         # Translate by arbitrary vector
         translation = torch.tensor([10.0, -5.0, 7.5], device=original.points.device)
         translated = Mesh(
@@ -1548,11 +1550,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for translated mesh
         adj_translated = translated.get_point_to_points_adjacency()
         neighbors_translated = adj_translated.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_translated, (
             "Translation changed point-to-points connectivity (topology violation)"
@@ -1561,16 +1563,16 @@ class TestNeighborTransformationInvariance:
     def test_rotation_invariance_point_to_points(self, sphere_mesh):
         """Verify point-to-points adjacency is invariant under rotation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_points_adjacency()
         neighbors_original = adj_original.to_list()
-        
+
         # Rotate by 45 degrees around arbitrary axis [1, 1, 1]
         axis = torch.tensor([1.0, 1.0, 1.0], device=original.points.device)
         angle = torch.pi / 4
         rotation_matrix = self._create_rotation_matrix(axis, angle)
-        
+
         rotated_points = torch.matmul(original.points, rotation_matrix.T)
         rotated = Mesh(
             points=rotated_points,
@@ -1579,11 +1581,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for rotated mesh
         adj_rotated = rotated.get_point_to_points_adjacency()
         neighbors_rotated = adj_rotated.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_rotated, (
             "Rotation changed point-to-points connectivity (topology violation)"
@@ -1592,15 +1594,15 @@ class TestNeighborTransformationInvariance:
     def test_reflection_invariance_point_to_points(self, sphere_mesh):
         """Verify point-to-points adjacency is invariant under reflection."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_points_adjacency()
         neighbors_original = adj_original.to_list()
-        
+
         # Reflect across plane with normal [1, 0, 0] (yz-plane)
         normal = torch.tensor([1.0, 0.0, 0.0], device=original.points.device)
         reflection_matrix = self._create_reflection_matrix(normal)
-        
+
         reflected_points = torch.matmul(original.points, reflection_matrix.T)
         reflected = Mesh(
             points=reflected_points,
@@ -1609,11 +1611,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for reflected mesh
         adj_reflected = reflected.get_point_to_points_adjacency()
         neighbors_reflected = adj_reflected.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_reflected, (
             "Reflection changed point-to-points connectivity (topology violation)"
@@ -1622,11 +1624,11 @@ class TestNeighborTransformationInvariance:
     def test_translation_invariance_cell_to_cells(self, sphere_mesh):
         """Verify cell-to-cells adjacency is invariant under translation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_original = adj_original.to_list()
-        
+
         # Translate by arbitrary vector
         translation = torch.tensor([10.0, -5.0, 7.5], device=original.points.device)
         translated = Mesh(
@@ -1636,11 +1638,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for translated mesh
         adj_translated = translated.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_translated = adj_translated.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_translated, (
             "Translation changed cell-to-cells connectivity (topology violation)"
@@ -1649,16 +1651,16 @@ class TestNeighborTransformationInvariance:
     def test_rotation_invariance_cell_to_cells(self, sphere_mesh):
         """Verify cell-to-cells adjacency is invariant under rotation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_original = adj_original.to_list()
-        
+
         # Rotate by 60 degrees around z-axis
         axis = torch.tensor([0.0, 0.0, 1.0], device=original.points.device)
         angle = torch.pi / 3
         rotation_matrix = self._create_rotation_matrix(axis, angle)
-        
+
         rotated_points = torch.matmul(original.points, rotation_matrix.T)
         rotated = Mesh(
             points=rotated_points,
@@ -1667,11 +1669,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for rotated mesh
         adj_rotated = rotated.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_rotated = adj_rotated.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_rotated, (
             "Rotation changed cell-to-cells connectivity (topology violation)"
@@ -1680,15 +1682,15 @@ class TestNeighborTransformationInvariance:
     def test_reflection_invariance_cell_to_cells(self, sphere_mesh):
         """Verify cell-to-cells adjacency is invariant under reflection."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_original = adj_original.to_list()
-        
+
         # Reflect across xy-plane (normal [0, 0, 1])
         normal = torch.tensor([0.0, 0.0, 1.0], device=original.points.device)
         reflection_matrix = self._create_reflection_matrix(normal)
-        
+
         reflected_points = torch.matmul(original.points, reflection_matrix.T)
         reflected = Mesh(
             points=reflected_points,
@@ -1697,11 +1699,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for reflected mesh
         adj_reflected = reflected.get_cell_to_cells_adjacency(adjacency_codimension=1)
         neighbors_reflected = adj_reflected.to_list()
-        
+
         # Connectivity should be identical
         assert neighbors_original == neighbors_reflected, (
             "Reflection changed cell-to-cells connectivity (topology violation)"
@@ -1710,11 +1712,11 @@ class TestNeighborTransformationInvariance:
     def test_translation_invariance_point_to_cells(self, sphere_mesh):
         """Verify point-to-cells adjacency is invariant under translation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_cells_adjacency()
         stars_original = adj_original.to_list()
-        
+
         # Translate by arbitrary vector
         translation = torch.tensor([10.0, -5.0, 7.5], device=original.points.device)
         translated = Mesh(
@@ -1724,11 +1726,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for translated mesh
         adj_translated = translated.get_point_to_cells_adjacency()
         stars_translated = adj_translated.to_list()
-        
+
         # Connectivity should be identical
         assert stars_original == stars_translated, (
             "Translation changed point-to-cells connectivity (topology violation)"
@@ -1737,16 +1739,16 @@ class TestNeighborTransformationInvariance:
     def test_rotation_invariance_point_to_cells(self, sphere_mesh):
         """Verify point-to-cells adjacency is invariant under rotation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_cells_adjacency()
         stars_original = adj_original.to_list()
-        
+
         # Rotate by 30 degrees around x-axis
         axis = torch.tensor([1.0, 0.0, 0.0], device=original.points.device)
         angle = torch.pi / 6
         rotation_matrix = self._create_rotation_matrix(axis, angle)
-        
+
         rotated_points = torch.matmul(original.points, rotation_matrix.T)
         rotated = Mesh(
             points=rotated_points,
@@ -1755,11 +1757,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for rotated mesh
         adj_rotated = rotated.get_point_to_cells_adjacency()
         stars_rotated = adj_rotated.to_list()
-        
+
         # Connectivity should be identical
         assert stars_original == stars_rotated, (
             "Rotation changed point-to-cells connectivity (topology violation)"
@@ -1768,15 +1770,15 @@ class TestNeighborTransformationInvariance:
     def test_reflection_invariance_point_to_cells(self, sphere_mesh):
         """Verify point-to-cells adjacency is invariant under reflection."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_point_to_cells_adjacency()
         stars_original = adj_original.to_list()
-        
+
         # Reflect across xz-plane (normal [0, 1, 0])
         normal = torch.tensor([0.0, 1.0, 0.0], device=original.points.device)
         reflection_matrix = self._create_reflection_matrix(normal)
-        
+
         reflected_points = torch.matmul(original.points, reflection_matrix.T)
         reflected = Mesh(
             points=reflected_points,
@@ -1785,11 +1787,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for reflected mesh
         adj_reflected = reflected.get_point_to_cells_adjacency()
         stars_reflected = adj_reflected.to_list()
-        
+
         # Connectivity should be identical
         assert stars_original == stars_reflected, (
             "Reflection changed point-to-cells connectivity (topology violation)"
@@ -1798,11 +1800,11 @@ class TestNeighborTransformationInvariance:
     def test_translation_invariance_cells_to_points(self, sphere_mesh):
         """Verify cells-to-points adjacency is invariant under translation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cells_to_points_adjacency()
         vertices_original = adj_original.to_list()
-        
+
         # Translate by arbitrary vector
         translation = torch.tensor([10.0, -5.0, 7.5], device=original.points.device)
         translated = Mesh(
@@ -1812,11 +1814,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for translated mesh
         adj_translated = translated.get_cells_to_points_adjacency()
         vertices_translated = adj_translated.to_list()
-        
+
         # Connectivity should be identical
         assert vertices_original == vertices_translated, (
             "Translation changed cells-to-points connectivity (topology violation)"
@@ -1825,16 +1827,16 @@ class TestNeighborTransformationInvariance:
     def test_rotation_invariance_cells_to_points(self, sphere_mesh):
         """Verify cells-to-points adjacency is invariant under rotation."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cells_to_points_adjacency()
         vertices_original = adj_original.to_list()
-        
+
         # Rotate by 90 degrees around y-axis
         axis = torch.tensor([0.0, 1.0, 0.0], device=original.points.device)
         angle = torch.pi / 2
         rotation_matrix = self._create_rotation_matrix(axis, angle)
-        
+
         rotated_points = torch.matmul(original.points, rotation_matrix.T)
         rotated = Mesh(
             points=rotated_points,
@@ -1843,11 +1845,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for rotated mesh
         adj_rotated = rotated.get_cells_to_points_adjacency()
         vertices_rotated = adj_rotated.to_list()
-        
+
         # Connectivity should be identical
         assert vertices_original == vertices_rotated, (
             "Rotation changed cells-to-points connectivity (topology violation)"
@@ -1856,15 +1858,15 @@ class TestNeighborTransformationInvariance:
     def test_reflection_invariance_cells_to_points(self, sphere_mesh):
         """Verify cells-to-points adjacency is invariant under reflection."""
         original = sphere_mesh
-        
+
         # Compute adjacency for original mesh
         adj_original = original.get_cells_to_points_adjacency()
         vertices_original = adj_original.to_list()
-        
+
         # Reflect across arbitrary plane with normal [1, 1, 1]
         normal = torch.tensor([1.0, 1.0, 1.0], device=original.points.device)
         reflection_matrix = self._create_reflection_matrix(normal)
-        
+
         reflected_points = torch.matmul(original.points, reflection_matrix.T)
         reflected = Mesh(
             points=reflected_points,
@@ -1873,11 +1875,11 @@ class TestNeighborTransformationInvariance:
             cell_data=original.cell_data,
             global_data=original.global_data,
         )
-        
+
         # Compute adjacency for reflected mesh
         adj_reflected = reflected.get_cells_to_points_adjacency()
         vertices_reflected = adj_reflected.to_list()
-        
+
         # Connectivity should be identical
         assert vertices_original == vertices_reflected, (
             "Reflection changed cells-to-points connectivity (topology violation)"

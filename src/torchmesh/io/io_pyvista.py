@@ -199,7 +199,7 @@ def to_pyvista(mesh: Mesh) -> pv.PolyData | pv.UnstructuredGrid | pv.PointSet:
     """
     ### Convert points to numpy and pad to 3D if needed (PyVista requires 3D points)
     points_np = mesh.points.cpu().numpy()
-    
+
     if mesh.n_spatial_dims < 3:
         # Pad with zeros to make 3D
         padding_width = 3 - mesh.n_spatial_dims

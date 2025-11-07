@@ -129,7 +129,9 @@ def extrude(
                 device=mesh.points.device,
             )
         else:
-            vector_tensor = vector.to(dtype=mesh.points.dtype, device=mesh.points.device)
+            vector_tensor = vector.to(
+                dtype=mesh.points.dtype, device=mesh.points.device
+            )
 
         # Validate vector shape
         if vector_tensor.ndim != 1:
@@ -278,4 +280,3 @@ def extrude(
         cell_data=extruded_cell_data,
         global_data=extruded_global_data,
     )
-

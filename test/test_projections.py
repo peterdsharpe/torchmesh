@@ -178,15 +178,14 @@ class TestExtrude:
         ### Verify extruded points
         expected_extruded = points + custom_vector
         assert torch.allclose(
-            extruded.points[3:], expected_extruded  # Last 3 points are extruded
+            extruded.points[3:],
+            expected_extruded,  # Last 3 points are extruded
         )
 
     def test_extrude_insufficient_spatial_dims_raises_error(self):
         """Test that extrusion raises ValueError when spatial dims are insufficient."""
         ### Create a 2D mesh in 2D space (can't extrude to 3D without new dims)
-        points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
 
@@ -194,19 +193,21 @@ class TestExtrude:
         assert mesh.n_spatial_dims == 2
 
         ### Should raise ValueError by default
-        with pytest.raises(ValueError, match="Cannot extrude.*without increasing spatial dimensions"):
+        with pytest.raises(
+            ValueError, match="Cannot extrude.*without increasing spatial dimensions"
+        ):
             extrude(mesh)
 
         ### Should also raise with explicit vector in 2D
-        with pytest.raises(ValueError, match="Cannot extrude.*without increasing spatial dimensions"):
+        with pytest.raises(
+            ValueError, match="Cannot extrude.*without increasing spatial dimensions"
+        ):
             extrude(mesh, vector=[0.0, 1.0])
 
     def test_extrude_allow_new_spatial_dims(self):
         """Test extrusion with allow_new_spatial_dims=True."""
         ### Create a 2D mesh in 2D space
-        points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
 
@@ -299,9 +300,7 @@ class TestExtrude:
     def test_extrude_multiple_cells(self):
         """Test extrusion with multiple parent cells."""
         ### Create two edges
-        points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1], [1, 2]], dtype=torch.int64)  # Two edges
         cell_data = TensorDict(
             {"cell_id": torch.tensor([10, 20])},
@@ -424,7 +423,9 @@ class TestExtrude:
 
         ### Verify cache is not in extruded mesh
         # The exclude("_cache") should prevent propagation
-        assert "_cache" not in extruded.cell_data or len(extruded.cell_data["_cache"]) == 0
+        assert (
+            "_cache" not in extruded.cell_data or len(extruded.cell_data["_cache"]) == 0
+        )
 
     def test_extrude_vector_as_list(self):
         """Test that vector can be provided as a list or tuple."""
@@ -539,9 +540,7 @@ class TestExtrude:
     def test_extrude_vector_too_small_gets_padded(self):
         """Test that vector with too few dimensions gets padded."""
         ### Create mesh in 3D space
-        points = torch.tensor(
-            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1]], dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
 
@@ -559,9 +558,7 @@ class TestEmbedInSpatialDims:
     def test_embed_2d_to_3d(self):
         """Test embedding a 2D mesh in 2D space into 3D space."""
         ### Create 2D triangle in 2D space
-        points = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1, 2]], dtype=torch.int64)
         mesh_2d = Mesh(points=points, cells=cells)
 
@@ -653,9 +650,7 @@ class TestEmbedInSpatialDims:
     def test_embed_no_change_returns_same_mesh(self):
         """Test that embedding to current dimension returns unchanged mesh."""
         ### Create mesh
-        points = torch.tensor(
-            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=torch.float32
-        )
+        points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=torch.float32)
         cells = torch.tensor([[0, 1]], dtype=torch.int64)
         mesh = Mesh(points=points, cells=cells)
 
@@ -725,7 +720,9 @@ class TestEmbedInSpatialDims:
 
         ### Verify global_data preserved
         assert "simulation_time" in embedded.global_data
-        assert torch.allclose(embedded.global_data["simulation_time"], torch.tensor(1.5))
+        assert torch.allclose(
+            embedded.global_data["simulation_time"], torch.tensor(1.5)
+        )
 
     def test_embed_clears_cached_properties(self):
         """Test that cached geometric properties are cleared."""
@@ -835,14 +832,23 @@ class TestEmbedInSpatialDims:
         ### Verify area is same (intrinsic property)
         assert torch.allclose(mesh_back.cell_areas[0], torch.tensor(original_area))
 
-    @pytest.mark.parametrize("start_dims,target_dims", [
-        (2, 3), (2, 4), (2, 5),
-        (3, 4), (3, 5),
-        (4, 5),
-        (5, 4), (5, 3), (5, 2),
-        (4, 3), (4, 2),
-        (3, 2),
-    ])
+    @pytest.mark.parametrize(
+        "start_dims,target_dims",
+        [
+            (2, 3),
+            (2, 4),
+            (2, 5),
+            (3, 4),
+            (3, 5),
+            (4, 5),
+            (5, 4),
+            (5, 3),
+            (5, 2),
+            (4, 3),
+            (4, 2),
+            (3, 2),
+        ],
+    )
     def test_embed_various_dimension_changes(self, start_dims, target_dims):
         """Test embedding across various dimension combinations."""
         ### Create simple edge in start_dims space

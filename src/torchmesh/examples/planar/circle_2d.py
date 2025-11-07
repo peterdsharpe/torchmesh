@@ -3,7 +3,6 @@
 Dimensional: 2D manifold in 2D space.
 """
 
-
 import pyvista as pv
 
 from torchmesh.io import from_pyvista
