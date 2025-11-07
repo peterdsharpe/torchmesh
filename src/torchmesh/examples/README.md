@@ -113,15 +113,39 @@ Tetrahedral volume meshes.
 | `tetrahedron_volume` | 3D→3D | Single tetrahedron | Minimal volume mesh |
 | `beam_volume` | 3D→3D | Beam from PyVista (FEA test case) | Structured |
 
-### procedural/ - Mesh Variations
+### procedural/ - Mesh Variations and Noise Generation
 
-Functions for creating modified versions of meshes.
+Functions for creating modified versions of meshes and standalone noise generation.
+
+**Mesh Variations:**
 
 | Function | Description | Use Case |
 |----------|-------------|----------|
 | `lumpy_sphere` | Sphere with radial noise | Testing robustness to irregular geometry |
 | `noisy_mesh` | Add Gaussian noise to any mesh | Generic perturbation utility |
 | `perturbed_grid` | Structured grid with random perturbations | Testing on nearly-regular grids |
+
+**Procedural Noise Functions:**
+
+| Function | Description | Dimensions | GPU |
+|----------|-------------|------------|-----|
+| `perlin_noise_nd` | Dimension-agnostic Perlin noise | 1D-nD | ✓ |
+| `perlin_noise_1d` | 1D Perlin noise | 1D | ✓ |
+| `perlin_noise_2d` | 2D Perlin noise | 2D | ✓ |
+| `perlin_noise_3d` | 3D Perlin noise | 3D | ✓ |
+
+```python
+# Generate noise at mesh centroids
+from torchmesh.examples.procedural import perlin_noise_nd
+
+centroids = mesh.cell_centroids
+noise = perlin_noise_nd(centroids, scale=1.0, seed=42)
+mesh.cell_data["noise"] = noise
+
+# Works on any dimensional mesh
+points_4d = torch.randn(100, 4)
+noise_4d = perlin_noise_nd(points_4d, scale=2.0, seed=123)
+```
 
 ### pyvista_datasets/ - PyVista Examples
 
