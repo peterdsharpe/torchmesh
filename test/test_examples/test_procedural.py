@@ -1,6 +1,5 @@
 """Tests for procedural example meshes."""
 
-import pytest
 import torch
 
 from torchmesh import examples

@@ -6,8 +6,6 @@ computations using both DEC and LSQ methods.
 
 from typing import TYPE_CHECKING, Literal, Sequence
 
-import torch
-from tensordict import TensorDict
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh

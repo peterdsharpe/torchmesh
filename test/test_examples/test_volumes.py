@@ -1,7 +1,6 @@
 """Tests for volume example meshes."""
 
 import pytest
-import torch
 
 from torchmesh import examples
 

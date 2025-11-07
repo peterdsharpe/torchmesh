@@ -8,7 +8,6 @@ from torchmesh.repair import (
     remove_duplicate_vertices,
     remove_degenerate_cells,
     remove_isolated_vertices,
-    fix_orientation,
     fill_holes,
     split_nonmanifold_edges,
     repair_mesh,

@@ -3,7 +3,6 @@
 Dimensional: 2D manifold in 2D space.
 """
 
-import math
 
 import pyvista as pv
 

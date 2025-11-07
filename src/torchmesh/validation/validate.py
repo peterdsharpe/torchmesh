@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 from collections.abc import Mapping
 
 import torch
-from tensordict import TensorDict
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh

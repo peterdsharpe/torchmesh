@@ -1,7 +1,6 @@
 """Tests for utility functions."""
 
 import torch
-import pytest
 
 from torchmesh.utilities._padding import _pad_by_tiling_last, _pad_with_value
 

@@ -1,7 +1,6 @@
 """Tests for curve example meshes."""
 
 import pytest
-import torch
 
 from torchmesh import examples
 
