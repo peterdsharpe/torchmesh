@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 """TorchMesh Logo Demo
 
-Demonstrates the power of torchmesh's projection operations:
+Demonstrates the complete torchmesh workflow with projection operations:
 1. Text → vector path (matplotlib)
-2. Path → 1D mesh [1,2]
-3. Embed → [1,3]
-4. Extrude → [2,3]
-5. Subdivide (Loop filter) for smoothness
-6. Apply Perlin noise coloring
-7. Interactive 3D visualization
+2. Triangulate → filled 2D mesh [2,2]
+3. Embed → 2D surface [2,3]
+4. Extrude → 3D tetrahedral volume [3,3]
+5. Extract boundary surface for visualization
+6. Subdivide (Butterfly filter) for smoothness
+7. Apply GPU-accelerated Perlin noise coloring
+8. Interactive 3D visualization
 
-This creates a beautiful 3D extruded logo with procedural coloring.
+This creates a beautiful 3D solid text logo with smooth surface and procedural coloring.
 
 Performance: All operations except text path extraction run on GPU using pure PyTorch.
 """
@@ -19,8 +20,10 @@ import torch
 from matplotlib.font_manager import FontProperties
 from matplotlib.path import Path
 from matplotlib.textpath import TextPath
+from matplotlib.tri import Triangulation
 
 from torchmesh import Mesh
+from torchmesh.examples.procedural import perlin_noise_nd
 from torchmesh.projections import embed_in_spatial_dims, extrude
 
 
@@ -140,7 +143,7 @@ def _sample_curve_segment(
 
 def text_to_points_and_edges(
     text: str, font_size: float = 10.0, samples_per_unit: float = 50
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, Path]:
     """Convert text string to 1D mesh path using PyTorch.
     
     Uses matplotlib's TextPath to extract font outlines, then samples
@@ -155,6 +158,7 @@ def text_to_points_and_edges(
     Returns:
         points: (N, 2) tensor of vertex positions
         edges: (M, 2) tensor of edge connectivity (indices into points)
+        text_path: Original TextPath object (needed for inside/outside testing)
     """
     ### Get text path from matplotlib
     fp = FontProperties(family="sans-serif", weight="bold")
@@ -218,98 +222,64 @@ def text_to_points_and_edges(
     points = torch.stack(all_points, dim=0)
     edges = torch.stack(all_edges, dim=0)
     
-    # Center the text
-    points = points - points.mean(dim=0)
+    # Center the text and adjust text_path accordingly
+    center = points.mean(dim=0)
+    points = points - center
     
-    return points, edges
+    # Translate text_path to match centered points
+    # Create a new Path with translated vertices
+    from matplotlib.path import Path as MplPath
+    centered_vertices = text_path.vertices - center.cpu().numpy()
+    text_path = MplPath(centered_vertices, text_path.codes)
+    
+    return points, edges, text_path
 
 
-def perlin_noise_3d(points: torch.Tensor, scale: float = 1.0, seed: int = 0) -> torch.Tensor:
-    """GPU-accelerated 3D Perlin noise implementation using pure PyTorch.
+def triangulate_path(points: torch.Tensor, text_path: Path) -> torch.Tensor:
+    """Triangulate text path properly handling holes and multiple components.
     
-    Generates smooth pseudo-random noise values using gradient interpolation
-    on a 3D lattice. Fully vectorized and GPU-compatible.
+    Uses matplotlib's Path winding semantics to determine which triangles are
+    "inside" the text. This correctly handles:
+    - Multiple disconnected letters
+    - Non-convex shapes (T, L, etc.)
+    - Holes (o, e, A, etc.)
+    
+    Algorithm:
+    1. Triangulate all boundary points with Delaunay (unconstrained)
+    2. Compute triangle centroids
+    3. Test centroids using Path.contains_points() with winding rule
+    4. Keep only interior triangles
+    
+    This uses the exact same winding number logic matplotlib uses to fill text.
     
     Args:
-        points: (N, 3) tensor of 3D positions to evaluate noise at
-        scale: Frequency of noise (larger = more variation)
-        seed: Random seed for reproducibility
+        points: 2D boundary points, shape (N, 2)
+        text_path: matplotlib TextPath object defining inside/outside
         
     Returns:
-        (N,) tensor of noise values in approximately [-1, 1]
+        triangles: Triangle connectivity for interior only, shape (M, 3)
     """
-    device = points.device
+    # Convert to numpy for matplotlib I/O
+    points_np = points.cpu().numpy()
     
-    ### Create permutation table from seed using torch.randperm
-    # Set seed for reproducibility
-    torch.manual_seed(seed)
-    perm = torch.randperm(256, dtype=torch.long, device=device)
-    # Duplicate for easier indexing
-    perm = torch.cat([perm, perm])
+    # Unconstrained Delaunay triangulation of all boundary points
+    tri = Triangulation(points_np[:, 0], points_np[:, 1])
     
-    ### Scale points
-    coords = points * scale
+    # Compute triangle centroids
+    # Shape: (n_triangles, 3, 2) -> (n_triangles, 2)
+    centroids = points_np[tri.triangles].mean(axis=1)
     
-    ### Get integer and fractional parts
-    xi = (coords[:, 0].floor().long() & 255)
-    yi = (coords[:, 1].floor().long() & 255)
-    zi = (coords[:, 2].floor().long() & 255)
+    # Test which centroids are inside the text path using winding rule
+    # This handles holes, multiple components, and non-convex shapes correctly
+    inside = text_path.contains_points(centroids, radius=0.0)
     
-    xf = coords[:, 0] - coords[:, 0].floor()
-    yf = coords[:, 1] - coords[:, 1].floor()
-    zf = coords[:, 2] - coords[:, 2].floor()
+    # Keep only interior triangles
+    interior_triangles = tri.triangles[inside]
     
-    ### Smoothstep function: 6t⁵ - 15t⁴ + 10t³ (vectorized)
-    def smoothstep(t):
-        return t * t * t * (t * (t * 6 - 15) + 10)
+    # Convert back to torch tensor
+    triangles = torch.from_numpy(interior_triangles).long()
     
-    u = smoothstep(xf)
-    v = smoothstep(yf)
-    w = smoothstep(zf)
-    
-    ### Vectorized gradient computation
-    def grad(hash_val, x, y, z):
-        """Compute dot product of gradient and distance vector (vectorized)."""
-        h = hash_val & 15
-        
-        # Use bottom 4 bits to select gradient direction
-        grad_x = torch.where((h & 1) == 0, torch.ones_like(x), -torch.ones_like(x))
-        grad_y = torch.where((h & 2) == 0, torch.ones_like(y), -torch.ones_like(y))
-        grad_z = torch.where((h & 4) == 0, torch.ones_like(z), -torch.ones_like(z))
-        
-        # Randomly zero out components
-        grad_x = torch.where((h & 8) != 0, torch.zeros_like(grad_x), grad_x)
-        grad_y = torch.where((h >= 8) & (h < 12), torch.zeros_like(grad_y), grad_y)
-        grad_z = torch.where(h >= 12, torch.zeros_like(grad_z), grad_z)
-        
-        return grad_x * x + grad_y * y + grad_z * z
-    
-    ### Hash coordinates (vectorized)
-    def hash_coord(xi, yi, zi):
-        return perm[perm[perm[xi] + yi] + zi]
-    
-    ### Get gradients at 8 cube corners (all vectorized)
-    n000 = grad(hash_coord(xi, yi, zi), xf, yf, zf)
-    n001 = grad(hash_coord(xi, yi, zi + 1), xf, yf, zf - 1)
-    n010 = grad(hash_coord(xi, yi + 1, zi), xf, yf - 1, zf)
-    n011 = grad(hash_coord(xi, yi + 1, zi + 1), xf, yf - 1, zf - 1)
-    n100 = grad(hash_coord(xi + 1, yi, zi), xf - 1, yf, zf)
-    n101 = grad(hash_coord(xi + 1, yi, zi + 1), xf - 1, yf, zf - 1)
-    n110 = grad(hash_coord(xi + 1, yi + 1, zi), xf - 1, yf - 1, zf)
-    n111 = grad(hash_coord(xi + 1, yi + 1, zi + 1), xf - 1, yf - 1, zf - 1)
-    
-    ### Trilinear interpolation (fully vectorized)
-    x00 = n000 * (1 - u) + n100 * u
-    x01 = n001 * (1 - u) + n101 * u
-    x10 = n010 * (1 - u) + n110 * u
-    x11 = n011 * (1 - u) + n111 * u
-    
-    y0 = x00 * (1 - v) + x10 * v
-    y1 = x01 * (1 - v) + x11 * v
-    
-    noise = y0 * (1 - w) + y1 * w
-    
-    return noise
+    return triangles
 
 
 def main() -> None:
@@ -330,49 +300,57 @@ def main() -> None:
         device = torch.device("cpu")
         print("\n⚠ GPU not available, using CPU")
     
-    ### 1. Convert text to 1D path in 2D space (numpy required for matplotlib)
+    ### 1. Convert text to 1D path in 2D space
     print("\n[1/7] Converting text 'TorchMesh' to vector path...")
-    points_2d, edges = text_to_points_and_edges(
+    points_2d, edges, text_path = text_to_points_and_edges(
         "TorchMesh",
         font_size=12.0,
         samples_per_unit=3
     )
-    print(f"  Generated {len(points_2d)} points, {len(edges)} edges")
+    print(f"  Generated {len(points_2d)} points, {len(edges)} edges (boundary)")
     
-    ### 2. Create 1D mesh in 2D space [1,2] on GPU
-    print(f"\n[2/7] Creating 1D mesh in 2D space [1,2] on {device}...")
-    mesh_1d_2d = Mesh(
+    ### 2. Triangulate to create filled 2D mesh [2,2]
+    print("\n[2/7] Triangulating to fill text outline [2,2]...")
+    print("  Using Path winding semantics to respect holes and letter boundaries...")
+    triangles = triangulate_path(points_2d, text_path)
+    mesh_2d_2d = Mesh(
         points=points_2d.to(device),
-        cells=edges.to(device),
+        cells=triangles.to(device),
     )
-    print(f"  Mesh: [{mesh_1d_2d.n_manifold_dims}, {mesh_1d_2d.n_spatial_dims}]")
-    print(f"  Points: {mesh_1d_2d.n_points}, Cells: {mesh_1d_2d.n_cells}")
+    print(f"  Mesh: [{mesh_2d_2d.n_manifold_dims}, {mesh_2d_2d.n_spatial_dims}]")
+    print(f"  Points: {mesh_2d_2d.n_points}, Cells: {mesh_2d_2d.n_cells} (filled surface)")
     
-    ### 3. Embed to 3D space [1,3]
-    print("\n[3/7] Embedding into 3D space [1,3]...")
-    mesh_1d_3d = embed_in_spatial_dims(mesh_1d_2d, target_n_spatial_dims=3)
-    print(f"  Mesh: [{mesh_1d_3d.n_manifold_dims}, {mesh_1d_3d.n_spatial_dims}]")
-    print(f"  Codimension: {mesh_1d_3d.codimension}")
+    ### 3. Embed to 3D space [2,3]
+    print("\n[3/7] Embedding into 3D space [2,3]...")
+    mesh_2d_3d = embed_in_spatial_dims(mesh_2d_2d, target_n_spatial_dims=3)
+    print(f"  Mesh: [{mesh_2d_3d.n_manifold_dims}, {mesh_2d_3d.n_spatial_dims}]")
+    print(f"  Codimension: {mesh_2d_3d.codimension}")
     
-    ### 4. Extrude to create surface [2,3]
-    print("\n[4/7] Extruding to create 2D surface [2,3]...")
+    ### 4. Extrude to create 3D volume [3,3]
+    print("\n[4/7] Extruding to create 3D volume [3,3]...")
     extrusion_height = 3.0
-    surface = extrude(mesh_1d_3d, vector=torch.tensor([0.0, 0.0, extrusion_height], device=device))
-    print(f"  Mesh: [{surface.n_manifold_dims}, {surface.n_spatial_dims}]")
-    print(f"  Points: {surface.n_points}, Cells: {surface.n_cells}")
+    volume = extrude(mesh_2d_3d, vector=torch.tensor([0.0, 0.0, extrusion_height], device=device))
+    print(f"  Mesh: [{volume.n_manifold_dims}, {volume.n_spatial_dims}]")
+    print(f"  Points: {volume.n_points}, Cells: {volume.n_cells} (tetrahedra)")
     print(f"  Extrusion height: {extrusion_height}")
     
-    ### 5. Apply Loop subdivision for smoothness
-    print("\n[5/7] Applying Loop subdivision (2 levels)...")
+    ### 5. Extract boundary surface for visualization and subdivision
+    print("\n[5/7] Extracting boundary surface for visualization...")
+    surface = volume.get_boundary_mesh(data_source="cells")
+    print(f"  Surface: [{surface.n_manifold_dims}, {surface.n_spatial_dims}]")
+    print(f"  Points: {surface.n_points}, Cells: {surface.n_cells} (triangles)")
+    
+    ### 6. Apply butterfly subdivision for smoothness
+    print("\n[6/7] Applying butterfly subdivision (2 levels) to surface...")
     print("  This may take a moment...")
     smooth = surface.subdivide(levels=2, filter="butterfly")
-    print(f"  Subdivided mesh: {smooth.n_points} points, {smooth.n_cells} cells")
+    print(f"  Subdivided surface: {smooth.n_points} points, {smooth.n_cells} cells")
     
-    ### 6. Generate Perlin noise at cell centroids (GPU-accelerated)
-    print(f"\n[6/7] Generating Perlin noise coloring on {device}...")
+    ### 7. Generate Perlin noise at cell centroids (GPU-accelerated)
+    print(f"\n[7/8] Generating Perlin noise coloring on {device}...")
     centroids = smooth.cell_centroids  # Keep on GPU
     # Use lower frequency (scale=0.5) for smoother variation across the logo
-    noise_values = perlin_noise_3d(centroids, scale=0.5, seed=42)  # Pure torch, stays on GPU
+    noise_values = perlin_noise_nd(centroids, scale=0.5, seed=42)  # Dimension-agnostic, stays on GPU
     
     # Normalize to [0, 1] for better visualization (all on GPU)
     noise_normalized = (noise_values - noise_values.min()) / (
@@ -384,8 +362,8 @@ def main() -> None:
     print(f"  Noise range: [{noise_values.min().item():.3f}, {noise_values.max().item():.3f}]")
     print(f"  All computations performed on {device}")
     
-    ### 7. Visualize
-    print("\n[7/7] Launching visualization...")
+    ### 8. Visualize
+    print("\n[8/8] Launching visualization...")
     print("\nClose the visualization window to exit.")
     print("=" * 60)
     
