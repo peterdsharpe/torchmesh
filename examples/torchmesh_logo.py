@@ -305,6 +305,105 @@ def _compute_winding_number_multi_contour(points: torch.Tensor, path: Path) -> t
     return total_winding
 
 
+def _resample_contour_at_fixed_arc_length(
+    points: torch.Tensor, target_spacing: float
+) -> torch.Tensor:
+    """Resample a closed contour at fixed arc-length intervals.
+    
+    Adds intermediate points between existing points to ensure consistent
+    resolution. All original points are preserved.
+    
+    Args:
+        points: Contour points in order, shape (n_points, 2). Assumed to form
+            a closed loop (last point connects back to first).
+        target_spacing: Target arc length between consecutive points
+        
+    Returns:
+        Resampled contour points with original + interpolated points, shape (m_points, 2)
+    """
+    if len(points) < 2:
+        return points
+    
+    resampled_points = []
+    
+    # Process each edge in the contour
+    for i in range(len(points)):
+        p0 = points[i]
+        p1 = points[(i + 1) % len(points)]  # Wrap to close loop
+        
+        # Always keep the starting point
+        resampled_points.append(p0)
+        
+        # Compute edge length
+        edge_vec = p1 - p0
+        edge_length = torch.norm(edge_vec).item()
+        
+        # If edge is longer than target spacing, add intermediate points
+        if edge_length > target_spacing:
+            # Number of segments to divide this edge into
+            n_segments = int(torch.ceil(torch.tensor(edge_length / target_spacing)).item())
+            
+            # Add intermediate points (excluding endpoints, which are already in the list)
+            for j in range(1, n_segments):
+                t = j / n_segments
+                interp_point = p0 + t * edge_vec
+                resampled_points.append(interp_point)
+    
+    return torch.stack(resampled_points, dim=0)
+
+
+def _extract_ordered_contour_points(
+    points: torch.Tensor, component_edges: torch.Tensor
+) -> torch.Tensor:
+    """Extract ordered points along a contour from its edges.
+    
+    Given edges that form a closed loop, reconstruct the ordered sequence of points.
+    
+    Args:
+        points: All points, shape (n_points, 2)
+        component_edges: Edges for this contour, shape (n_edges, 2)
+        
+    Returns:
+        Ordered points along the contour, shape (n_edges, 2)
+        Note: Returns n_edges points, not n_edges+1, since it's a closed loop
+    """
+    if len(component_edges) == 0:
+        return torch.empty((0, 2), dtype=points.dtype)
+    
+    # Build adjacency for this component
+    adjacency = {}
+    for edge in component_edges:
+        i, j = edge[0].item(), edge[1].item()
+        if i not in adjacency:
+            adjacency[i] = []
+        if j not in adjacency:
+            adjacency[j] = []
+        adjacency[i].append(j)
+        adjacency[j].append(i)
+    
+    # Start from any point and follow the chain
+    start_idx = component_edges[0, 0].item()
+    ordered_indices = [start_idx]
+    current = start_idx
+    prev = None
+    
+    # Follow the chain until we loop back
+    while True:
+        neighbors = adjacency[current]
+        # Find next neighbor (not the one we came from)
+        next_candidates = [n for n in neighbors if n != prev]
+        if not next_candidates:
+            break
+        next_node = next_candidates[0]
+        if next_node == start_idx:
+            break
+        ordered_indices.append(next_node)
+        prev = current
+        current = next_node
+    
+    return points[ordered_indices]
+
+
 def _find_connected_components(edges: torch.Tensor, n_points: int) -> list[torch.Tensor]:
     """Find connected components in edge graph.
     
@@ -348,74 +447,143 @@ def _find_connected_components(edges: torch.Tensor, n_points: int) -> list[torch
 
 
 def triangulate_path(
-    points: torch.Tensor, edges: torch.Tensor, text_path: Path
+    points: torch.Tensor, edges: torch.Tensor, text_path: Path, interior_spacing: float = 0.5
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Triangulate text by processing each contour independently.
+    """Triangulate text by processing each contour independently with interior points.
     
-    Simple, robust algorithm:
+    Algorithm:
     1. Find connected components (each contour is one component)
-    2. Triangulate each contour independently
-    3. Filter ALL triangles using winding number
+    2. For each contour:
+       a. Resample at fixed arc-length intervals for consistent resolution
+       b. Sample interior points on a grid within its bounding box
+       c. Filter interior points to only those inside letter (using winding)
+       d. Combine boundary + interior points
+       e. Triangulate with Delaunay
+       f. Filter triangles using winding number
+    3. Merge all contours
     
-    The winding number filter does the heavy lifting:
-    - Triangles in letter bodies: non-zero winding → kept
-    - Triangles in holes: zero winding → removed
-    - Cross-letter triangles: impossible (contours separate)
-    
-    Note: Letters with holes (o, e) will have disconnected meshes, but
-    winding filter ensures hole interiors are empty.
+    Benefits:
+    - Arc-length resampling: eliminates long edges, consistent boundary resolution
+    - Per-contour processing: no cross-letter connections
+    - Interior points: better triangle aspect ratios
+    - Winding filter: handles holes correctly
     
     Args:
         points: 2D boundary points
         edges: Edge connectivity
         text_path: Path for winding number test
+        interior_spacing: Grid spacing for interior point sampling
         
     Returns:
-        points: Same boundary points
+        all_points: Boundary + interior points for all contours
         triangles: Triangle connectivity
     """
     import numpy as np
     
-    ### Find connected components (one per contour)
+    ### Find connected components and their edges
     components = _find_connected_components(edges, len(points))
     print(f"  Found {len(components)} contours")
     
-    ### Triangulate each contour independently
-    all_triangles = []
-    
+    # Build mapping from component to its edges
+    component_edges_list = []
     for comp in components:
-        comp_points = points[comp]
+        comp_set = set(comp.tolist())
+        # Find edges where both vertices are in this component
+        comp_edge_mask = torch.tensor([
+            (edges[i, 0].item() in comp_set and edges[i, 1].item() in comp_set)
+            for i in range(len(edges))
+        ])
+        comp_edges = edges[comp_edge_mask]
+        component_edges_list.append(comp_edges)
+    
+    ### Process each contour independently
+    all_points_list = []
+    all_triangles = []
+    global_point_offset = 0
+    
+    for comp, comp_edges in zip(components, component_edges_list):
+        if len(comp) < 3:
+            continue
+        
+        ### Resample contour at fixed arc-length intervals
+        # Extract ordered points along the contour
+        ordered_points = _extract_ordered_contour_points(points, comp_edges)
+        
+        if len(ordered_points) < 3:
+            continue
+        
+        # Resample with target spacing = interior_spacing / 2
+        target_spacing = interior_spacing / 2.0
+        resampled_points = _resample_contour_at_fixed_arc_length(ordered_points, target_spacing)
+        
+        print(f"    Contour: {len(ordered_points)} → {len(resampled_points)} points after resampling")
+        
+        comp_points = resampled_points
         comp_points_np = comp_points.cpu().numpy()
         
         if len(comp_points) < 3:
             continue
         
-        # Delaunay triangulation of this contour
-        tri = Triangulation(comp_points_np[:, 0], comp_points_np[:, 1])
+        ### Sample interior points for this contour
+        x_min, x_max = comp_points_np[:, 0].min(), comp_points_np[:, 0].max()
+        y_min, y_max = comp_points_np[:, 1].min(), comp_points_np[:, 1].max()
         
-        # Filter using winding number
-        centroids_np = comp_points_np[tri.triangles].mean(axis=1)
+        # Create grid
+        x_grid = np.arange(x_min, x_max, interior_spacing)
+        y_grid = np.arange(y_min, y_max, interior_spacing)
+        xx, yy = np.meshgrid(x_grid, y_grid)
+        candidate_interior = torch.tensor(
+            np.column_stack([xx.ravel(), yy.ravel()]), dtype=torch.float32
+        )
+        
+        # Filter interior points using winding number
+        winding_interior = _compute_winding_number_multi_contour(candidate_interior, text_path)
+        inside_mask = winding_interior != 0
+        interior_points = candidate_interior[inside_mask]
+        
+        ### Combine boundary + interior for this contour
+        if len(interior_points) > 0:
+            contour_all_points = torch.cat([comp_points, interior_points], dim=0)
+        else:
+            contour_all_points = comp_points
+        
+        contour_all_points_np = contour_all_points.cpu().numpy()
+        
+        ### Delaunay triangulation
+        tri = Triangulation(contour_all_points_np[:, 0], contour_all_points_np[:, 1])
+        
+        ### Filter triangles using winding number
+        centroids_np = contour_all_points_np[tri.triangles].mean(axis=1)
         centroids_torch = torch.tensor(centroids_np, dtype=torch.float32)
         winding = _compute_winding_number_multi_contour(centroids_torch, text_path)
-        inside_mask = winding != 0
+        inside_mask_tri = winding != 0
         
-        comp_triangles = tri.triangles[inside_mask.cpu().numpy()]
+        contour_triangles = tri.triangles[inside_mask_tri.cpu().numpy()]
         
-        # Remap to global indices
-        comp_triangles_global = comp[comp_triangles].cpu().numpy()
+        ### Remap to global indices and add offset
+        contour_triangles_global = contour_triangles + global_point_offset
         
-        if len(comp_triangles_global) > 0:
-            all_triangles.append(comp_triangles_global)
+        if len(contour_triangles_global) > 0:
+            all_triangles.append(contour_triangles_global)
+        
+        all_points_list.append(contour_all_points)
+        global_point_offset += len(contour_all_points)
     
-    # Merge all triangles
+    ### Merge all contours
+    if all_points_list:
+        all_points = torch.cat(all_points_list, dim=0)
+    else:
+        all_points = points
+    
     if all_triangles:
         triangles = torch.from_numpy(np.vstack(all_triangles)).long()
     else:
         triangles = torch.empty((0, 3), dtype=torch.long)
     
-    print(f"  Total: {len(triangles)} triangles")
+    print(f"  Total: {len(all_points)} points ({len(points)} boundary + {len(all_points)-len(points)} interior), "
+          f"{len(triangles)} triangles")
     
-    return points, triangles
+    return all_points, triangles
 
 
 def main() -> None:
@@ -464,7 +632,7 @@ def main() -> None:
     
     ### 4. Extrude to create 3D volume [3,3]
     print("\n[4/7] Extruding to create 3D volume [3,3]...")
-    extrusion_height = 3.0
+    extrusion_height = 2
     volume = extrude(mesh_2d_3d, vector=torch.tensor([0.0, 0.0, extrusion_height], device=device))
     print(f"  Mesh: [{volume.n_manifold_dims}, {volume.n_spatial_dims}]")
     print(f"  Points: {volume.n_points}, Cells: {volume.n_cells} (tetrahedra)")
@@ -503,6 +671,11 @@ def main() -> None:
     print("\nClose the visualization window to exit.")
     print("=" * 60)
     
+    mesh_2d_2d.draw(alpha_points=0, show=False)
+    import matplotlib.pyplot as plt
+    plt.gcf().set_dpi(800)
+    plt.show()
+
     smooth.draw(
         cell_scalars="noise",
         cmap="plasma",
@@ -513,7 +686,6 @@ def main() -> None:
         backend="pyvista",
         show=True,
     )
-
 
 if __name__ == "__main__":
     main()
