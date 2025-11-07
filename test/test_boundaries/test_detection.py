@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from torchmesh import (
-    Mesh,
+from torchmesh import Mesh
+from torchmesh.boundaries import (
     get_boundary_vertices,
     get_boundary_cells,
     get_boundary_edges,
