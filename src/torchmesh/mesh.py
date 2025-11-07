@@ -1351,11 +1351,8 @@ class Mesh:
             order: Accuracy order for LSQ method (ignored for DEC)
 
         Returns:
-            New Mesh with gradient fields added to point_data.
+            Self (mesh) with gradient fields added to point_data (modified in place).
             Field naming: "{field}_gradient" or "{field}_gradient_intrinsic/extrinsic"
-
-        Side Effects:
-            Original mesh.point_data is modified in-place to cache intermediate results.
 
         Example:
             >>> # Compute gradient of pressure
@@ -1396,10 +1393,7 @@ class Mesh:
             order: Accuracy order for LSQ
 
         Returns:
-            New Mesh with gradient fields added to cell_data
-
-        Side Effects:
-            Original mesh.cell_data is modified in-place to cache results.
+            Self (mesh) with gradient fields added to cell_data (modified in place)
 
         Example:
             >>> # Compute gradient of cell-centered pressure
