@@ -54,7 +54,6 @@ def merge_duplicate_points(
     """
     n_points = len(points)
     device = points.device
-    dtype = points.dtype
 
     if n_points == 0:
         return (

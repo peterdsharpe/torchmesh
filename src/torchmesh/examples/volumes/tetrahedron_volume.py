@@ -21,8 +21,6 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
     # Regular tetrahedron vertices
     import math
 
-    a = side_length / math.sqrt(2)
-
     vertices = [
         [0.0, 0.0, 0.0],
         [side_length, 0.0, 0.0],

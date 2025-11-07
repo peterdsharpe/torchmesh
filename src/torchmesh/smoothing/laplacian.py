@@ -391,7 +391,6 @@ def _detect_sharp_edges(
     # Sort candidates by their unique edge index
     sorted_order = torch.argsort(candidate_to_unique)
     sorted_edge_ids = candidate_to_unique[sorted_order]
-    sorted_parent_cells = parent_cell_indices[sorted_order]
 
     # For each position in sorted array, compute how many times we've seen this edge before
     # This is the "occurrence index" (0 for first, 1 for second, etc.)

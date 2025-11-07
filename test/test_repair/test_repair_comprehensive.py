@@ -135,7 +135,6 @@ class TestDuplicateRemoval:
 
         # Verify cell still forms valid triangle
         assert mesh_clean.n_cells == 1
-        cell_verts = mesh_clean.points[mesh_clean.cells[0]]
 
         # Should form a triangle
         area = mesh_clean.cell_areas[0]

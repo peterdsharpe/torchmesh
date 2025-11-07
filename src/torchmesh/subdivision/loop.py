@@ -47,7 +47,6 @@ def _build_adjacency_from_edges(
 
     ### Create bidirectional edges
     # For each edge [a, b], create both [a, b] and [b, a]
-    n_edges = len(unique_edges)
 
     # Extract source and target vertices for both directions
     # Forward direction: edge[:, 0] -> edge[:, 1]

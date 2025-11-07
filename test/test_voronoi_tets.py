@@ -47,7 +47,6 @@ class TestVoronoiVolumes3D:
         # Sum of dual volumes should relate to tet volume
         # For regular tet, each vertex gets equal share
         total_dual = dual_vols.sum()
-        tet_volume = mesh.cell_areas[0]
 
         # Dual volumes can be larger than tet volume in circumcentric construction
         # (circumcenter can be outside the tet)

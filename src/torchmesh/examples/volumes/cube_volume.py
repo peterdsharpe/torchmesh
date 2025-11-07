@@ -4,7 +4,6 @@ Dimensional: 3D manifold in 3D space.
 """
 
 import pyvista as pv
-import torch
 
 from torchmesh.io import from_pyvista
 from torchmesh.mesh import Mesh
@@ -26,9 +25,6 @@ def load(size: float = 1.0, n_subdivisions: int = 5, device: str = "cpu") -> Mes
 
     # Create a structured grid
     n = n_subdivisions + 1
-    x = torch.linspace(-size / 2, size / 2, n)
-    y = torch.linspace(-size / 2, size / 2, n)
-    z = torch.linspace(-size / 2, size / 2, n)
 
     # Create PyVista structured grid
     grid = pv.ImageData(
