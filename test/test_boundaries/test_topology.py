@@ -122,43 +122,44 @@ class TestWatertight3D:
         assert not mesh.is_watertight()
 
     @pytest.mark.parametrize("device", get_available_devices())
-    def test_octahedron_watertight(self, device):
-        """Octahedron (8 tets sharing faces) is watertight."""
-        ### Create octahedron: 6 vertices, 8 tetrahedral cells
-        points = torch.tensor(
-            [
-                [1.0, 0.0, 0.0],  # 0: +X
-                [-1.0, 0.0, 0.0],  # 1: -X
-                [0.0, 1.0, 0.0],  # 2: +Y
-                [0.0, -1.0, 0.0],  # 3: -Y
-                [0.0, 0.0, 1.0],  # 4: +Z
-                [0.0, 0.0, -1.0],  # 5: -Z
-            ],
-            device=device,
+    def test_filled_cube_not_watertight(self, device):
+        """Even a filled cube volume is not watertight (has exterior boundary).
+        
+        Note: For codimension-0 meshes (3D in 3D), being watertight means every
+        triangular face is shared by exactly 2 tets. This is topologically impossible
+        for finite meshes in Euclidean 3D space - any solid volume must have an
+        exterior boundary. A truly watertight 3D mesh would require periodic boundaries
+        or non-Euclidean topology (like a 3-torus embedded in 4D).
+        """
+        import pyvista as pv
+        from torchmesh.io import from_pyvista
+        
+        ### Create a filled cube volume using ImageData and tessellate to tets
+        grid = pv.ImageData(
+            dimensions=(3, 3, 3),  # Simple 2x2x2 grid
+            spacing=(1.0, 1.0, 1.0),
+            origin=(0.0, 0.0, 0.0),
         )
-        cells = torch.tensor(
-            [
-                [0, 2, 4, 1],  # Top-front
-                [0, 4, 3, 1],  # Top-back
-                [0, 3, 5, 1],  # Bottom-back
-                [0, 5, 2, 1],  # Bottom-front
-                [2, 0, 4, 1],  # Duplicate check - different ordering
-                [4, 0, 3, 1],
-                [3, 0, 5, 1],
-                [5, 0, 2, 1],
-            ],
-            device=device,
-            dtype=torch.int64,
-        )
-        mesh = Mesh(points=points, cells=cells)
-
-        ### This specific configuration should be watertight
-        ### Actually, let me reconsider - we need proper tets that tile the octahedron
-        ### Let me use a simpler watertight example
-
-        ### Actually, for a proper watertight 3D mesh, we need all faces shared by exactly 2 tets
-        ### A simple example is 2 tets + 2 more tets that close the gap
-        ### For simplicity, skip this test for now and just check the logic works
+        
+        # Tessellate to tetrahedra
+        tet_grid = grid.tessellate()
+        
+        mesh = from_pyvista(tet_grid, manifold_dim=3)
+        mesh = mesh.to(device)
+        
+        ### Even though this is a filled volume, it's NOT watertight
+        # The exterior faces of the cube are boundary faces (appear only once)
+        # Only the interior faces are shared by 2 tets
+        assert not mesh.is_watertight()
+        
+        ### Verify it has boundary faces
+        from torchmesh.boundaries import extract_candidate_facets
+        candidate_facets, _ = extract_candidate_facets(mesh.cells, manifold_codimension=1)
+        _, counts = torch.unique(candidate_facets, dim=0, return_counts=True)
+        
+        # Should have some boundary faces (appearing once)
+        n_boundary_faces = (counts == 1).sum().item()
+        assert n_boundary_faces > 0, "Expected some boundary faces on cube exterior"
 
 
 class TestWatertight1D:
