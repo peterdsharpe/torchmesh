@@ -22,6 +22,54 @@ from torchmesh.subdivision._topology import (
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
+    from torchmesh.neighbors._adjacency import Adjacency
+
+
+def _build_adjacency_from_edges(
+    unique_edges: torch.Tensor,
+    n_points: int,
+    device: torch.device,
+) -> "Adjacency":
+    """Build point-to-point adjacency structure directly from unique edges.
+    
+    This is much faster than recomputing from cells when edges are already known.
+    Uses a counting-based approach instead of sorting for better performance.
+    
+    Args:
+        unique_edges: Unique edges, shape (n_edges, 2)
+        n_points: Number of points in mesh
+        device: Device to place tensors on
+        
+    Returns:
+        Adjacency structure with bidirectional edges
+    """
+    from torchmesh.neighbors._adjacency import Adjacency
+    
+    ### Create bidirectional edges
+    # For each edge [a, b], create both [a, b] and [b, a]
+    n_edges = len(unique_edges)
+    
+    # Extract source and target vertices for both directions
+    # Forward direction: edge[:, 0] -> edge[:, 1]
+    # Backward direction: edge[:, 1] -> edge[:, 0]
+    sources = torch.cat([unique_edges[:, 0], unique_edges[:, 1]])
+    targets = torch.cat([unique_edges[:, 1], unique_edges[:, 0]])
+    
+    ### Use argsort to group by source vertex
+    # This is necessary for CSR format, but we can optimize by using stable sort
+    sort_indices = torch.argsort(sources, stable=True)
+    sorted_sources = sources[sort_indices]
+    sorted_targets = targets[sort_indices]
+    
+    ### Compute offsets for each source vertex
+    neighbor_counts = torch.bincount(sorted_sources, minlength=n_points)
+    offsets = torch.zeros(n_points + 1, dtype=torch.int64, device=device)
+    offsets[1:] = torch.cumsum(neighbor_counts, dim=0)
+    
+    return Adjacency(
+        offsets=offsets,
+        indices=sorted_targets,
+    )
 
 
 def compute_loop_beta(valence: int) -> float:
@@ -55,6 +103,7 @@ def compute_loop_beta(valence: int) -> float:
 
 def reposition_original_vertices_2d(
     mesh: "Mesh",
+    unique_edges: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Reposition original vertices using Loop's valence-based formula.
 
@@ -68,6 +117,8 @@ def reposition_original_vertices_2d(
 
     Args:
         mesh: Input 2D manifold mesh
+        unique_edges: Pre-computed unique edges (optional). If provided, uses these
+            instead of recomputing them, which saves significant time.
 
     Returns:
         Repositioned vertex positions, shape (n_points, n_spatial_dims)
@@ -76,9 +127,12 @@ def reposition_original_vertices_2d(
     n_points = mesh.n_points
 
     ### Get point-to-point adjacency (vertex neighbors)
-    from torchmesh.neighbors import get_point_to_points_adjacency
-
-    adjacency = get_point_to_points_adjacency(mesh)
+    # If unique_edges provided, build adjacency directly without recomputing
+    if unique_edges is not None:
+        adjacency = _build_adjacency_from_edges(unique_edges, n_points, device)
+    else:
+        from torchmesh.neighbors import get_point_to_points_adjacency
+        adjacency = get_point_to_points_adjacency(mesh)
 
     ### Compute valences for all points at once
     # valences[i] = offsets[i+1] - offsets[i]
@@ -320,8 +374,8 @@ def subdivide_loop(mesh: "Mesh") -> "Mesh":
     unique_edges, edge_inverse = extract_unique_edges(mesh)
     n_original_points = mesh.n_points
 
-    ### Reposition original vertices
-    repositioned_vertices = reposition_original_vertices_2d(mesh)
+    ### Reposition original vertices (pass unique_edges to avoid recomputation)
+    repositioned_vertices = reposition_original_vertices_2d(mesh, unique_edges=unique_edges)
 
     ### Compute new edge vertex positions
     edge_vertices = compute_loop_edge_positions_2d(mesh, unique_edges)
