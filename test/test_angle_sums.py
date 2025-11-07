@@ -68,7 +68,7 @@ class TestClosedCurveAngleSums:
 
         # Should be close
         relative_error = torch.abs(total_angle - expected_total) / expected_total
-        assert relative_error < 0.01  # Within 1%
+        assert relative_error < 1e-5  # Essentially exact
 
     def test_circle_angle_sum_with_noise(self, device):
         """Test that noisy circle maintains topological angle sum = (n-2)π."""
@@ -104,10 +104,10 @@ class TestClosedCurveAngleSums:
 
         # Noisy perturbation changes geometry significantly for 1D curves
         # Angle sums are not purely topological for curves (depend on embedding)
-        # With 1% noise, should still be within 10% of expected
+        # With 1% noise, should still be essentially exact
         assert not torch.isnan(total_angle_noisy)
         assert total_angle_noisy > 0
-        assert relative_error < 0.1, f"Relative error {relative_error:.3f} too large for 1% noise"
+        assert relative_error < 1e-5, f"Relative error {relative_error:.3f} unexpectedly large for 1% noise"
 
 
 ### Test 2D Manifolds (Closed Surfaces)
@@ -200,7 +200,7 @@ class TestClosedSurfaceAngleSums:
 
         # Should be close
         relative_error = torch.abs(total_angle - expected_total) / expected_total
-        assert relative_error < 0.05  # Within 5%
+        assert relative_error < 1e-5  # Essentially exact
 
     def test_sphere_angle_sum_with_noise(self, device):
         """Test that noisy sphere maintains topological angle sum."""

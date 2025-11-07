@@ -209,7 +209,7 @@ class TestGaussianCurvature:
 
         # Should be close to expected (some variation due to discretization)
         mean_K = K_vertices.mean()
-        assert torch.abs(mean_K - expected_K) / expected_K < 0.15  # Within 15%
+        assert torch.abs(mean_K - expected_K) / expected_K < 0.09  # Within 9%
 
         # All should be positive
         assert torch.all(K_vertices > 0)
@@ -308,7 +308,7 @@ class TestMeanCurvature:
 
         # Should be close to expected
         mean_H = H_vertices.mean()
-        assert torch.abs(mean_H - expected_H) / expected_H < 0.15  # Within 15%
+        assert torch.abs(mean_H - expected_H) / expected_H < 0.01  # Within 1%
 
         # All should be positive (outward normals)
         assert torch.all(H_vertices > 0)
@@ -344,9 +344,9 @@ class TestMeanCurvature:
         mean_H = interior_H.mean()
         relative_error = torch.abs(mean_H - expected_H) / expected_H
 
-        # Interior vertices should be within 5% of analytical value (perfect on this test)
-        assert relative_error < 0.05, (
-            f"Mean curvature error {relative_error:.1%} exceeds 5% tolerance. "
+        # Interior vertices are perfect (0.0% error)
+        assert relative_error < 0.001, (
+            f"Mean curvature error {relative_error:.1%} exceeds 0.1% tolerance. "
             f"Got {mean_H:.4f}, expected {expected_H:.4f}"
         )
 
@@ -363,8 +363,8 @@ class TestMeanCurvature:
             mean_H = H_vertices.mean()
             error = torch.abs(mean_H - expected_H)
 
-            # Each subdivision level should maintain reasonable accuracy
-            assert error / expected_H < 0.2  # Within 20% at all levels
+            # Each subdivision level should maintain excellent accuracy
+            assert error / expected_H < 0.01  # Within 1% at all levels
 
     def test_mean_curvature_codimension_error(self, device):
         """Test that mean curvature raises error for non-codimension-1."""
@@ -566,20 +566,20 @@ class TestPrincipalCurvatures:
         H_rel_error = torch.abs(mean_H - expected_k) / expected_k
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
         
-        # With subdivision level 1, should be within 10% of analytical
-        assert H_rel_error < 0.10, (
-            f"Mean curvature error {H_rel_error:.1%} exceeds 10%. "
+        # With subdivision level 1, should be within tight tolerance
+        assert H_rel_error < 0.01, (
+            f"Mean curvature error {H_rel_error:.1%} exceeds 1%. "
             f"Got {mean_H:.4f}, expected {expected_k:.4f}"
         )
-        assert K_rel_error < 0.10, (
-            f"Gaussian curvature error {K_rel_error:.1%} exceeds 10%. "
+        assert K_rel_error < 0.09, (
+            f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "
             f"Got {mean_K:.4f}, expected {expected_K:.4f}"
         )
         
         # Verify K ≈ H² for sphere (identity for sphere)
         K_from_H = H**2
         K_identity_error = (K - K_from_H).abs() / (K.abs() + 1e-10)
-        assert K_identity_error.mean() < 0.10, (
+        assert K_identity_error.mean() < 0.09, (
             f"K vs H² relationship violated: mean error {K_identity_error.mean():.1%}"
         )
 
@@ -641,13 +641,13 @@ class TestCurvatureNumerical:
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
         H_rel_error = torch.abs(mean_H - expected_H) / expected_H
         
-        # Should be within 10% even for small radius
-        assert K_rel_error < 0.10, (
-            f"Gaussian curvature error {K_rel_error:.1%} exceeds 10%. "
+        # Should be within tight tolerance even for small radius
+        assert K_rel_error < 0.09, (
+            f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "
             f"Got {mean_K:.2f}, expected {expected_K:.2f}"
         )
-        assert H_rel_error < 0.10, (
-            f"Mean curvature error {H_rel_error:.1%} exceeds 10%. "
+        assert H_rel_error < 0.01, (
+            f"Mean curvature error {H_rel_error:.1%} exceeds 1%. "
             f"Got {mean_H:.2f}, expected {expected_H:.2f}"
         )
 
@@ -669,13 +669,13 @@ class TestCurvatureNumerical:
         K_rel_error = torch.abs(mean_K - expected_K) / expected_K
         H_rel_error = torch.abs(mean_H - expected_H) / expected_H
         
-        # Should be within 10% even for large radius
-        assert K_rel_error < 0.10, (
-            f"Gaussian curvature error {K_rel_error:.1%} exceeds 10%. "
+        # Should be within tight tolerance even for large radius
+        assert K_rel_error < 0.09, (
+            f"Gaussian curvature error {K_rel_error:.1%} exceeds 9%. "
             f"Got {mean_K:.6f}, expected {expected_K:.6f}"
         )
-        assert H_rel_error < 0.10, (
-            f"Mean curvature error {H_rel_error:.1%} exceeds 10%. "
+        assert H_rel_error < 0.01, (
+            f"Mean curvature error {H_rel_error:.1%} exceeds 1%. "
             f"Got {mean_H:.6f}, expected {expected_H:.6f}"
         )
 

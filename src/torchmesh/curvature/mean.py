@@ -40,10 +40,16 @@ def mean_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
 
     Returns:
         Tensor of shape (n_points,) containing signed mean curvature at each vertex.
-        For isolated vertices, mean curvature is NaN.
+        For isolated vertices and boundary vertices, mean curvature is NaN.
+        Boundary vertices are excluded because the cotangent Laplacian formula
+        assumes a complete neighborhood, which doesn't exist at free boundaries.
 
     Raises:
         ValueError: If mesh is not codimension-1
+    
+    Note:
+        This function sets boundary vertices to NaN. For applications requiring
+        curvature at boundaries, proper boundary conditions must be implemented.
 
     Example:
         >>> # Sphere of radius r has H = 1/r everywhere
@@ -106,6 +112,22 @@ def mean_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
         torch.tensor(
             float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device
         ),
+    )
+    
+    ### Set boundary vertices to NaN
+    # The cotangent Laplacian formula assumes a complete neighborhood around each vertex.
+    # For boundary vertices, the formula is not well-defined without additional
+    # boundary conditions. Standard practice: exclude boundary vertices.
+    # TODO: Implement proper boundary treatment (natural/Neumann boundary conditions)
+    from torchmesh.boundaries import get_boundary_vertices
+
+    is_boundary_vertex = get_boundary_vertices(mesh)
+
+    # Set boundary vertices to NaN
+    mean_curvature = torch.where(
+        is_boundary_vertex,
+        torch.tensor(float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device),
+        mean_curvature,
     )
 
     return mean_curvature
