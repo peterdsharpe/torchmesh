@@ -7,6 +7,7 @@ dimensions, and edge cases.
 import pytest
 import torch
 from torchmesh.mesh import Mesh
+from torchmesh.utilities import get_cached
 
 
 ### Fixtures
@@ -234,7 +235,7 @@ class TestPointNormalsEdgeCases:
         normals1 = mesh.point_normals
 
         # Check cached
-        assert "_normals" in mesh.point_data
+        assert get_cached(mesh.point_data, "normals") is not None
 
         # Second access should return cached value
         normals2 = mesh.point_normals

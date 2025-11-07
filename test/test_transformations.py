@@ -13,6 +13,7 @@ import torch
 from torchmesh.io import from_pyvista, to_pyvista
 from torchmesh.mesh import Mesh
 from torchmesh.transformations import translate, rotate, scale, transform
+from torchmesh.utilities import get_cached
 
 
 ### Helper Functions ###
@@ -86,38 +87,36 @@ def validate_caches(mesh, expected_caches: dict[str, bool], atol: float = 1e-6) 
     """Validate that caches exist and are correct."""
     for cache_name, should_exist in expected_caches.items():
         if should_exist:
-            assert cache_name in mesh.cell_data, (
+            cached_value = get_cached(mesh.cell_data, cache_name)
+            assert cached_value is not None, (
                 f"Cache {cache_name} should exist but is missing"
             )
 
-            # Verify cache is correct by deleting and recomputing
-            original_value = mesh.cell_data[cache_name].clone()
-
+            # Verify cache is correct by creating a fresh mesh without cache
             mesh_no_cache = Mesh(
                 points=mesh.points,
                 cells=mesh.cells,
                 point_data=mesh.point_data,
-                cell_data=mesh.cell_data.clone(),
+                cell_data=mesh.cell_data.exclude("_cache"),
                 global_data=mesh.global_data,
             )
-            del mesh_no_cache.cell_data[cache_name]
 
             # Recompute by accessing property
-            if cache_name == "_areas":
+            if cache_name == "areas":
                 recomputed = mesh_no_cache.cell_areas
-            elif cache_name == "_centroids":
+            elif cache_name == "centroids":
                 recomputed = mesh_no_cache.cell_centroids
-            elif cache_name == "_normals":
+            elif cache_name == "normals":
                 recomputed = mesh_no_cache.cell_normals
             else:
                 raise ValueError(f"Unknown cache: {cache_name}")
 
-            assert torch.allclose(original_value, recomputed, atol=atol), (
+            assert torch.allclose(cached_value, recomputed, atol=atol), (
                 f"Cache {cache_name} has incorrect value.\n"
-                f"Max diff: {(original_value - recomputed).abs().max()}"
+                f"Max diff: {(cached_value - recomputed).abs().max()}"
             )
         else:
-            assert cache_name not in mesh.cell_data, (
+            assert get_cached(mesh.cell_data, cache_name) is None, (
                 f"Cache {cache_name} should not exist but is present"
             )
 
@@ -192,34 +191,34 @@ class TestTranslation:
         """Verify translation correctly updates caches across dimensions."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
 
-        original_areas = mesh.cell_data["_areas"].clone()
-        original_centroids = mesh.cell_data["_centroids"].clone()
+        original_areas = get_cached(mesh.cell_data, "areas").clone()
+        original_centroids = get_cached(mesh.cell_data, "centroids").clone()
 
         offset = torch.ones(n_spatial_dims, device=device)
         translated = translate(mesh, offset)
 
         # Validate caches
         expected_caches = {
-            "_areas": True,  # Should exist and be unchanged
-            "_centroids": True,  # Should exist and be translated
+            "areas": True,  # Should exist and be unchanged
+            "centroids": True,  # Should exist and be translated
         }
         if mesh.codimension == 1:
-            original_normals = mesh.cell_data["_normals"].clone()
-            expected_caches["_normals"] = True  # Should exist and be unchanged
+            original_normals = get_cached(mesh.cell_data, "normals").clone()
+            expected_caches["normals"] = True  # Should exist and be unchanged
 
         validate_caches(translated, expected_caches)
 
         # Verify specific values
-        assert torch.allclose(translated.cell_data["_areas"], original_areas), (
+        assert torch.allclose(get_cached(translated.cell_data, "areas"), original_areas), (
             "Areas should be unchanged by translation"
         )
         assert torch.allclose(
-            translated.cell_data["_centroids"],
+            get_cached(translated.cell_data, "centroids"),
             original_centroids + offset,
         ), "Centroids should be translated"
 
         if mesh.codimension == 1:
-            assert torch.allclose(translated.cell_data["_normals"], original_normals), (
+            assert torch.allclose(get_cached(translated.cell_data, "normals"), original_normals), (
                 "Normals should be unchanged by translation"
             )
 
@@ -302,9 +301,9 @@ class TestRotation:
         """Verify rotation preserves areas but transforms centroids and normals."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
 
-        original_areas = mesh.cell_data["_areas"].clone()
-        original_centroids = mesh.cell_data["_centroids"].clone()
-        original_normals = mesh.cell_data["_normals"].clone()
+        original_areas = get_cached(mesh.cell_data, "areas").clone()
+        original_centroids = get_cached(mesh.cell_data, "centroids").clone()
+        original_normals = get_cached(mesh.cell_data, "normals").clone()
 
         # Rotate by 45 degrees
         if n_spatial_dims == 2:
@@ -314,19 +313,19 @@ class TestRotation:
 
         validate_caches(
             rotated,
-            {"_areas": True, "_centroids": True, "_normals": True},
+            {"areas": True, "centroids": True, "normals": True},
         )
 
         # Areas should be preserved (rotation has det=1)
-        assert torch.allclose(rotated.cell_data["_areas"], original_areas), (
+        assert torch.allclose(get_cached(rotated.cell_data, "areas"), original_areas), (
             "Areas should be preserved by rotation"
         )
 
         # Centroids and normals should be different (rotated)
         assert not torch.allclose(
-            rotated.cell_data["_centroids"], original_centroids
+            get_cached(rotated.cell_data, "centroids"), original_centroids
         ), "Centroids should be rotated"
-        assert not torch.allclose(rotated.cell_data["_normals"], original_normals), (
+        assert not torch.allclose(get_cached(rotated.cell_data, "normals"), original_normals), (
             "Normals should be rotated"
         )
 
@@ -384,29 +383,29 @@ class TestScale:
         """Verify uniform scaling correctly updates all caches."""
         mesh = create_mesh_with_caches(n_spatial_dims, n_manifold_dims, device=device)
 
-        original_areas = mesh.cell_data["_areas"].clone()
-        original_centroids = mesh.cell_data["_centroids"].clone()
+        original_areas = get_cached(mesh.cell_data, "areas").clone()
+        original_centroids = get_cached(mesh.cell_data, "centroids").clone()
 
         factor = 2.0
         scaled = scale(mesh, factor)
 
-        validate_caches(scaled, {"_areas": True, "_centroids": True})
+        validate_caches(scaled, {"areas": True, "centroids": True})
 
         # Areas should scale by factor^n_manifold_dims
         expected_areas = original_areas * (factor**n_manifold_dims)
-        assert torch.allclose(scaled.cell_data["_areas"], expected_areas), (
+        assert torch.allclose(get_cached(scaled.cell_data, "areas"), expected_areas), (
             "Areas should scale by factor^n_manifold_dims"
         )
 
         # Centroids should be scaled
         expected_centroids = original_centroids * factor
-        assert torch.allclose(scaled.cell_data["_centroids"], expected_centroids)
+        assert torch.allclose(get_cached(scaled.cell_data, "centroids"), expected_centroids)
 
         # For codim-1 and positive uniform scaling, normals should be unchanged
         if mesh.codimension == 1:
-            original_normals = mesh.cell_data["_normals"].clone()
-            validate_caches(scaled, {"_normals": True})
-            assert torch.allclose(scaled.cell_data["_normals"], original_normals)
+            original_normals = get_cached(mesh.cell_data, "normals").clone()
+            validate_caches(scaled, {"normals": True})
+            assert torch.allclose(get_cached(scaled.cell_data, "normals"), original_normals)
 
     @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
     def test_scale_negative_invalidates_normals(
@@ -418,7 +417,7 @@ class TestScale:
         scaled = scale(mesh, -1.0)
 
         # Normals should be invalidated due to winding order change
-        validate_caches(scaled, {"_areas": True, "_centroids": True, "_normals": False})
+        validate_caches(scaled, {"areas": True, "centroids": True, "normals": False})
 
     @pytest.mark.parametrize("n_spatial_dims,n_manifold_dims", [(2, 1), (3, 2)])
     def test_scale_non_uniform_invalidates_areas_and_normals(
@@ -434,7 +433,7 @@ class TestScale:
 
         # Both areas and normals should be invalidated
         validate_caches(
-            scaled, {"_areas": False, "_centroids": True, "_normals": False}
+            scaled, {"areas": False, "centroids": True, "normals": False}
         )
 
 
@@ -543,18 +542,18 @@ class TestEdgeCases:
 
         # Translate -> Rotate -> Scale
         result = mesh.translate([1, 2, 3])
-        validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
+        validate_caches(result, {"areas": True, "centroids": True, "normals": True})
 
         result = result.rotate([0, 0, 1], np.pi / 4)
-        validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
+        validate_caches(result, {"areas": True, "centroids": True, "normals": True})
 
         result = result.scale(2.0)
-        validate_caches(result, {"_areas": True, "_centroids": True, "_normals": True})
+        validate_caches(result, {"areas": True, "centroids": True, "normals": True})
 
         # Final result should have correctly maintained caches
         # Areas should be scaled by 2^2 = 4
         assert torch.allclose(
-            result.cell_data["_areas"],
-            mesh.cell_data["_areas"] * 4.0,
+            get_cached(result.cell_data, "areas"),
+            get_cached(mesh.cell_data, "areas") * 4.0,
             atol=1e-6,
         )

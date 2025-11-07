@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 from tensordict import TensorDict, tensorclass
 
+from torchmesh.utilities import get_cached, set_cached
+
 
 @tensorclass  # TODO evaluate speed vs. flexiblity tradeoff with tensor_only=True
 class Mesh:
@@ -103,14 +105,16 @@ class Mesh:
         For an n-simplex with vertices (v0, v1, ..., vn), the centroid is:
             centroid = (v0 + v1 + ... + vn) / (n + 1)
 
-        The result is cached in cell_data["_centroids"] for efficiency.
+        The result is cached in cell_data["_cache"]["centroids"] for efficiency.
 
         Returns:
             Tensor of shape (n_cells, n_spatial_dims) containing the centroid of each cell.
         """
-        if "_centroids" not in self.cell_data:
-            self.cell_data["_centroids"] = self.points[self.cells].mean(dim=1)
-        return self.cell_data["_centroids"]
+        cached = get_cached(self.cell_data, "centroids")
+        if cached is None:
+            cached = self.points[self.cells].mean(dim=1)
+            set_cached(self.cell_data, "centroids", cached)
+        return cached
 
     @property
     def cell_areas(self) -> torch.Tensor:
@@ -126,7 +130,8 @@ class Mesh:
         Returns:
             Tensor of shape (n_cells,) containing the volume of each cell.
         """
-        if "_areas" not in self.cell_data:
+        cached = get_cached(self.cell_data, "areas")
+        if cached is None:
             ### Compute relative vectors from first vertex to all others
             # Shape: (n_cells, n_manifold_dims, n_spatial_dims)
             relative_vectors = (
@@ -147,11 +152,12 @@ class Mesh:
             ### Compute volume: sqrt(|det(G)|) / n!
             import math
 
-            self.cell_data["_areas"] = gram_matrix.det().abs().sqrt() / math.factorial(
+            cached = gram_matrix.det().abs().sqrt() / math.factorial(
                 self.n_manifold_dims
             )
+            set_cached(self.cell_data, "areas", cached)
 
-        return self.cell_data["_areas"]
+        return cached
 
     @property
     def cell_normals(self) -> torch.Tensor:
@@ -183,7 +189,8 @@ class Mesh:
         Raises:
             ValueError: If the mesh is not codimension-1 (n_manifold_dims ≠ n_spatial_dims - 1).
         """
-        if "_normals" not in self.cell_data:
+        cached = get_cached(self.cell_data, "normals")
+        if cached is None:
             ### Validate codimension-1 requirement
             if self.codimension != 1:
                 raise ValueError(
@@ -228,9 +235,10 @@ class Mesh:
             normals = torch.stack(
                 normal_components, dim=-1
             )  # (n_cells, n_spatial_dims)
-            self.cell_data["_normals"] = F.normalize(normals, dim=-1, eps=1e-30)
+            cached = F.normalize(normals, dim=-1, eps=1e-30)
+            set_cached(self.cell_data, "normals", cached)
 
-        return self.cell_data["_normals"]
+        return cached
 
     @property
     def point_normals(self) -> torch.Tensor:
@@ -251,7 +259,7 @@ class Mesh:
         cell has a unique normal direction. For higher codimensions, normals are
         ambiguous and this property will raise an error.
 
-        The result is cached in point_data["_normals"] for efficiency.
+        The result is cached in point_data["_cache"]["normals"] for efficiency.
 
         Returns:
             Tensor of shape (n_points, n_spatial_dims) containing unit normal vectors
@@ -268,7 +276,8 @@ class Mesh:
             >>> # Normals are unit vectors (or zero for isolated points)
             >>> assert torch.allclose(normals.norm(dim=-1), torch.ones(mesh.n_points), atol=1e-6)
         """
-        if "_normals" not in self.point_data:
+        cached = get_cached(self.point_data, "normals")
+        if cached is None:
             ### Validate codimension-1 requirement (same as cell_normals)
             if self.codimension != 1:
                 raise ValueError(
@@ -335,11 +344,10 @@ class Mesh:
 
             ### Normalize to get unit normals
             # For isolated points (zero weighted sum), F.normalize returns zero vector
-            self.point_data["_normals"] = F.normalize(
-                weighted_normals, dim=-1, eps=1e-12
-            )
+            cached = F.normalize(weighted_normals, dim=-1, eps=1e-12)
+            set_cached(self.point_data, "normals", cached)
 
-        return self.point_data["_normals"]
+        return cached
 
     @property
     def gaussian_curvature_vertices(self) -> torch.Tensor:
@@ -356,7 +364,7 @@ class Mesh:
         - Zero: Flat/parabolic (plane-like)
         - Negative: Hyperbolic/saddle (saddle-like)
 
-        The result is cached in point_data["_gaussian_curvature"] for efficiency.
+        The result is cached in point_data["_cache"]["gaussian_curvature"] for efficiency.
 
         Returns:
             Tensor of shape (n_points,) containing signed Gaussian curvature.
@@ -372,12 +380,14 @@ class Mesh:
             Satisfies discrete Gauss-Bonnet theorem:
                 Σ_vertices (K_i * A_i) = 2π * χ(M)
         """
-        if "_gaussian_curvature" not in self.point_data:
+        cached = get_cached(self.point_data, "gaussian_curvature")
+        if cached is None:
             from torchmesh.curvature import gaussian_curvature_vertices
 
-            self.point_data["_gaussian_curvature"] = gaussian_curvature_vertices(self)
+            cached = gaussian_curvature_vertices(self)
+            set_cached(self.point_data, "gaussian_curvature", cached)
 
-        return self.point_data["_gaussian_curvature"]
+        return cached
 
     @property
     def gaussian_curvature_cells(self) -> torch.Tensor:
@@ -386,7 +396,7 @@ class Mesh:
         Treats cell centroids as vertices of a dual mesh and computes curvature
         based on angles between connections to adjacent cell centroids.
 
-        The result is cached in cell_data["_gaussian_curvature"] for efficiency.
+        The result is cached in cell_data["_cache"]["gaussian_curvature"] for efficiency.
 
         Returns:
             Tensor of shape (n_cells,) containing Gaussian curvature at cells.
@@ -394,12 +404,14 @@ class Mesh:
         Example:
             >>> K_cells = mesh.gaussian_curvature_cells
         """
-        if "_gaussian_curvature" not in self.cell_data:
+        cached = get_cached(self.cell_data, "gaussian_curvature")
+        if cached is None:
             from torchmesh.curvature import gaussian_curvature_cells
 
-            self.cell_data["_gaussian_curvature"] = gaussian_curvature_cells(self)
+            cached = gaussian_curvature_cells(self)
+            set_cached(self.cell_data, "gaussian_curvature", cached)
 
-        return self.cell_data["_gaussian_curvature"]
+        return cached
 
     @property
     def mean_curvature_vertices(self) -> torch.Tensor:
@@ -418,7 +430,7 @@ class Mesh:
         - Negative: Concave (sphere interior with outward normals)
         - Zero: Minimal surface (soap film)
 
-        The result is cached in point_data["_mean_curvature"] for efficiency.
+        The result is cached in point_data["_cache"]["mean_curvature"] for efficiency.
 
         Returns:
             Tensor of shape (n_points,) containing signed mean curvature.
@@ -433,12 +445,14 @@ class Mesh:
             >>> H = sphere.mean_curvature_vertices
             >>> assert H.mean() ≈ 0.5
         """
-        if "_mean_curvature" not in self.point_data:
+        cached = get_cached(self.point_data, "mean_curvature")
+        if cached is None:
             from torchmesh.curvature import mean_curvature_vertices
 
-            self.point_data["_mean_curvature"] = mean_curvature_vertices(self)
+            cached = mean_curvature_vertices(self)
+            set_cached(self.point_data, "mean_curvature", cached)
 
-        return self.point_data["_mean_curvature"]
+        return cached
 
     @classmethod
     def merge(
@@ -655,9 +669,7 @@ class Mesh:
         """
         ### Check for key conflicts
         if not overwrite_keys:
-            for key in self.cell_data.keys():
-                if isinstance(key, str) and key.startswith("_"):
-                    continue  # Skip cached properties
+            for key in self.cell_data.exclude("_cache").keys():
                 if key in self.point_data.keys():
                     raise ValueError(
                         f"Key {key!r} already exists in point_data. "
@@ -667,10 +679,7 @@ class Mesh:
         ### Convert each cell data field to point data
         new_point_data = self.point_data.clone()
 
-        for key, cell_values in self.cell_data.items():
-            # Skip cached properties
-            if isinstance(key, str) and key.startswith("_"):
-                continue
+        for key, cell_values in self.cell_data.exclude("_cache").items():
 
             ### Vectorized approach: use scatter operations to accumulate
             # For each cell, we need to add its value to all its vertices
@@ -778,9 +787,7 @@ class Mesh:
         """
         ### Check for key conflicts
         if not overwrite_keys:
-            for key in self.point_data.keys():
-                if isinstance(key, str) and key.startswith("_"):
-                    continue  # Skip cached properties
+            for key in self.point_data.exclude("_cache").keys():
                 if key in self.cell_data.keys():
                     raise ValueError(
                         f"Key {key!r} already exists in cell_data. "
@@ -790,10 +797,7 @@ class Mesh:
         ### Convert each point data field to cell data
         new_cell_data = self.cell_data.clone()
 
-        for key, point_values in self.point_data.items():
-            # Skip cached properties
-            if isinstance(key, str) and key.startswith("_"):
-                continue
+        for key, point_values in self.point_data.exclude("_cache").items():
 
             # Get point values for each cell and average
             # cell_point_values shape: (n_cells, n_vertices_per_cell, ...)
@@ -893,17 +897,9 @@ class Mesh:
         )
 
         ### Create and return new Mesh
-        # Filter out cached properties from point_data (keys starting with "_")
+        # Filter out cached properties from point_data
         # Cached geometric properties depend on cell connectivity and would be invalid
-        filtered_point_data = TensorDict(
-            {
-                k: v
-                for k, v in self.point_data.items()
-                if not (isinstance(k, str) and k.startswith("_"))
-            },
-            batch_size=self.point_data.batch_size,
-            device=self.point_data.device,
-        )
+        filtered_point_data = self.point_data.exclude("_cache")
 
         return Mesh(
             points=self.points,  # Share the same points

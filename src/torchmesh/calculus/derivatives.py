@@ -21,7 +21,7 @@ def _parse_keys(
 
     Args:
         keys: Field specification. Can be:
-            - None: All non-cached fields (not starting with "_")
+            - None: All non-cached fields (excluding "_cache")
             - str: Single field name
             - tuple[str, ...]: Nested TensorDict path
             - Sequence: List of any of the above
@@ -34,11 +34,7 @@ def _parse_keys(
     """
     if keys is None:
         # All non-cached fields
-        result = []
-        for key in data_dict.keys():
-            if isinstance(key, str) and not key.startswith("_"):
-                result.append((key, key))
-        return result
+        return [(key, key) for key in data_dict.exclude("_cache").keys()]
 
     elif isinstance(keys, str):
         # Single string key

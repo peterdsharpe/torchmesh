@@ -402,16 +402,8 @@ def extract_facet_mesh_data(
     if data_source == "cells":
         ### Aggregate data from parent cells
         if len(parent_mesh.cell_data.keys()) > 0:
-            ### Filter out cached properties (starting with _)
-            filtered_cell_data = TensorDict(
-                {
-                    k: v
-                    for k, v in parent_mesh.cell_data.items()
-                    if not k.startswith("_")
-                },
-                batch_size=parent_mesh.cell_data.batch_size,
-                device=parent_mesh.cell_data.device,
-            )
+            ### Filter out cached properties
+            filtered_cell_data = parent_mesh.cell_data.exclude("_cache")
 
             if len(filtered_cell_data.keys()) > 0:
                 ### Prepare parent cell areas and centroids if needed

@@ -9,6 +9,7 @@ import math
 import pytest
 import torch
 from torchmesh.mesh import Mesh
+from torchmesh.utilities import get_cached
 
 
 ### Fixtures
@@ -480,8 +481,8 @@ class TestCurvatureEdgeCases:
         H1 = mesh.mean_curvature_vertices
 
         # Check cached
-        assert "_gaussian_curvature" in mesh.point_data
-        assert "_mean_curvature" in mesh.point_data
+        assert get_cached(mesh.point_data, "gaussian_curvature") is not None
+        assert get_cached(mesh.point_data, "mean_curvature") is not None
 
         # Second access should return same values
         K2 = mesh.gaussian_curvature_vertices

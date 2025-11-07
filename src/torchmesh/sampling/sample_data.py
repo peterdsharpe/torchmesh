@@ -499,10 +499,7 @@ def sample_data_at_points(
     )
 
     ### Sample each field in the source_data
-    for key, values in source_data.items():
-        # Skip cached properties
-        if key.startswith("_"):
-            continue
+    for key, values in source_data.exclude("_cache").items():
 
         # Determine output shape
         if values.ndim == 1:

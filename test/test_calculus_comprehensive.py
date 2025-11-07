@@ -332,17 +332,20 @@ class TestKeyParsing:
     """Test various key input formats."""
 
     def test_none_keys_all_fields(self, simple_tet_mesh):
-        """Test keys=None computes all non-cached fields."""
+        """Test keys=None computes all non-cached fields (excludes "_cache" sub-dict)."""
+        from torchmesh.utilities import set_cached
+
         mesh = simple_tet_mesh
         mesh.point_data["field1"] = torch.ones(mesh.n_points)
         mesh.point_data["field2"] = torch.ones(mesh.n_points)
-        mesh.point_data["_cached"] = torch.ones(mesh.n_points)  # Should skip
+        set_cached(mesh.point_data, "test_value", torch.ones(mesh.n_points))  # Should skip
 
         mesh_grad = mesh.compute_point_derivatives(keys=None)
 
         assert "field1_gradient" in mesh_grad.point_data.keys()
         assert "field2_gradient" in mesh_grad.point_data.keys()
-        assert "_cached_gradient" not in mesh_grad.point_data.keys()
+        # Cached values should not have gradients computed
+        assert "test_value_gradient" not in mesh_grad.point_data.keys()
 
     def test_nested_tensordict_keys(self, simple_tet_mesh):
         """Test nested TensorDict access."""

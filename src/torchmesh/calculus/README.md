@@ -148,7 +148,7 @@ src/torchmesh/calculus/
 - **LSQ gradient**: O(n_points × avg_degree), vectorized with batched linear algebra
 - **Divergence/Curl**: Same as gradient (computed from component gradients)
 - **DEC Laplacian**: O(n_edges), highly efficient, fully vectorized
-- **Memory**: Minimal overhead, caches intermediate results in mesh.point_data
+- **Memory**: Minimal overhead, caches intermediate results in mesh.point_data["_cache"]
 
 ## Accuracy
 

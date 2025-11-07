@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 import torch
 from tensordict import TensorDict
 
+from torchmesh.utilities import get_cached, set_cached
+
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
@@ -179,27 +181,25 @@ def _handle_caches_for_transform(
     Returns:
         Updated cell_data TensorDict with transformed/invalidated caches
     """
-    new_cell_data = mesh.cell_data.clone()
+    # Start with non-cache data
+    new_cell_data = mesh.cell_data.exclude("_cache")
 
     ### Areas: scale by determinant formula (square matrices only)
     if matrix.shape[0] == matrix.shape[1]:  # Square matrix
-        if "_areas" in new_cell_data:
+        cached_areas = get_cached(mesh.cell_data, "areas")
+        if cached_areas is not None:
             det = torch.det(matrix)
             # Areas scale by |det|^(n_manifold_dims / n_spatial_dims)
             scale_factor = abs(det) ** (mesh.n_manifold_dims / mesh.n_spatial_dims)
-            new_cell_data["_areas"] = mesh.cell_data["_areas"] * scale_factor
-    else:
-        # Non-square matrix: projection changes dimensionality, invalidate areas
-        if "_areas" in new_cell_data:
-            del new_cell_data["_areas"]
+            set_cached(new_cell_data, "areas", cached_areas * scale_factor)
+    # else: Non-square matrix: projection changes dimensionality, don't add areas to cache
 
     ### Centroids: always transform (geometric property)
-    if "_centroids" in new_cell_data:
-        new_cell_data["_centroids"] = mesh.cell_data["_centroids"] @ matrix.T
+    cached_centroids = get_cached(mesh.cell_data, "centroids")
+    if cached_centroids is not None:
+        set_cached(new_cell_data, "centroids", cached_centroids @ matrix.T)
 
-    ### Normals: invalidate for general transforms (direction changes for non-orthogonal)
-    if "_normals" in new_cell_data:
-        del new_cell_data["_normals"]
+    ### Normals: invalidate for general transforms (not added back to cache)
 
     return new_cell_data
 
@@ -220,18 +220,22 @@ def _handle_caches_for_rotation(
     Returns:
         Updated cell_data TensorDict with rotated caches
     """
-    new_cell_data = mesh.cell_data.clone()
+    new_cell_data = mesh.cell_data.exclude("_cache")
 
-    ### Areas: unchanged (det(R) = 1 for rotations)
-    # _areas: keep as-is
+    ### Areas: unchanged (det(R) = 1 for rotations), keep if present
+    cached_areas = get_cached(mesh.cell_data, "areas")
+    if cached_areas is not None:
+        set_cached(new_cell_data, "areas", cached_areas)
 
     ### Centroids: rotate (geometric property, always transform)
-    if "_centroids" in new_cell_data:
-        new_cell_data["_centroids"] = mesh.cell_data["_centroids"] @ rotation_matrix.T
+    cached_centroids = get_cached(mesh.cell_data, "centroids")
+    if cached_centroids is not None:
+        set_cached(new_cell_data, "centroids", cached_centroids @ rotation_matrix.T)
 
     ### Normals: rotate (geometric property, always transform)
-    if "_normals" in new_cell_data:
-        new_cell_data["_normals"] = mesh.cell_data["_normals"] @ rotation_matrix.T
+    cached_normals = get_cached(mesh.cell_data, "normals")
+    if cached_normals is not None:
+        set_cached(new_cell_data, "normals", cached_normals @ rotation_matrix.T)
 
     return new_cell_data
 
@@ -249,25 +253,26 @@ def _handle_caches_for_uniform_scale(
     Returns:
         Updated cell_data TensorDict with scaled caches
     """
-    new_cell_data = mesh.cell_data.clone()
+    new_cell_data = mesh.cell_data.exclude("_cache")
 
     ### Areas: scale by |factor|^n_manifold_dims
-    if "_areas" in new_cell_data:
-        new_cell_data["_areas"] = mesh.cell_data["_areas"] * (
-            abs(factor) ** mesh.n_manifold_dims
+    cached_areas = get_cached(mesh.cell_data, "areas")
+    if cached_areas is not None:
+        set_cached(
+            new_cell_data, "areas", cached_areas * (abs(factor) ** mesh.n_manifold_dims)
         )
 
     ### Centroids: scale
-    if "_centroids" in new_cell_data:
-        new_cell_data["_centroids"] = mesh.cell_data["_centroids"] * factor
+    cached_centroids = get_cached(mesh.cell_data, "centroids")
+    if cached_centroids is not None:
+        set_cached(new_cell_data, "centroids", cached_centroids * factor)
 
-    ### Normals: invalidate if negative (winding order changes), else keep
-    if "_normals" in new_cell_data:
-        if factor < 0:
-            # Negative scaling reflects through origin, changing winding order
-            # This means recomputed normals will be different, so invalidate
-            del new_cell_data["_normals"]
-        # else: keep as-is (positive uniform scaling preserves directions)
+    ### Normals: keep if positive scaling, invalidate if negative (winding order changes)
+    if factor >= 0:
+        cached_normals = get_cached(mesh.cell_data, "normals")
+        if cached_normals is not None:
+            set_cached(new_cell_data, "normals", cached_normals)
+    # else: negative scaling invalidates normals (not added back to cache)
 
     return new_cell_data
 
@@ -337,11 +342,8 @@ def transform(
 
     ### Transform user data if requested
     if transform_data:
-        # Transform point_data
+        # Transform point_data (excluding cache, which doesn't need transformation)
         def transform_point_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value  # Skip cached properties
-
             shape = value.shape[1:]
 
             # Skip scalars (no spatial structure to transform)
@@ -368,17 +370,13 @@ def transform(
                     f"but got shape[1:] = {shape}"
                 )
 
-        new_point_data = mesh.point_data.apply(
+        new_point_data = mesh.point_data.exclude("_cache").named_apply(
             transform_point_data,
             batch_size=torch.Size([mesh.n_points]),
-            named=True,
         )
 
-        # Transform cell_data (skip cached properties which are already handled)
+        # Transform cell_data (cache already handled, only transform user data)
         def transform_cell_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value  # Already handled in cache logic
-
             shape = value.shape[1:]
 
             # Skip scalars
@@ -405,11 +403,13 @@ def transform(
                     f"but got shape[1:] = {shape}"
                 )
 
-        new_cell_data = new_cell_data.apply(
+        # Apply transformation and merge with cached data
+        transformed_user_data = new_cell_data.exclude("_cache").named_apply(
             transform_cell_data,
             batch_size=torch.Size([mesh.n_cells]),
-            named=True,
         )
+        # Merge transformed user data with cache handling results
+        new_cell_data.update(transformed_user_data)
     else:
         new_point_data = mesh.point_data
 
@@ -476,17 +476,22 @@ def translate(mesh: "Mesh", offset: torch.Tensor | list | tuple) -> "Mesh":
     new_points = mesh.points + offset
 
     ### Handle caches
-    new_cell_data = mesh.cell_data.clone()
+    new_cell_data = mesh.cell_data.exclude("_cache")
 
-    # Areas: unchanged
-    # _areas: keep as-is
+    # Areas: unchanged, keep if present
+    cached_areas = get_cached(mesh.cell_data, "areas")
+    if cached_areas is not None:
+        set_cached(new_cell_data, "areas", cached_areas)
 
     # Centroids: translate
-    if "_centroids" in new_cell_data:
-        new_cell_data["_centroids"] = mesh.cell_data["_centroids"] + offset
+    cached_centroids = get_cached(mesh.cell_data, "centroids")
+    if cached_centroids is not None:
+        set_cached(new_cell_data, "centroids", cached_centroids + offset)
 
-    # Normals: unchanged
-    # _normals: keep as-is
+    # Normals: unchanged, keep if present
+    cached_normals = get_cached(mesh.cell_data, "normals")
+    if cached_normals is not None:
+        set_cached(new_cell_data, "normals", cached_normals)
 
     ### Create new mesh
     from torchmesh.mesh import Mesh
@@ -595,9 +600,6 @@ def rotate(
     if transform_data:
 
         def transform_point_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value
-
             shape = value.shape[1:]
 
             # Skip scalars
@@ -624,16 +626,12 @@ def rotate(
                     f"but got shape[1:] = {shape}"
                 )
 
-        new_point_data = mesh.point_data.apply(
+        new_point_data = mesh.point_data.exclude("_cache").named_apply(
             transform_point_data,
             batch_size=torch.Size([mesh.n_points]),
-            named=True,
         )
 
         def transform_cell_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value
-
             shape = value.shape[1:]
 
             # Skip scalars
@@ -781,30 +779,23 @@ def scale(
         new_cell_data = _handle_caches_for_uniform_scale(mesh, factor_scalar)
     else:
         # Non-uniform scaling
-        new_cell_data = mesh.cell_data.clone()
+        new_cell_data = mesh.cell_data.exclude("_cache")
 
         # Areas: invalidate (determinant formula doesn't work for embedded manifolds)
-        # For a k-manifold in n-space with non-uniform scaling, the area scaling
-        # depends on how the transformation affects the tangent space, which varies
-        # across the mesh. Simpler to just invalidate and recompute when needed.
-        if "_areas" in new_cell_data:
-            del new_cell_data["_areas"]
+        # Not added back to cache
 
         # Centroids: scale component-wise
-        if "_centroids" in new_cell_data:
-            new_cell_data["_centroids"] = mesh.cell_data["_centroids"] @ scale_matrix.T
+        cached_centroids = get_cached(mesh.cell_data, "centroids")
+        if cached_centroids is not None:
+            set_cached(new_cell_data, "centroids", cached_centroids @ scale_matrix.T)
 
         # Normals: invalidate (directions change with non-uniform scaling)
-        if "_normals" in new_cell_data:
-            del new_cell_data["_normals"]
+        # Not added back to cache
 
     ### Transform user data if requested
     if transform_data:
 
         def transform_point_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value
-
             shape = value.shape[1:]
 
             # Skip scalars
@@ -831,16 +822,12 @@ def scale(
                     f"but got shape[1:] = {shape}"
                 )
 
-        new_point_data = mesh.point_data.apply(
+        new_point_data = mesh.point_data.exclude("_cache").named_apply(
             transform_point_data,
             batch_size=torch.Size([mesh.n_points]),
-            named=True,
         )
 
         def transform_cell_data(key, value):
-            if isinstance(key, str) and key.startswith("_"):
-                return value
-
             shape = value.shape[1:]
 
             # Skip scalars
@@ -867,11 +854,12 @@ def scale(
                     f"but got shape[1:] = {shape}"
                 )
 
-        new_cell_data = new_cell_data.apply(
+        # Apply transformation and merge with cached data
+        transformed_user_data = new_cell_data.exclude("_cache").named_apply(
             transform_cell_data,
             batch_size=torch.Size([mesh.n_cells]),
-            named=True,
         )
+        new_cell_data.update(transformed_user_data)
     else:
         new_point_data = mesh.point_data
 

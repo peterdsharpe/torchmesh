@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from torchmesh.utilities import get_cached, set_cached
+
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
@@ -376,9 +378,11 @@ def get_or_compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
     Returns:
         Dual volumes for vertices, shape (n_points,)
     """
-    if "_dual_volumes_0" not in mesh.point_data:
-        mesh.point_data["_dual_volumes_0"] = compute_dual_volumes_0(mesh)
-    return mesh.point_data["_dual_volumes_0"]
+    cached = get_cached(mesh.point_data, "dual_volumes_0")
+    if cached is None:
+        cached = compute_dual_volumes_0(mesh)
+        set_cached(mesh.point_data, "dual_volumes_0", cached)
+    return cached
 
 
 def get_or_compute_circumcenters(mesh: "Mesh") -> torch.Tensor:
@@ -390,7 +394,9 @@ def get_or_compute_circumcenters(mesh: "Mesh") -> torch.Tensor:
     Returns:
         Circumcenters for all cells, shape (n_cells, n_spatial_dims)
     """
-    if "_circumcenters" not in mesh.cell_data:
+    cached = get_cached(mesh.cell_data, "circumcenters")
+    if cached is None:
         parent_cell_vertices = mesh.points[mesh.cells]
-        mesh.cell_data["_circumcenters"] = compute_circumcenters(parent_cell_vertices)
-    return mesh.cell_data["_circumcenters"]
+        cached = compute_circumcenters(parent_cell_vertices)
+        set_cached(mesh.cell_data, "circumcenters", cached)
+    return cached

@@ -593,18 +593,21 @@ class TestRotateDataTransformEdgeCases:
             rotate(mesh, axis=[0, 0, 1], angle=np.pi / 2, transform_data=True)
 
     def test_rotate_cell_data_skips_cached(self):
-        """Test that rotate skips cached cell_data fields."""
+        """Test that rotate skips cached cell_data fields (under "_cache")."""
+        from torchmesh.utilities import set_cached, get_cached
+
         points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]])
         cells = torch.tensor([[0, 1, 2]])
         mesh = Mesh(points=points, cells=cells)
 
         # Cached field
-        mesh.cell_data["_cached"] = torch.ones(mesh.n_cells, 3)
+        set_cached(mesh.cell_data, "test_vector", torch.ones(mesh.n_cells, 3))
 
         rotated = rotate(mesh, axis=[0, 0, 1], angle=np.pi / 2, transform_data=True)
 
-        # Should not be transformed
-        assert torch.allclose(rotated.cell_data["_cached"], mesh.cell_data["_cached"])
+        # Cache should not be transformed (not included in user data transformation)
+        # The cache is preserved but not included in the transformation
+        assert "_cache" not in rotated.cell_data or get_cached(rotated.cell_data, "test_vector") is None
 
     def test_rotate_cell_data_wrong_shape_raises(self):
         """Test rotate raises for cell_data with wrong shape."""
@@ -634,16 +637,19 @@ class TestScaleDataTransformEdgeCases:
     """Test scale() with transform_data covering all paths."""
 
     def test_scale_data_skips_cached(self):
-        """Test scale skips cached fields."""
+        """Test scale skips cached fields (under "_cache")."""
+        from torchmesh.utilities import set_cached, get_cached
+
         points = torch.tensor([[1.0, 0.0]])
         cells = torch.tensor([[0]])
         mesh = Mesh(points=points, cells=cells)
 
-        mesh.point_data["_cached"] = torch.tensor([[1.0, 2.0]])
+        set_cached(mesh.point_data, "test_vector", torch.tensor([[1.0, 2.0]]))
 
         scaled = scale(mesh, factor=2.0, transform_data=True)
 
-        assert torch.allclose(scaled.point_data["_cached"], mesh.point_data["_cached"])
+        # Cache should not be transformed (excluded from user data transformation)
+        assert "_cache" not in scaled.point_data or get_cached(scaled.point_data, "test_vector") is None
 
     def test_scale_data_wrong_shape_raises(self):
         """Test scale raises for fields with wrong shape."""

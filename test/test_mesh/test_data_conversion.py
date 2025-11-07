@@ -8,6 +8,7 @@ import pytest
 import torch
 
 from torchmesh.mesh import Mesh
+from torchmesh.utilities import get_cached
 
 
 ### Helper Functions ###
@@ -210,19 +211,19 @@ class TestCellDataToPointData:
         )
 
     def test_skips_cached_properties(self):
-        """Test that cached properties (starting with _) are skipped."""
+        """Test that cached properties (under "_cache") are skipped."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
         cells = torch.tensor([[0, 1, 2]])
         mesh = Mesh(points=points, cells=cells)
 
         ### Access a cached property
-        _ = mesh.cell_centroids  # This creates _centroids in cell_data
+        _ = mesh.cell_centroids  # This creates cache
 
         ### Convert
         result = mesh.cell_data_to_point_data()
 
-        ### Cached property should not be in point_data
-        assert "_centroids" not in result.point_data
+        ### Cached property should not be in point_data (should not leak from cell_data)
+        assert get_cached(result.point_data, "centroids") is None
 
 
 class TestPointDataToCellData:
@@ -332,20 +333,21 @@ class TestPointDataToCellData:
         assert torch.allclose(result.cell_data["value"], expected)
 
     def test_skips_cached_properties(self):
-        """Test that cached properties are skipped."""
+        """Test that cached properties (under "_cache") are skipped."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
         cells = torch.tensor([[0, 1, 2]])
-        mesh = Mesh(
-            points=points,
-            cells=cells,
-            point_data={"_cached": torch.tensor([1.0, 2.0, 3.0])},
-        )
+        mesh = Mesh(points=points, cells=cells)
+
+        ### Manually add a cached property
+        from torchmesh.utilities import set_cached
+
+        set_cached(mesh.point_data, "test_cached_value", torch.tensor([1.0, 2.0, 3.0]))
 
         ### Convert
         result = mesh.point_data_to_cell_data()
 
-        ### Cached property should not be in cell_data
-        assert "_cached" not in result.cell_data
+        ### Cached property should not be converted to cell_data
+        assert get_cached(result.cell_data, "test_cached_value") is None
 
     def test_3d_tetrahedral_mesh(self):
         """Test on 3D tetrahedral mesh."""
@@ -574,8 +576,8 @@ class TestDataConversionParametrized:
         result = mesh.cell_data_to_point_data()
 
         # Cached properties should not be converted
-        assert "_centroids" not in result.point_data
-        assert "_areas" not in result.point_data
+        assert get_cached(result.point_data, "centroids") is None
+        assert get_cached(result.point_data, "areas") is None
 
     @pytest.mark.parametrize(
         "n_spatial_dims,n_manifold_dims",

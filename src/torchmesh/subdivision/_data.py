@@ -94,11 +94,7 @@ def interpolate_point_data_to_edges(
             raise TypeError(f"Unsupported field type: {type(field_data)}")
 
     ### Process all fields
-    for key, value in point_data.items():
-        # Skip cached properties (start with _)
-        if isinstance(key, str) and key.startswith("_"):
-            continue
-
+    for key, value in point_data.exclude("_cache").items():
         new_point_data[key] = interpolate_field(value)
 
     return new_point_data
@@ -174,11 +170,7 @@ def propagate_cell_data_to_children(
             raise TypeError(f"Unsupported field type: {type(field_data)}")
 
     ### Process all fields
-    for key, value in cell_data.items():
-        # Skip cached properties (start with _)
-        if isinstance(key, str) and key.startswith("_"):
-            continue
-
+    for key, value in cell_data.exclude("_cache").items():
         new_cell_data[key] = propagate_field(value)
 
     return new_cell_data
