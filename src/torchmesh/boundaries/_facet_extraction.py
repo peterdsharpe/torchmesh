@@ -210,50 +210,6 @@ def _aggregate_tensor_data(
     return aggregated_data
 
 
-def _aggregate_data_recursive(
-    parent_data: torch.Tensor | TensorDict,
-    parent_cell_indices: torch.Tensor,
-    inverse_indices: torch.Tensor,
-    n_unique_facets: int,
-    aggregation_weights: torch.Tensor | None,
-) -> torch.Tensor | TensorDict:
-    """Recursively aggregate data that may be Tensor or nested TensorDict.
-
-    Args:
-        parent_data: Data to aggregate (Tensor or nested TensorDict)
-        parent_cell_indices: Which parent cell each candidate facet came from
-        inverse_indices: Mapping from candidate facets to unique facets
-        n_unique_facets: Number of unique facets
-        aggregation_weights: Optional weights for aggregation
-
-    Returns:
-        Aggregated data (same type as input)
-    """
-    if isinstance(parent_data, TensorDict):
-        ### Recursively aggregate each field in the TensorDict
-        aggregated_fields = {}
-        for key, value in parent_data.items():
-            aggregated_fields[key] = _aggregate_data_recursive(
-                value,
-                parent_cell_indices,
-                inverse_indices,
-                n_unique_facets,
-                aggregation_weights,
-            )
-        return TensorDict(
-            aggregated_fields,
-            batch_size=torch.Size([n_unique_facets]),
-            device=parent_data.device,
-        )
-    else:
-        ### Must be a Tensor - aggregate it
-        return _aggregate_tensor_data(
-            parent_data,
-            parent_cell_indices,
-            inverse_indices,
-            n_unique_facets,
-            aggregation_weights,
-        )
 
 
 def deduplicate_and_aggregate_facets(
@@ -285,14 +241,17 @@ def deduplicate_and_aggregate_facets(
         return_inverse=True,
     )
 
-    ### Aggregate data using recursive helper (handles nested TensorDicts)
+    ### Aggregate data using TensorDict.apply() (handles nested TensorDicts automatically)
     n_unique_facets = len(unique_facets)
-    aggregated_data = _aggregate_data_recursive(
-        parent_data=parent_cell_data,
-        parent_cell_indices=parent_cell_indices,
-        inverse_indices=inverse_indices,
-        n_unique_facets=n_unique_facets,
-        aggregation_weights=aggregation_weights,
+    aggregated_data = parent_cell_data.apply(
+        lambda tensor: _aggregate_tensor_data(
+            tensor,
+            parent_cell_indices,
+            inverse_indices,
+            n_unique_facets,
+            aggregation_weights,
+        ),
+        batch_size=torch.Size([n_unique_facets]),
     )
 
     return unique_facets, aggregated_data, inverse_indices
@@ -467,69 +426,49 @@ def _aggregate_point_data_to_facets(
         Facet cell data (averaged from points)
     """
 
-    def _aggregate_point_field(
-        field_data: torch.Tensor | TensorDict,
-    ) -> torch.Tensor | TensorDict:
-        """Recursively aggregate a field (Tensor or nested TensorDict)."""
-        if isinstance(field_data, TensorDict):
-            ### Recursively process nested TensorDict
-            aggregated_fields = {}
-            for key, value in field_data.items():
-                aggregated_fields[key] = _aggregate_point_field(value)
-            return TensorDict(
-                aggregated_fields,
-                batch_size=torch.Size([n_unique_facets]),
-                device=field_data.device,
-            )
-        elif isinstance(field_data, torch.Tensor):
-            ### Gather point data for vertices of each candidate facet
-            # Shape: (n_candidate_facets, n_vertices_per_facet, *data_shape)
-            facet_point_data = field_data[candidate_facets]
+    def _aggregate_point_tensor(tensor: torch.Tensor) -> torch.Tensor:
+        """Aggregate a single tensor from points to facets."""
+        ### Gather point data for vertices of each candidate facet
+        # Shape: (n_candidate_facets, n_vertices_per_facet, *data_shape)
+        facet_point_data = tensor[candidate_facets]
 
-            ### Average over vertices to get candidate facet data
-            # Shape: (n_candidate_facets, *data_shape)
-            candidate_facet_data = facet_point_data.mean(dim=1)
+        ### Average over vertices to get candidate facet data
+        # Shape: (n_candidate_facets, *data_shape)
+        candidate_facet_data = facet_point_data.mean(dim=1)
 
-            ### Aggregate to unique facets
-            data_shape = candidate_facet_data.shape[1:]
-            aggregated_data = torch.zeros(
-                (n_unique_facets, *data_shape),
-                dtype=candidate_facet_data.dtype,
-                device=candidate_facet_data.device,
-            )
+        ### Aggregate to unique facets
+        data_shape = candidate_facet_data.shape[1:]
+        aggregated_data = torch.zeros(
+            (n_unique_facets, *data_shape),
+            dtype=candidate_facet_data.dtype,
+            device=candidate_facet_data.device,
+        )
 
-            aggregated_data.scatter_add_(
-                dim=0,
-                index=inverse_indices.view(-1, *([1] * len(data_shape))).expand_as(
-                    candidate_facet_data
-                ),
-                src=candidate_facet_data,
-            )
+        aggregated_data.scatter_add_(
+            dim=0,
+            index=inverse_indices.view(-1, *([1] * len(data_shape))).expand_as(
+                candidate_facet_data
+            ),
+            src=candidate_facet_data,
+        )
 
-            ### Count facets and normalize
-            facet_counts = torch.zeros(
-                n_unique_facets, dtype=torch.float32, device=candidate_facet_data.device
-            )
-            facet_counts.scatter_add_(
-                dim=0,
-                index=inverse_indices,
-                src=torch.ones_like(inverse_indices, dtype=torch.float32),
-            )
+        ### Count facets and normalize
+        facet_counts = torch.zeros(
+            n_unique_facets, dtype=torch.float32, device=candidate_facet_data.device
+        )
+        facet_counts.scatter_add_(
+            dim=0,
+            index=inverse_indices,
+            src=torch.ones_like(inverse_indices, dtype=torch.float32),
+        )
 
-            aggregated_data = aggregated_data / facet_counts.view(
-                -1, *([1] * len(data_shape))
-            )
-            return aggregated_data
-        else:
-            raise TypeError(f"Unsupported type: {type(field_data)}")
+        aggregated_data = aggregated_data / facet_counts.view(
+            -1, *([1] * len(data_shape))
+        )
+        return aggregated_data
 
-    ### Process all fields recursively
-    aggregated_fields = {}
-    for key, value in point_data.items():
-        aggregated_fields[key] = _aggregate_point_field(value)
-
-    return TensorDict(
-        aggregated_fields,
+    ### Use TensorDict.apply() to handle nested structure automatically
+    return point_data.apply(
+        _aggregate_point_tensor,
         batch_size=torch.Size([n_unique_facets]),
-        device=point_data.device,
     )

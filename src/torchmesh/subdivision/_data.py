@@ -49,55 +49,20 @@ def interpolate_point_data_to_edges(
             device=edges.device,
         )
 
-    n_edges = len(edges)
-    n_total_points = n_original_points + n_edges
-    device = edges.device
+    n_total_points = n_original_points + len(edges)
 
-    ### Create new TensorDict with expanded batch size
-    new_point_data = TensorDict(
-        {},
+    ### Interpolate all fields using TensorDict.apply()
+    def interpolate_tensor(tensor: torch.Tensor) -> torch.Tensor:
+        """Interpolate a single tensor to edge midpoints."""
+        # Get endpoint values and average: shape (n_edges, *data_shape)
+        edge_midpoint_values = tensor[edges].mean(dim=1)
+        # Concatenate original and edge midpoint data
+        return torch.cat([tensor, edge_midpoint_values], dim=0)
+
+    return point_data.exclude("_cache").apply(
+        interpolate_tensor,
         batch_size=torch.Size([n_total_points]),
-        device=device,
     )
-
-    ### Recursively interpolate each field
-    def interpolate_field(
-        field_data: torch.Tensor | TensorDict,
-    ) -> torch.Tensor | TensorDict:
-        """Recursively interpolate a field (Tensor or nested TensorDict)."""
-        if isinstance(field_data, TensorDict):
-            ### Recursively process nested TensorDict
-            interpolated_fields = {}
-            for key, value in field_data.items():
-                interpolated_fields[key] = interpolate_field(value)
-            return TensorDict(
-                interpolated_fields,
-                batch_size=torch.Size([n_total_points]),
-                device=field_data.device,
-            )
-        elif isinstance(field_data, torch.Tensor):
-            ### Interpolate tensor data
-            # Get endpoint values for each edge
-            # Shape: (n_edges, 2, *data_shape)
-            edge_endpoint_values = field_data[edges]
-
-            # Average over the two endpoints (dim=1)
-            # Shape: (n_edges, *data_shape)
-            edge_midpoint_values = edge_endpoint_values.mean(dim=1)
-
-            # Concatenate original and edge midpoint data
-            # Shape: (n_original_points + n_edges, *data_shape)
-            interpolated = torch.cat([field_data, edge_midpoint_values], dim=0)
-
-            return interpolated
-        else:
-            raise TypeError(f"Unsupported field type: {type(field_data)}")
-
-    ### Process all fields
-    for key, value in point_data.exclude("_cache").items():
-        new_point_data[key] = interpolate_field(value)
-
-    return new_point_data
 
 
 def propagate_cell_data_to_children(
@@ -134,43 +99,9 @@ def propagate_cell_data_to_children(
             device=parent_indices.device,
         )
 
-    device = parent_indices.device
-
-    ### Create new TensorDict for child data
-    new_cell_data = TensorDict(
-        {},
+    ### Propagate all fields using TensorDict.apply()
+    # Each child simply inherits its parent's value via indexing
+    return cell_data.exclude("_cache").apply(
+        lambda tensor: tensor[parent_indices],
         batch_size=torch.Size([n_total_children]),
-        device=device,
     )
-
-    ### Recursively propagate each field
-    def propagate_field(
-        field_data: torch.Tensor | TensorDict,
-    ) -> torch.Tensor | TensorDict:
-        """Recursively propagate a field (Tensor or nested TensorDict)."""
-        if isinstance(field_data, TensorDict):
-            ### Recursively process nested TensorDict
-            propagated_fields = {}
-            for key, value in field_data.items():
-                propagated_fields[key] = propagate_field(value)
-            return TensorDict(
-                propagated_fields,
-                batch_size=torch.Size([n_total_children]),
-                device=field_data.device,
-            )
-        elif isinstance(field_data, torch.Tensor):
-            ### Propagate tensor data using indexing
-            # Simply index parent data by parent_indices
-            # Each child gets its parent's value
-            # Shape: (n_total_children, *data_shape)
-            propagated = field_data[parent_indices]
-
-            return propagated
-        else:
-            raise TypeError(f"Unsupported field type: {type(field_data)}")
-
-    ### Process all fields
-    for key, value in cell_data.exclude("_cache").items():
-        new_cell_data[key] = propagate_field(value)
-
-    return new_cell_data
