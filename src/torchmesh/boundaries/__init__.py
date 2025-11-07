@@ -3,6 +3,9 @@
 This module provides:
 1. Boundary detection: identify vertices, edges, and cells on mesh boundaries
 2. Facet extraction: extract lower-dimensional simplices from cells
+3. Boundary mesh extraction: extract the watertight boundary surface
+4. Topology checking: validate watertight and manifold properties
+5. Mesh cleaning: repair common mesh issues
 """
 
 from torchmesh.boundaries._detection import (
@@ -16,6 +19,19 @@ from torchmesh.boundaries._facet_extraction import (
     extract_facet_mesh_data,
     compute_aggregation_weights,
 )
+from torchmesh.boundaries._boundary_extraction import (
+    extract_boundary_mesh_data,
+)
+from torchmesh.boundaries._topology import (
+    is_watertight,
+    is_manifold,
+)
+from torchmesh.boundaries._cleaning import (
+    merge_duplicate_points,
+    remove_duplicate_cells,
+    remove_unused_points,
+    clean_mesh,
+)
 
 __all__ = [
     # Boundary detection
@@ -27,5 +43,15 @@ __all__ = [
     "deduplicate_and_aggregate_facets",
     "extract_facet_mesh_data",
     "compute_aggregation_weights",
+    # Boundary mesh extraction
+    "extract_boundary_mesh_data",
+    # Topology checking
+    "is_watertight",
+    "is_manifold",
+    # Mesh cleaning
+    "merge_duplicate_points",
+    "remove_duplicate_cells",
+    "remove_unused_points",
+    "clean_mesh",
 ]
 

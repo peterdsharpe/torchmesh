@@ -909,6 +909,136 @@ class Mesh:
             global_data=self.global_data,  # Share global data
         )
 
+    def get_boundary_mesh(
+        self,
+        data_source: Literal["points", "cells"] = "cells",
+        data_aggregation: Literal["mean", "area_weighted", "inverse_distance"] = "mean",
+    ) -> "Mesh":
+        """Extract the boundary surface of this mesh.
+
+        Extracts only the codimension-1 facets that lie on the boundary (appear in
+        exactly one cell). This produces the watertight boundary surface of a mesh.
+
+        Key difference from get_facet_mesh():
+        - get_facet_mesh(): Returns ALL facets (interior + boundary)
+        - get_boundary_mesh(): Returns ONLY boundary facets (appear in 1 cell)
+
+        For a closed watertight mesh, this returns an empty mesh. For an open mesh
+        (e.g., a tetrahedral volume), this returns the triangulated surface boundary.
+
+        Args:
+            data_source: Source of data inheritance:
+                - "cells": Boundary facets inherit from their single parent cell
+                - "points": Boundary facets inherit from their boundary vertices
+            data_aggregation: Strategy for aggregating data (only applies when
+                data_source="cells"):
+                - "mean": Simple arithmetic mean
+                - "area_weighted": Weighted by parent cell areas
+                - "inverse_distance": Weighted by inverse distance from facet centroid
+                Note: For boundary facets, each has exactly one parent cell, so
+                aggregation typically doesn't affect results.
+
+        Returns:
+            New Mesh with n_manifold_dims = self.n_manifold_dims - 1, containing
+            only the boundary facets. The mesh shares the same points array but has
+            new cells connectivity representing the boundary.
+
+        Example:
+            >>> # Extract triangular surface of a tetrahedral mesh
+            >>> tet_mesh = Mesh(points, tetrahedra)
+            >>> surface_mesh = tet_mesh.get_boundary_mesh()
+            >>> surface_mesh.n_manifold_dims  # 2 (triangles)
+            >>>
+            >>> # For a closed watertight sphere
+            >>> sphere = create_sphere_mesh(subdivisions=3)
+            >>> boundary = sphere.get_boundary_mesh()
+            >>> boundary.n_cells  # 0 (no boundary)
+        """
+        ### Call kernel to extract boundary mesh data
+        from torchmesh.boundaries import extract_boundary_mesh_data
+
+        boundary_cells, boundary_cell_data = extract_boundary_mesh_data(
+            parent_mesh=self,
+            data_source=data_source,
+            data_aggregation=data_aggregation,
+        )
+
+        ### Filter out cached properties from point_data
+        filtered_point_data = self.point_data.exclude("_cache")
+
+        return Mesh(
+            points=self.points,  # Share the same points
+            cells=boundary_cells,  # New connectivity for boundary facets only
+            point_data=filtered_point_data,  # User data only, no cached properties
+            cell_data=boundary_cell_data,  # Aggregated cell data
+            global_data=self.global_data,  # Share global data
+        )
+
+    def is_watertight(self) -> bool:
+        """Check if mesh is watertight (has no boundary).
+
+        A mesh is watertight if every codimension-1 facet is shared by exactly 2 cells.
+        This means the mesh forms a closed surface/volume with no holes or gaps.
+
+        Returns:
+            True if mesh is watertight (no boundary facets), False otherwise
+
+        Example:
+            >>> # Closed sphere is watertight
+            >>> sphere = create_sphere_mesh(subdivisions=3)
+            >>> sphere.is_watertight()  # True
+            >>>
+            >>> # Open cylinder with holes at ends
+            >>> cylinder = create_cylinder_mesh(closed=False)
+            >>> cylinder.is_watertight()  # False
+            >>>
+            >>> # Single tetrahedron has 4 boundary faces
+            >>> tet = Mesh(points, cells=torch.tensor([[0, 1, 2, 3]]))
+            >>> tet.is_watertight()  # False
+        """
+        from torchmesh.boundaries import is_watertight
+
+        return is_watertight(self)
+
+    def is_manifold(
+        self,
+        check_level: Literal["facets", "edges", "full"] = "full",
+    ) -> bool:
+        """Check if mesh is a valid topological manifold.
+
+        A mesh is a manifold if it locally looks like Euclidean space at every point.
+        This function checks various topological constraints depending on the check level.
+
+        Args:
+            check_level: Level of checking to perform:
+                - "facets": Only check codimension-1 facets (each appears 1-2 times)
+                - "edges": Check facets + edge neighborhoods (for 2D/3D meshes)
+                - "full": Complete manifold validation (default)
+
+        Returns:
+            True if mesh passes the specified manifold checks, False otherwise
+
+        Example:
+            >>> # Valid manifold (sphere)
+            >>> sphere = create_sphere_mesh(subdivisions=3)
+            >>> sphere.is_manifold()  # True
+            >>>
+            >>> # Non-manifold mesh with T-junction (edge shared by 3+ faces)
+            >>> non_manifold = create_t_junction_mesh()
+            >>> non_manifold.is_manifold()  # False
+            >>>
+            >>> # Manifold with boundary (open cylinder)
+            >>> cylinder = create_cylinder_mesh(closed=False)
+            >>> cylinder.is_manifold()  # True (manifold with boundary is OK)
+
+        Note:
+            This function checks topological constraints but does not check for
+            geometric self-intersections (which would require expensive spatial queries).
+        """
+        from torchmesh.boundaries import is_manifold
+
+        return is_manifold(self, check_level=check_level)
+
     def get_point_to_cells_adjacency(self):
         """Compute the star of each vertex (all cells containing each point).
 
@@ -1408,6 +1538,85 @@ class Mesh:
             gradient_type=gradient_type,
             order=order,
         )
+    
+    def validate(
+        self,
+        check_degenerate_cells: bool = True,
+        check_duplicate_vertices: bool = True,
+        check_inverted_cells: bool = False,
+        check_out_of_bounds: bool = True,
+        check_manifoldness: bool = False,
+        tolerance: float = 1e-10,
+        raise_on_error: bool = False,
+    ):
+        """Validate mesh integrity and detect common errors.
+        
+        Convenience method that delegates to torchmesh.validation.validate_mesh.
+        
+        Args:
+            check_degenerate_cells: Check for zero/negative area cells
+            check_duplicate_vertices: Check for coincident vertices
+            check_inverted_cells: Check for negative orientation
+            check_out_of_bounds: Check cell indices are valid
+            check_manifoldness: Check manifold topology (2D only)
+            tolerance: Tolerance for geometric checks
+            raise_on_error: Raise ValueError on first error vs return report
+        
+        Returns:
+            Dictionary with validation results
+        
+        Example:
+            >>> report = mesh.validate()
+            >>> if not report["valid"]:
+            >>>     print(f"Validation failed: {report}")
+        """
+        from torchmesh.validation import validate_mesh
+        
+        return validate_mesh(
+            mesh=self,
+            check_degenerate_cells=check_degenerate_cells,
+            check_duplicate_vertices=check_duplicate_vertices,
+            check_inverted_cells=check_inverted_cells,
+            check_out_of_bounds=check_out_of_bounds,
+            check_manifoldness=check_manifoldness,
+            tolerance=tolerance,
+            raise_on_error=raise_on_error,
+        )
+    
+    @property
+    def quality_metrics(self):
+        """Compute geometric quality metrics for all cells.
+        
+        Returns TensorDict with per-cell quality metrics:
+        - aspect_ratio: max_edge / characteristic_length
+        - edge_length_ratio: max_edge / min_edge
+        - min_angle, max_angle: Interior angles (triangles only)
+        - quality_score: Combined metric in [0,1] (1.0 is perfect)
+        
+        Example:
+            >>> metrics = mesh.quality_metrics
+            >>> poor_cells = metrics["quality_score"] < 0.3
+            >>> print(f"Found {poor_cells.sum()} poor quality cells")
+        """
+        from torchmesh.validation import compute_quality_metrics
+        
+        return compute_quality_metrics(self)
+    
+    @property
+    def statistics(self):
+        """Compute summary statistics for mesh.
+        
+        Returns dictionary with mesh statistics including counts,
+        edge length distributions, area distributions, and quality metrics.
+        
+        Example:
+            >>> stats = mesh.statistics
+            >>> print(f"Mesh: {stats['n_points']} points, {stats['n_cells']} cells")
+            >>> print(f"Edge lengths: min={stats['edge_length_stats'][0]:.3f}")
+        """
+        from torchmesh.validation import compute_mesh_statistics
+        
+        return compute_mesh_statistics(self)
 
     def subdivide(
         self,
@@ -1505,6 +1714,63 @@ class Mesh:
                 )
 
         return mesh
+
+    def clean(
+        self,
+        rtol: float = 1e-12,
+        atol: float = 1e-12,
+        merge_points: bool = True,
+        remove_duplicate_cells: bool = True,
+        remove_unused_points: bool = True,
+    ) -> "Mesh":
+        """Clean and repair this mesh.
+
+        Performs various cleaning operations to fix common mesh issues:
+        1. Merge duplicate points within tolerance
+        2. Remove duplicate cells
+        3. Remove unused points
+
+        This is useful after mesh operations that may introduce duplicate geometry
+        or after importing meshes from external sources that may have redundant data.
+
+        Args:
+            rtol: Relative tolerance for merging points (default 1e-12).
+                Points p1 and p2 are merged if ||p1 - p2|| <= atol + rtol * ||p1||
+            atol: Absolute tolerance for merging points (default 1e-12)
+            merge_points: Whether to merge duplicate points (default True)
+            remove_duplicate_cells: Whether to remove duplicate cells (default True)
+            remove_unused_points: Whether to remove unused points (default True)
+
+        Returns:
+            Cleaned mesh with same structure but repaired topology
+
+        Example:
+            >>> # Mesh with duplicate points
+            >>> points = torch.tensor([[0., 0.], [1., 0.], [0., 0.], [1., 1.]])
+            >>> cells = torch.tensor([[0, 1, 3], [2, 1, 3]])
+            >>> mesh = Mesh(points=points, cells=cells)
+            >>> cleaned = mesh.clean()
+            >>> cleaned.n_points  # 3 (points 0 and 2 merged)
+            >>>
+            >>> # Adjust tolerance for coarser merging
+            >>> mesh_loose = mesh.clean(rtol=1e-6, atol=1e-6)
+            >>>
+            >>> # Only merge points, keep duplicate cells
+            >>> mesh_partial = mesh.clean(
+            ...     merge_points=True,
+            ...     remove_duplicate_cells=False
+            ... )
+        """
+        from torchmesh.boundaries import clean_mesh
+
+        return clean_mesh(
+            mesh=self,
+            rtol=rtol,
+            atol=atol,
+            merge_points=merge_points,
+            remove_duplicate_cells_flag=remove_duplicate_cells,
+            remove_unused_points_flag=remove_unused_points,
+        )
 
 
 if __name__ == "__main__":
