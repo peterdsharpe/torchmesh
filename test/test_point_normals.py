@@ -164,9 +164,9 @@ class TestPointNormalsAreaWeighting:
         
         # Verify cell normals are also unit vectors
         assert torch.allclose(torch.norm(cell_normals, dim=1), torch.ones(2, device=device), atol=1e-5)
-        # Both cell normals should point in roughly the same direction (both in xy-plane)
-        assert torch.allclose(cell_normals[0], cell_normals[1], atol=0.1), (
-            "Both triangles are coplanar, so normals should be similar"
+        # Both cell normals should point in the same direction (both coplanar in xy-plane, pointing +z)
+        assert torch.allclose(cell_normals[0], cell_normals[1], atol=1e-5), (
+            "Both triangles are coplanar, so normals should be identical"
         )
 
     def test_shared_edge_averaging(self, device):

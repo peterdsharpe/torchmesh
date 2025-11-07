@@ -104,13 +104,10 @@ class TestClosedCurveAngleSums:
 
         # Noisy perturbation changes geometry significantly for 1D curves
         # Angle sums are not purely topological for curves (depend on embedding)
-        # Just verify computation doesn't crash and gives reasonable values
+        # With 1% noise, should still be within 10% of expected
         assert not torch.isnan(total_angle_noisy)
         assert total_angle_noisy > 0
-        
-        # For small noise, relative error should still be bounded
-        # (noise_level=0.01 should not completely destroy the geometric structure)
-        assert relative_error < 0.5, f"Relative error {relative_error:.3f} too large for small noise"
+        assert relative_error < 0.1, f"Relative error {relative_error:.3f} too large for 1% noise"
 
 
 ### Test 2D Manifolds (Closed Surfaces)

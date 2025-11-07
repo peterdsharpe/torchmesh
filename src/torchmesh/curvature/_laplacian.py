@@ -111,7 +111,9 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
         w_ij = (1/2) * (cot θ_1 + cot θ_2 + ...)
     where θ_k are dihedral angles at the edge in adjacent tets.
 
-    For boundary edges (only one adjacent cell), uses single cotangent.
+    For boundary edges (only one adjacent cell):
+        w_ij = (1/2) * cot α
+    where α is the angle in the single adjacent triangle.
 
     Args:
         mesh: Input mesh

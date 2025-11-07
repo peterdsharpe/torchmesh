@@ -548,21 +548,15 @@ class TestManifolds:
         point_normals = mesh.point_normals
 
         # Intrinsic gradient should be orthogonal to normal
-        dot_products = (grad_intrinsic * point_normals).sum(dim=-1)
+        dot_products_intrinsic = (grad_intrinsic * point_normals).sum(dim=-1)
 
-        assert dot_products.abs().max() < 1e-2, (
-            f"Intrinsic gradient not orthogonal to normal: max dot product = {dot_products.abs().max():.6f}"
+        assert dot_products_intrinsic.abs().max() < 1e-2, (
+            f"Intrinsic gradient not orthogonal to normal: max dot product = {dot_products_intrinsic.abs().max():.6f}"
         )
         
-        # Extrinsic gradient may differ from intrinsic gradient
-        # Verify that extrinsic gradient has been computed (is finite)
-        assert torch.all(torch.isfinite(grad_extrinsic)), (
-            "Extrinsic gradient should be finite"
-        )
-        # Both gradients should have same shape
-        assert grad_intrinsic.shape == grad_extrinsic.shape, (
-            "Intrinsic and extrinsic gradients should have same shape"
-        )
+        # Extrinsic gradient should be finite and have correct shape
+        assert torch.all(torch.isfinite(grad_extrinsic))
+        assert grad_extrinsic.shape == grad_intrinsic.shape
 
 
 class TestCalculusIdentities:
@@ -572,25 +566,11 @@ class TestCalculusIdentities:
         """curl(∇φ) = 0 for any scalar field."""
         mesh = tetbeam_mesh
 
-        # Use quadratic field
-        phi = (mesh.points**2).sum(dim=-1)
-        mesh.point_data["phi"] = phi
-
-        # Compute gradient
-        mesh_grad = mesh.compute_point_derivatives(keys="phi", method="lsq")
-        grad_phi = mesh_grad.point_data["phi_gradient"]
-
-        # Compute curl of gradient
-        from torchmesh.calculus.curl import compute_curl_points_lsq
-
-        curl_grad = compute_curl_points_lsq(mesh_grad, grad_phi)
-
         # Should be zero (curl of conservative field)
-        # Verify curl was computed successfully (is finite)
-        assert torch.all(torch.isfinite(curl_grad)), "Curl should be finite"
-        
         # For LINEAR potential, curl of gradient should be near-exact zero
-        # Use phi = x + y for exact test
+        # Use phi = x + y for exact test (quadratic fields have O(h) discretization error)
+        from torchmesh.calculus.curl import compute_curl_points_lsq
+        
         phi_linear = mesh.points[:, 0] + mesh.points[:, 1]
         mesh.point_data["phi_linear"] = phi_linear
         mesh_grad_linear = mesh.compute_point_derivatives(
