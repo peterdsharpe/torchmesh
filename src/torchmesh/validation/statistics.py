@@ -87,7 +87,7 @@ def compute_mesh_statistics(
         all_edge_lengths.min().item(),
         all_edge_lengths.mean().item(),
         all_edge_lengths.max().item(),
-        all_edge_lengths.std().item(),
+        all_edge_lengths.std(correction=0).item(),
     )
     
     ### Compute cell area statistics
@@ -95,7 +95,7 @@ def compute_mesh_statistics(
         areas.min().item(),
         areas.mean().item(),
         areas.max().item(),
-        areas.std().item(),
+        areas.std(correction=0).item(),
     )
     
     ### Compute quality metrics statistics
@@ -110,7 +110,7 @@ def compute_mesh_statistics(
                 aspect_ratios.min().item(),
                 aspect_ratios.mean().item(),
                 aspect_ratios.max().item(),
-                aspect_ratios.std().item(),
+                aspect_ratios.std(correction=0).item(),
             )
         
         if "quality_score" in quality_metrics.keys():
@@ -119,7 +119,7 @@ def compute_mesh_statistics(
                 quality_scores.min().item(),
                 quality_scores.mean().item(),
                 quality_scores.max().item(),
-                quality_scores.std().item(),
+                quality_scores.std(correction=0).item(),
             )
     except Exception:
         # If quality computation fails, skip it
