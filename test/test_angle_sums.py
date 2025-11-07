@@ -9,8 +9,11 @@ import math
 
 import pytest
 import torch
-from torchmesh.mesh import Mesh
+
 from torchmesh.curvature._angles import compute_angles_at_vertices
+from torchmesh.examples.curves import circle_2d
+from torchmesh.examples.surfaces import sphere_icosahedral
+from torchmesh.mesh import Mesh
 
 
 ### Fixtures
@@ -28,33 +31,10 @@ def device(request):
 class TestClosedCurveAngleSums:
     """Tests for angle sums in closed 1D manifolds (circles)."""
 
-    def create_circle_mesh(self, radius=1.0, n_points=20, device="cpu"):
-        """Create a closed circular curve (1D manifold in 2D)."""
-        theta = torch.linspace(0, 2 * math.pi, n_points + 1, device=device)[:-1]
-
-        points = torch.stack(
-            [
-                radius * torch.cos(theta),
-                radius * torch.sin(theta),
-            ],
-            dim=1,
-        )
-
-        # Create closed loop of edges
-        cells = torch.stack(
-            [
-                torch.arange(n_points, device=device),
-                torch.roll(torch.arange(n_points, device=device), shifts=-1),
-            ],
-            dim=1,
-        )
-
-        return Mesh(points=points, cells=cells)
-
     def test_circle_angle_sum_clean(self, device):
         """Test that clean circle has total angle sum = (n-2)π."""
         n_points = 40
-        mesh = self.create_circle_mesh(radius=1.0, n_points=n_points, device=device)
+        mesh = circle_2d.load(radius=1.0, n_points=n_points, device=device)
 
         # Compute angle sum at each vertex
         angle_sums = compute_angles_at_vertices(mesh)
@@ -74,7 +54,7 @@ class TestClosedCurveAngleSums:
         """Test that noisy circle maintains topological angle sum = (n-2)π."""
         # Create clean circle
         n_points = 40
-        mesh = self.create_circle_mesh(radius=1.0, n_points=n_points, device=device)
+        mesh = circle_2d.load(radius=1.0, n_points=n_points, device=device)
 
         # Add radial noise: r_new = r_old + noise ∈ [0.5, 1.5]
         # This keeps all points outside origin and preserves topology
@@ -118,69 +98,9 @@ class TestClosedCurveAngleSums:
 class TestClosedSurfaceAngleSums:
     """Tests for angle sums in closed 2D manifolds (spheres)."""
 
-    def create_sphere_mesh(self, radius=1.0, subdivisions=0, device="cpu"):
-        """Create icosahedral sphere."""
-        phi = (1.0 + math.sqrt(5.0)) / 2.0
-
-        vertices = [
-            [-1, phi, 0],
-            [1, phi, 0],
-            [-1, -phi, 0],
-            [1, -phi, 0],
-            [0, -1, phi],
-            [0, 1, phi],
-            [0, -1, -phi],
-            [0, 1, -phi],
-            [phi, 0, -1],
-            [phi, 0, 1],
-            [-phi, 0, -1],
-            [-phi, 0, 1],
-        ]
-
-        points = torch.tensor(vertices, dtype=torch.float32, device=device)
-        points = points / torch.norm(points, dim=-1, keepdim=True) * radius
-
-        faces = [
-            [0, 11, 5],
-            [0, 5, 1],
-            [0, 1, 7],
-            [0, 7, 10],
-            [0, 10, 11],
-            [1, 5, 9],
-            [5, 11, 4],
-            [11, 10, 2],
-            [10, 7, 6],
-            [7, 1, 8],
-            [3, 9, 4],
-            [3, 4, 2],
-            [3, 2, 6],
-            [3, 6, 8],
-            [3, 8, 9],
-            [4, 9, 5],
-            [2, 4, 11],
-            [6, 2, 10],
-            [8, 6, 7],
-            [9, 8, 1],
-        ]
-
-        cells = torch.tensor(faces, dtype=torch.int64, device=device)
-        mesh = Mesh(points=points, cells=cells)
-
-        # Subdivide and project to sphere
-        for _ in range(subdivisions):
-            mesh = mesh.subdivide(levels=1, filter="linear")
-            mesh = Mesh(
-                points=mesh.points
-                / torch.norm(mesh.points, dim=-1, keepdim=True)
-                * radius,
-                cells=mesh.cells,
-            )
-
-        return mesh
-
     def test_sphere_angle_sum_clean(self, device):
         """Test that clean sphere has total angle sum = 4π."""
-        mesh = self.create_sphere_mesh(radius=1.0, subdivisions=1, device=device)
+        mesh = sphere_icosahedral.load(radius=1.0, subdivisions=1, device=device)
 
         # Compute angle sum at each vertex
         angle_sums = compute_angles_at_vertices(mesh)
@@ -207,7 +127,7 @@ class TestClosedSurfaceAngleSums:
     def test_sphere_angle_sum_with_noise(self, device):
         """Test that noisy sphere maintains topological angle sum."""
         # Create clean sphere
-        mesh = self.create_sphere_mesh(radius=1.0, subdivisions=1, device=device)
+        mesh = sphere_icosahedral.load(radius=1.0, subdivisions=1, device=device)
 
         # Add radial noise to each vertex
         torch.manual_seed(42)
@@ -243,7 +163,7 @@ class TestClosedSurfaceAngleSums:
 
     def test_sphere_gauss_bonnet_relation(self, device):
         """Test discrete Gauss-Bonnet theorem holds."""
-        mesh = self.create_sphere_mesh(radius=1.0, subdivisions=1, device=device)
+        mesh = sphere_icosahedral.load(radius=1.0, subdivisions=1, device=device)
 
         # Compute Gaussian curvature
         K = mesh.gaussian_curvature_vertices
