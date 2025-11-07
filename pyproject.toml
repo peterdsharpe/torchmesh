@@ -85,6 +85,12 @@ url = "https://download.pytorch.org/whl/nightly/cu126"
 name = "pytorch-nightly-cpu"
 url = "https://download.pytorch.org/whl/nightly/cpu"
 
+[tool.pytest.ini_options]
+markers = [
+    "cuda: marks tests that require CUDA (deselect with '-m \"not cuda\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
 [tool.ruff]
 target-version = "py313"
 
