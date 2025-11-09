@@ -62,6 +62,10 @@ def scatter_aggregate(
     ### Initialize weights if not provided
     if weights is None:
         weights = torch.ones(len(src_to_dst_mapping), dtype=dtype, device=device)
+    
+    ### Ensure weights have same dtype as data (avoid dtype mismatch in multiplication)
+    if weights.dtype != dtype:
+        weights = weights.to(dtype)
 
     ### Weight the source data
     # Broadcast weights to match data shape: (n_src, *data_shape)
