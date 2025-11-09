@@ -171,7 +171,6 @@ def draw_mesh(
             vmax=vmax,
             alpha_points=alpha_points,
             alpha_cells=alpha_cells,
-            alpha_edges=alpha_edges,
             show_edges=show_edges,
             **kwargs,
         )
