@@ -19,7 +19,6 @@ def draw_mesh_pyvista(
     vmax: float | None,
     alpha_points: float,
     alpha_cells: float,
-    alpha_edges: float,
     show_edges: bool,
     **kwargs,
 ):
@@ -36,7 +35,6 @@ def draw_mesh_pyvista(
         vmax: Maximum value for colormap normalization (clim)
         alpha_points: Opacity for points (0-1)
         alpha_cells: Opacity for cells (0-1)
-        alpha_edges: Opacity for edges (0-1)
         show_edges: Whether to draw cell edges
         **kwargs: Additional backend-specific arguments passed to PyVista
 

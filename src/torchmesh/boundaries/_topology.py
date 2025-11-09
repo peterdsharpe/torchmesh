@@ -309,18 +309,19 @@ def _check_2d_vertex_manifold(mesh: "Mesh") -> bool:
     return True
 
 
-def _check_3d_vertex_manifold(mesh: "Mesh") -> bool:
+def _check_3d_vertex_manifold() -> bool:
     """Check vertex manifold constraints for 3D meshes.
 
     For a 3D tetrahedral mesh to be manifold at a vertex, the triangular faces
     around the vertex must form a single connected surface (topological sphere
     for interior vertices, or disk for boundary vertices).
 
-    Args:
-        mesh: 3D tetrahedral mesh
-
     Returns:
         True if all vertices satisfy 3D manifold constraints
+
+    Note:
+        This is a stub implementation that always returns True. A proper
+        implementation would analyze face connectivity around each vertex.
     """
     ### This is a complex check that requires analyzing face connectivity
     ### around each vertex. For now, we rely on the facet and edge checks

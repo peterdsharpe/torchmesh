@@ -3,7 +3,7 @@
 Detects boundary loops and closes them with new triangles.
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -14,18 +14,15 @@ if TYPE_CHECKING:
 def fill_holes(
     mesh: "Mesh",
     max_hole_edges: int = 10,
-    method: Literal["fan"] = "fan",
 ) -> tuple["Mesh", dict[str, int]]:
     """Fill holes bounded by boundary loops (2D manifolds only).
 
     Detects boundary loops (edges with only 1 adjacent face) and triangulates
-    them to close holes in the mesh.
+    them using simple fan triangulation from the first vertex.
 
     Args:
         mesh: Input mesh (must be 2D manifold)
         max_hole_edges: Maximum number of edges in a hole to fill
-        method: Triangulation method:
-            - "fan": Simple fan triangulation from first vertex (fast, may produce poor quality)
 
     Returns:
         Tuple of (filled_mesh, stats_dict) where stats_dict contains:

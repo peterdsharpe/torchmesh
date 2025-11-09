@@ -1457,7 +1457,6 @@ class Mesh:
         keys: str | tuple[str, ...] | list[str | tuple[str, ...]] | None = None,
         method: Literal["lsq", "dec"] = "lsq",
         gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
-        order: int = 1,
     ) -> "Mesh":
         """Compute gradients of point_data fields.
 
@@ -1476,7 +1475,6 @@ class Mesh:
                 - "intrinsic": Project onto manifold tangent space (default)
                 - "extrinsic": Full ambient space gradient
                 - "both": Compute and store both
-            order: Accuracy order for LSQ method (ignored for DEC)
 
         Returns:
             Self (mesh) with gradient fields added to point_data (modified in place).
@@ -1500,7 +1498,6 @@ class Mesh:
             keys=keys,
             method=method,
             gradient_type=gradient_type,
-            order=order,
         )
 
     def compute_cell_derivatives(
@@ -1508,7 +1505,6 @@ class Mesh:
         keys: str | tuple[str, ...] | list[str | tuple[str, ...]] | None = None,
         method: Literal["lsq", "dec"] = "lsq",
         gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
-        order: int = 1,
     ) -> "Mesh":
         """Compute gradients of cell_data fields.
 
@@ -1518,7 +1514,6 @@ class Mesh:
             keys: Fields to compute gradients of (same format as compute_point_derivatives)
             method: "lsq" or "dec" (currently only "lsq" is fully supported for cells)
             gradient_type: "intrinsic", "extrinsic", or "both"
-            order: Accuracy order for LSQ
 
         Returns:
             Self (mesh) with gradient fields added to cell_data (modified in place)
@@ -1534,7 +1529,6 @@ class Mesh:
             keys=keys,
             method=method,
             gradient_type=gradient_type,
-            order=order,
         )
 
     def validate(

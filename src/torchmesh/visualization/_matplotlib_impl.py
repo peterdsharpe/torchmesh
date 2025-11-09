@@ -26,7 +26,6 @@ def draw_mesh_matplotlib(
     alpha_edges: float,
     show_edges: bool,
     ax=None,
-    **kwargs,
 ):
     """Draw mesh using matplotlib backend.
 
@@ -46,7 +45,6 @@ def draw_mesh_matplotlib(
         alpha_edges: Opacity for edges (0-1)
         show_edges: Whether to draw cell edges
         ax: Existing matplotlib axes (if None, creates new figure)
-        **kwargs: Additional backend-specific arguments
 
     Returns:
         matplotlib.axes.Axes object
@@ -97,9 +95,7 @@ def draw_mesh_matplotlib(
         _draw_0d(
             ax,
             points_np,
-            cells_np,
             point_scalar_values,
-            cell_scalar_values,
             active_scalar_source,
             scalar_mapper,
             point_neutral_color,
@@ -118,8 +114,6 @@ def draw_mesh_matplotlib(
             cell_neutral_color,
             alpha_points,
             alpha_cells,
-            alpha_edges,
-            show_edges,
         )
     elif mesh.n_spatial_dims == 2:
         _draw_2d(
@@ -206,9 +200,7 @@ def draw_mesh_matplotlib(
 def _draw_0d(
     ax,
     points_np,
-    cells_np,
     point_scalar_values,
-    cell_scalar_values,
     active_scalar_source,
     scalar_mapper,
     point_neutral_color,
@@ -243,8 +235,6 @@ def _draw_1d(
     cell_neutral_color,
     alpha_points,
     alpha_cells,
-    alpha_edges,
-    show_edges,
 ):
     """Draw 1D manifold (edges) in 1D or 2D space."""
     # Points are 1D, so plot along x-axis (or in 2D if embedded in 2D)

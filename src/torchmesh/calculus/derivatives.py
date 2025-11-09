@@ -16,7 +16,6 @@ def compute_point_derivatives(
     keys: str | tuple[str, ...] | Sequence[str | tuple[str, ...]] | None = None,
     method: Literal["lsq", "dec"] = "lsq",
     gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
-    order: int = 1,
 ) -> "Mesh":
     """Compute gradients of point_data fields.
 
@@ -37,7 +36,6 @@ def compute_point_derivatives(
             - "intrinsic": Project onto manifold tangent space
             - "extrinsic": Full ambient space gradient
             - "both": Compute and store both
-        order: Accuracy order for LSQ (ignored for DEC). Default: 1
 
     Returns:
         The input mesh with gradient fields added to point_data (modified in place).
@@ -161,7 +159,6 @@ def compute_cell_derivatives(
     keys: str | tuple[str, ...] | Sequence[str | tuple[str, ...]] | None = None,
     method: Literal["lsq", "dec"] = "lsq",
     gradient_type: Literal["intrinsic", "extrinsic", "both"] = "intrinsic",
-    order: int = 1,
 ) -> "Mesh":
     """Compute gradients of cell_data fields.
 
@@ -170,7 +167,6 @@ def compute_cell_derivatives(
         keys: Fields to compute gradients of (same format as compute_point_derivatives)
         method: "lsq" or "dec"
         gradient_type: "intrinsic", "extrinsic", or "both"
-        order: Accuracy order for LSQ
 
     Returns:
         The input mesh with gradient fields added to cell_data (modified in place)

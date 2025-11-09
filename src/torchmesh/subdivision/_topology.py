@@ -162,7 +162,6 @@ def get_subdivision_pattern(n_manifold_dims: int) -> torch.Tensor:
 
 def generate_child_cells(
     parent_cells: torch.Tensor,
-    unique_edges: torch.Tensor,
     edge_inverse: torch.Tensor,
     n_original_points: int,
     subdivision_pattern: torch.Tensor,
@@ -174,7 +173,6 @@ def generate_child_cells(
 
     Args:
         parent_cells: Parent cell connectivity, shape (n_parent_cells, n_vertices_per_cell)
-        unique_edges: Unique edge vertex indices, shape (n_edges, 2)
         edge_inverse: Mapping from candidate edges to unique edge indices,
             shape (n_parent_cells * n_edges_per_cell,). This comes from torch.unique()
             called in extract_unique_edges().

@@ -4,7 +4,7 @@ Ensures all faces in a mesh have consistent orientation so normals point
 in the same general direction.
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 def fix_orientation(
     mesh: "Mesh",
-    method: Literal["propagate"] = "propagate",
 ) -> tuple["Mesh", dict[str, int]]:
     """Orient all faces consistently (2D manifolds in 3D only).
 
@@ -23,8 +22,6 @@ def fix_orientation(
 
     Args:
         mesh: Input mesh (must be 2D manifold in 3D space)
-        method: Orientation method:
-            - "propagate": Start from largest component, propagate orientation
 
     Returns:
         Tuple of (oriented_mesh, stats_dict) where stats_dict contains:

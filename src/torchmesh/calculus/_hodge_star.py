@@ -103,9 +103,7 @@ def hodge_star_1(
 
 
 def codifferential(
-    mesh: "Mesh",
     k: int,
-    primal_kplus1_form: torch.Tensor,
     **kwargs,
 ) -> torch.Tensor:
     """Compute codifferential δ of a (k+1)-form.
@@ -121,17 +119,15 @@ def codifferential(
     This gives the divergence operator.
 
     Args:
-        mesh: Simplicial mesh
         k: Degree of the output form (input is (k+1)-form)
-        primal_kplus1_form: Values of (k+1)-form on primal (k+1)-simplices
-        **kwargs: Additional arguments needed for specific k values
+        **kwargs: Additional arguments needed for specific k values (e.g., 'edges' for k=0)
 
     Returns:
         k-form values after applying codifferential
 
     Example:
         For divergence of a vector field (represented as 1-form on edges):
-        >>> div_f = codifferential(mesh, k=0, edge_1form, edges=edges)
+        >>> div_f = codifferential(k=0, edges=edges)
     """
     if k == 0:
         ### δ: Ω¹ → Ω⁰ (divergence)

@@ -17,7 +17,6 @@ def smooth_laplacian(
     n_iter: int = 20,
     relaxation_factor: float = 0.01,
     convergence: float = 0.0,
-    edge_angle: float = 15.0,
     feature_angle: float = 45.0,
     boundary_smoothing: bool = True,
     feature_smoothing: bool = False,
@@ -38,9 +37,6 @@ def smooth_laplacian(
         convergence: Convergence criterion relative to bounding box diagonal.
             Stops early if max vertex displacement < convergence * bbox_diagonal.
             Set to 0.0 to disable early stopping. Default: 0.0
-        edge_angle: Angle threshold (degrees) for boundary edge detection.
-            Boundary edges with angle < edge_angle are considered smooth.
-            Only used for codimension-1 manifolds. Default: 15.0
         feature_angle: Angle threshold (degrees) for sharp edge detection.
             Edges with dihedral angle > feature_angle are considered sharp features.
             Only used for codimension-1 manifolds. Default: 45.0
@@ -236,14 +232,12 @@ def _compute_edge_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor:
 def _get_boundary_vertices(
     mesh: "Mesh",
     edges: torch.Tensor,
-    edge_angle: float,
 ) -> torch.Tensor:
     """Identify vertices on mesh boundaries.
 
     Args:
         mesh: Input mesh
         edges: All unique edges, shape (n_edges, 2)
-        edge_angle: Angle threshold for boundary detection (degrees)
 
     Returns:
         Boolean mask, shape (n_points,), True for boundary vertices
