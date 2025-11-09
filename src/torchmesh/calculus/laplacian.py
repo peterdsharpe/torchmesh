@@ -20,6 +20,77 @@ if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
 
+def _apply_cotan_laplacian_operator(
+    n_vertices: int,
+    edges: torch.Tensor,
+    cotan_weights: torch.Tensor,
+    data: torch.Tensor,
+    device: torch.device,
+) -> torch.Tensor:
+    """Apply cotangent Laplacian operator to data via scatter-add.
+    
+    Computes: (L @ data)[i] = Σ_{j adjacent to i} w_ij * (data[j] - data[i])
+    
+    This is the core scatter-add pattern shared by all cotangent Laplacian computations.
+    Used by both compute_laplacian_points_dec() for scalar fields and 
+    compute_laplacian_at_points() in curvature module for point coordinates.
+    
+    Args:
+        n_vertices: Number of vertices
+        edges: Edge connectivity, shape (n_edges, 2)
+        cotan_weights: Cotangent weights for each edge, shape (n_edges,)
+        data: Data at vertices, shape (n_vertices, *data_shape)
+        device: Device for computation
+    
+    Returns:
+        Laplacian applied to data, shape (n_vertices, *data_shape)
+        
+    Example:
+        >>> # For scalar field
+        >>> laplacian = _apply_cotan_laplacian_operator(n_points, edges, weights, scalar_field, device)
+        >>> # For vector field (point coordinates)
+        >>> laplacian = _apply_cotan_laplacian_operator(n_points, edges, weights, points, device)
+    """
+    ### Initialize output with same shape as data
+    if data.ndim == 1:
+        laplacian = torch.zeros(n_vertices, dtype=data.dtype, device=device)
+    else:
+        laplacian = torch.zeros_like(data)
+    
+    ### Extract vertex indices
+    v0_indices = edges[:, 0]  # (n_edges,)
+    v1_indices = edges[:, 1]  # (n_edges,)
+    
+    ### Compute weighted differences
+    if data.ndim == 1:
+        # Scalar case
+        contrib_v0 = cotan_weights * (data[v1_indices] - data[v0_indices])
+        contrib_v1 = cotan_weights * (data[v0_indices] - data[v1_indices])
+        laplacian.scatter_add_(0, v0_indices, contrib_v0)
+        laplacian.scatter_add_(0, v1_indices, contrib_v1)
+    else:
+        # Multi-dimensional case (vectors, tensors)
+        # Broadcast weights to match data dimensions
+        weights_expanded = cotan_weights.view(-1, *([1] * (data.ndim - 1)))
+        contrib_v0 = weights_expanded * (data[v1_indices] - data[v0_indices])
+        contrib_v1 = weights_expanded * (data[v0_indices] - data[v1_indices])
+        
+        # Flatten for scatter_add
+        laplacian_flat = laplacian.reshape(n_vertices, -1)
+        contrib_v0_flat = contrib_v0.reshape(len(edges), -1)
+        contrib_v1_flat = contrib_v1.reshape(len(edges), -1)
+        
+        v0_expanded = v0_indices.unsqueeze(-1).expand(-1, contrib_v0_flat.shape[1])
+        v1_expanded = v1_indices.unsqueeze(-1).expand(-1, contrib_v1_flat.shape[1])
+        
+        laplacian_flat.scatter_add_(0, v0_expanded, contrib_v0_flat)
+        laplacian_flat.scatter_add_(0, v1_expanded, contrib_v1_flat)
+        
+        laplacian = laplacian_flat.reshape(laplacian.shape)
+    
+    return laplacian
+
+
 def compute_laplacian_points_dec(
     mesh: "Mesh",
     point_values: torch.Tensor,
@@ -45,82 +116,37 @@ def compute_laplacian_points_dec(
     """
     from torchmesh.calculus._circumcentric_dual import (
         get_or_compute_dual_volumes_0,
+        compute_cotan_weights_triangle_mesh,
     )
 
     n_points = mesh.n_points
+    device = mesh.points.device
 
-    ### Get dual volumes for vertices
-    dual_volumes_0 = get_or_compute_dual_volumes_0(mesh)  # |⋆v₀|
-
-    ### Get cotangent weights and edges
+    ### Validate manifold dimension
     if mesh.n_manifold_dims != 2:
         raise NotImplementedError(
             f"DEC Laplace-Beltrami currently only implemented for triangle meshes (2D manifolds). "
             f"Got {mesh.n_manifold_dims=}. Use LSQ-based Laplacian via div(grad(.)) instead."
         )
 
-    # For triangles, use proper cotangent formula
-    from torchmesh.calculus._circumcentric_dual import (
-        compute_cotan_weights_triangle_mesh,
+    ### Get cotangent weights and edges (uses standard formula with factor of 1/2)
+    cotan_weights, sorted_edges = compute_cotan_weights_triangle_mesh(
+        mesh, return_edges=True
     )
 
-    cotan_weights, sorted_edges = compute_cotan_weights_triangle_mesh(mesh)
-
-    ### Initialize Laplacian
-    if point_values.ndim == 1:
-        laplacian = torch.zeros(
-            n_points, dtype=point_values.dtype, device=mesh.points.device
-        )
-    else:
-        laplacian = torch.zeros_like(point_values)
-
-    ### Accumulate contributions from each edge
-    # Standard cotangent Laplacian: (Lf)_i = Σ_j w_ij (f_j - f_i)
-    # For edge (i,j), this contributes:
-    #   To vertex i: +w_ij (f_j - f_i)
-    #   To vertex j: +w_ji (f_i - f_j) = +w_ij (f_i - f_j)  [symmetric weights]
-
-    ### Vectorized edge contributions using scatter_add
-    v0_indices = sorted_edges[:, 0]  # (n_edges,)
-    v1_indices = sorted_edges[:, 1]  # (n_edges,)
-
-    if point_values.ndim == 1:
-        # Scalar case: (n_edges,) weights
-        # Contribution to v0: weight × (f(v1) - f(v0))
-        contrib_v0 = cotan_weights * (
-            point_values[v1_indices] - point_values[v0_indices]
-        )
-        # Contribution to v1: weight × (f(v0) - f(v1))
-        contrib_v1 = cotan_weights * (
-            point_values[v0_indices] - point_values[v1_indices]
-        )
-
-        laplacian.scatter_add_(0, v0_indices, contrib_v0)
-        laplacian.scatter_add_(0, v1_indices, contrib_v1)
-    else:
-        # Tensor case: (n_edges, features...)
-        contrib_v0 = cotan_weights.view(-1, *([1] * (point_values.ndim - 1))) * (
-            point_values[v1_indices] - point_values[v0_indices]
-        )
-        contrib_v1 = cotan_weights.view(-1, *([1] * (point_values.ndim - 1))) * (
-            point_values[v0_indices] - point_values[v1_indices]
-        )
-
-        # Flatten for scatter_add
-        laplacian_flat = laplacian.reshape(n_points, -1)
-        contrib_v0_flat = contrib_v0.reshape(len(sorted_edges), -1)
-        contrib_v1_flat = contrib_v1.reshape(len(sorted_edges), -1)
-
-        v0_expanded = v0_indices.unsqueeze(-1).expand(-1, contrib_v0_flat.shape[1])
-        v1_expanded = v1_indices.unsqueeze(-1).expand(-1, contrib_v1_flat.shape[1])
-
-        laplacian_flat.scatter_add_(0, v0_expanded, contrib_v0_flat)
-        laplacian_flat.scatter_add_(0, v1_expanded, contrib_v1_flat)
-
-        laplacian = laplacian_flat.reshape(laplacian.shape)
+    ### Apply cotangent Laplacian operator using shared utility
+    laplacian = _apply_cotan_laplacian_operator(
+        n_vertices=n_points,
+        edges=sorted_edges,
+        cotan_weights=cotan_weights,
+        data=point_values,
+        device=device,
+    )
 
     ### Normalize by Voronoi areas
     # Standard cotangent Laplacian: Δf_i = (1/A_voronoi_i) × accumulated_sum
+    dual_volumes_0 = get_or_compute_dual_volumes_0(mesh)
+    
     if point_values.ndim == 1:
         laplacian = laplacian / dual_volumes_0.clamp(min=1e-10)
     else:
