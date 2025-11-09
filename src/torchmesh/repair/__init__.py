@@ -9,7 +9,6 @@ from torchmesh.repair.degenerate_removal import remove_degenerate_cells
 from torchmesh.repair.isolated_removal import remove_isolated_vertices
 from torchmesh.repair.orientation import fix_orientation
 from torchmesh.repair.hole_filling import fill_holes
-from torchmesh.repair.manifold_repair import split_nonmanifold_edges
 from torchmesh.repair.pipeline import repair_mesh
 
 __all__ = [
@@ -18,6 +17,5 @@ __all__ = [
     "remove_isolated_vertices",
     "fix_orientation",
     "fill_holes",
-    "split_nonmanifold_edges",
     "repair_mesh",
 ]

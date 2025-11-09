@@ -109,14 +109,12 @@ def repair_mesh(
 
     ### Operation 6: Make manifold
     if make_manifold:
-        if mesh.n_manifold_dims == 2:
-            from torchmesh.repair.manifold_repair import (
-                split_nonmanifold_edges as split_nm,
-            )
-
-            current_mesh, stats = split_nm(current_mesh)
-            all_stats["manifold"] = stats
-        else:
-            all_stats["manifold"] = {"skipped": "Only for 2D manifolds"}
+        # Non-manifold edge splitting is not yet implemented
+        raise NotImplementedError(
+            "Manifold repair (split_nonmanifold_edges) is not yet implemented.\n"
+            "This operation would duplicate vertices at non-manifold edges to make "
+            "the mesh manifold, but requires complex topology-preserving logic.\n"
+            "Set make_manifold=False to skip this operation."
+        )
 
     return current_mesh, all_stats
