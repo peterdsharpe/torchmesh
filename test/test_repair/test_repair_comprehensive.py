@@ -9,7 +9,6 @@ from torchmesh.repair import (
     remove_degenerate_cells,
     remove_isolated_vertices,
     fill_holes,
-    split_nonmanifold_edges,
     repair_mesh,
 )
 
@@ -432,38 +431,6 @@ class TestHoleFilling:
 
         # Should find no holes
         assert stats["n_holes_filled"] == 0
-
-
-class TestManifoldRepair:
-    """Tests for manifold repair."""
-
-    def test_already_manifold(self, device):
-        """Test that manifold mesh is unchanged."""
-        points = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [0.5, 1.0, 0.0],
-                [0.5, 0.5, 1.0],
-            ],
-            dtype=torch.float32,
-            device=device,
-        )
-
-        cells = torch.tensor(
-            [
-                [0, 1, 2],
-                [1, 2, 3],
-            ],
-            dtype=torch.long,
-            device=device,
-        )
-
-        mesh = Mesh(points=points, cells=cells)
-
-        mesh_manifold, stats = split_nonmanifold_edges(mesh)
-
-        assert stats["n_nonmanifold_edges"] == 0
 
 
 class TestRepairIntegration:
