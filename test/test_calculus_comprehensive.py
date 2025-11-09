@@ -640,7 +640,7 @@ class TestHodgeStarErrors:
         edge_values, edges = exterior_derivative_0(mesh, vertex_values)
 
         with pytest.raises(NotImplementedError):
-            codifferential(mesh, k=0, primal_kplus1_form=edge_values, edges=edges)
+            codifferential(k=0, edges=edges)
 
 
 class TestTangentSpaceProjection:
