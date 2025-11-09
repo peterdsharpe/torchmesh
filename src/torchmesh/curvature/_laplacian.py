@@ -158,7 +158,9 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
     # Build hash-to-index mapping
     max_hash = unique_edge_hashes.max().item() if len(unique_edge_hashes) > 0 else 0
     edge_hash_to_idx = torch.full((max_hash + 1,), -1, dtype=torch.long, device=device)
-    edge_hash_to_idx[unique_edge_hashes] = torch.arange(len(unique_edge_hashes), device=device)
+    edge_hash_to_idx[unique_edge_hashes] = torch.arange(
+        len(unique_edge_hashes), device=device
+    )
 
     # Map candidate edges to unique edge indices
     inverse_indices = edge_hash_to_idx[candidate_edge_hashes]

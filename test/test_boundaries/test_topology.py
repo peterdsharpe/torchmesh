@@ -124,7 +124,7 @@ class TestWatertight3D:
     @pytest.mark.parametrize("device", get_available_devices())
     def test_filled_cube_not_watertight(self, device):
         """Even a filled cube volume is not watertight (has exterior boundary).
-        
+
         Note: For codimension-0 meshes (3D in 3D), being watertight means every
         triangular face is shared by exactly 2 tets. This is topologically impossible
         for finite meshes in Euclidean 3D space - any solid volume must have an
@@ -133,30 +133,33 @@ class TestWatertight3D:
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         ### Create a filled cube volume using ImageData and tessellate to tets
         grid = pv.ImageData(
             dimensions=(3, 3, 3),  # Simple 2x2x2 grid
             spacing=(1.0, 1.0, 1.0),
             origin=(0.0, 0.0, 0.0),
         )
-        
+
         # Tessellate to tetrahedra
         tet_grid = grid.tessellate()
-        
+
         mesh = from_pyvista(tet_grid, manifold_dim=3)
         mesh = mesh.to(device)
-        
+
         ### Even though this is a filled volume, it's NOT watertight
         # The exterior faces of the cube are boundary faces (appear only once)
         # Only the interior faces are shared by 2 tets
         assert not mesh.is_watertight()
-        
+
         ### Verify it has boundary faces
         from torchmesh.boundaries import extract_candidate_facets
-        candidate_facets, _ = extract_candidate_facets(mesh.cells, manifold_codimension=1)
+
+        candidate_facets, _ = extract_candidate_facets(
+            mesh.cells, manifold_codimension=1
+        )
         _, counts = torch.unique(candidate_facets, dim=0, return_counts=True)
-        
+
         # Should have some boundary faces (appearing once)
         n_boundary_faces = (counts == 1).sum().item()
         assert n_boundary_faces > 0, "Expected some boundary faces on cube exterior"

@@ -130,7 +130,7 @@ def _transform_higher_order_tensor(
 
     For higher-rank tensors where all non-batch dimensions equal n_spatial_dims,
     applies the transformation to each spatial index using Einstein summation.
-    
+
     For rank-N tensors, the transformation is:
         T'_{i1,i2,...,iN} = M_{i1,j1} * M_{i2,j2} * ... * M_{iN,jN} * T_{j1,j2,...,jN}
 
@@ -157,27 +157,29 @@ def _transform_higher_order_tensor(
         ### Higher-rank tensor: apply transformation to each spatial index
         # For rank-N tensor with shape (batch, n, n, ..., n),
         # we need to contract the transformation matrix along each spatial dimension
-        
+
         # Strategy: maintain consistent index labels throughout the loop.
         # We use lowercase letters starting from 'a' for the current tensor indices,
         # and 'z' for the dimension being contracted, transforming to uppercase letter.
-        
+
         # Start with indices: batch is always 'b', spatial dims are a,c,d,e,f,...
         # (skip 'b' since it's batch, use 'a' and then letters after 'b')
         result = tensor
-        
+
         # Generate index characters, skipping 'b' (batch) and 'z' (contraction var)
-        available_chars = [chr(i) for i in range(ord('a'), ord('z') + 1) if chr(i) not in ['b', 'z']]
-        
+        available_chars = [
+            chr(i) for i in range(ord("a"), ord("z") + 1) if chr(i) not in ["b", "z"]
+        ]
+
         for dim_idx in range(n_dims):
             # Build einsum to contract one dimension at a time
             # Current result has indices: b, [transformed dims], [untransformed dims]
             # We'll transform dimension at position dim_idx
-            
+
             # Build the index string for the current result
             input_indices = []
             output_indices = []
-            
+
             for i in range(n_dims):
                 if i < dim_idx:
                     # Already transformed - use uppercase to track
@@ -186,21 +188,21 @@ def _transform_higher_order_tensor(
                     output_indices.append(char)
                 elif i == dim_idx:
                     # Currently transforming - contract with 'z', output as uppercase
-                    input_indices.append('z')
+                    input_indices.append("z")
                     output_indices.append(available_chars[i].upper())
                 else:
                     # Not yet transformed - use lowercase
                     char = available_chars[i]
                     input_indices.append(char)
                     output_indices.append(char)
-            
-            input_str = 'b' + ''.join(input_indices)
-            output_str = 'b' + ''.join(output_indices)
-            
+
+            input_str = "b" + "".join(input_indices)
+            output_str = "b" + "".join(output_indices)
+
             # Matrix contracts index position of original tensor dimension
             # matrix indices: output_dim, input_dim (i.e., uppercase[dim_idx], 'z')
             matrix_indices = f"{available_chars[dim_idx].upper()}z"
-            
+
             einsum_str = f"{matrix_indices},{input_str}->{output_str}"
             result = torch.einsum(einsum_str, matrix, result)
 

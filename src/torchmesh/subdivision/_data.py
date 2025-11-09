@@ -67,7 +67,7 @@ def interpolate_point_data_to_edges(
         else:
             # Get endpoint values and average: shape (n_edges, *data_shape)
             edge_midpoint_values = tensor[edges].mean(dim=1)
-        
+
         # Concatenate original and edge midpoint data
         return torch.cat([tensor, edge_midpoint_values], dim=0)
 

@@ -105,26 +105,26 @@ class TestHigherOrderTensorTransformation:
 
     def test_transform_rank3_tensor(self):
         """Test transformation of rank-3 tensor (e.g., piezoelectric tensor).
-        
+
         For a rank-3 tensor T with shape (batch, n, n, n), the transformation is:
             T'_ijk = R_il * R_jm * R_kn * T_lmn
-        
+
         We test with a simple diagonal-like tensor and verify the transformation
         is applied correctly to all three indices.
         """
         points = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
         cells = torch.tensor([[0, 1]])
         mesh = Mesh(points=points, cells=cells)
-        
+
         # Create a rank-3 tensor field
         # Use a tensor where T[i,j,k] = 1 if i==j==k, else 0
         # This makes it easy to verify transformation
         rank3_tensor = torch.zeros(mesh.n_points, 3, 3, 3)
         for i in range(3):
             rank3_tensor[:, i, i, i] = 1.0
-        
+
         mesh.point_data["piezo"] = rank3_tensor
-        
+
         # Rotate 90 degrees about z-axis
         # R = [[0, -1, 0],
         #      [1,  0, 0],
@@ -132,17 +132,17 @@ class TestHigherOrderTensorTransformation:
         # This swaps x->y, y->-x, z->z
         angle = np.pi / 2
         rotated = rotate(mesh, axis=[0.0, 0.0, 1.0], angle=angle, transform_data=True)
-        
+
         transformed = rotated.point_data["piezo"]
-        
+
         # Verify shape is preserved
         assert transformed.shape == rank3_tensor.shape
-        
+
         # Manually compute expected result for verification
         # The original tensor has T[0,0,0]=1, T[1,1,1]=1, T[2,2,2]=1
         # After rotation by 90° about z:
         # T'[i,j,k] = sum over l,m,n of: R[i,l] * R[j,m] * R[k,n] * T[l,m,n]
-        # 
+        #
         # Since original tensor is zero except on diagonal (0,0,0), (1,1,1), (2,2,2):
         # T'[i,j,k] = R[i,0]*R[j,0]*R[k,0]*T[0,0,0] + R[i,1]*R[j,1]*R[k,1]*T[1,1,1] + R[i,2]*R[j,2]*R[k,2]*T[2,2,2]
         #           = R[i,0]*R[j,0]*R[k,0] + R[i,1]*R[j,1]*R[k,1] + R[i,2]*R[j,2]*R[k,2]
@@ -162,55 +162,57 @@ class TestHigherOrderTensorTransformation:
         # T'[1,1,1] = R[1,0]*R[1,0]*R[1,0] + R[1,1]*R[1,1]*R[1,1] + R[1,2]*R[1,2]*R[1,2]
         #           = 1^3 + 0 + 0 = 1
         # T'[2,2,2] = R[2,0]^3 + R[2,1]^3 + R[2,2]^3 = 0 + 0 + 1 = 1
-        
+
         expected = torch.zeros(mesh.n_points, 3, 3, 3)
         expected[:, 0, 0, 0] = -1.0  # Cube of -1 from R[0,1]=-1
-        expected[:, 1, 1, 1] = 1.0   # Cube of 1 from R[1,0]=1  
-        expected[:, 2, 2, 2] = 1.0   # Cube of 1 from R[2,2]=1
-        
-        assert torch.allclose(transformed, expected, atol=1e-5), \
+        expected[:, 1, 1, 1] = 1.0  # Cube of 1 from R[1,0]=1
+        expected[:, 2, 2, 2] = 1.0  # Cube of 1 from R[2,2]=1
+
+        assert torch.allclose(transformed, expected, atol=1e-5), (
             f"Rank-3 tensor transformation failed.\nExpected:\n{expected[0]}\nGot:\n{transformed[0]}"
-    
+        )
+
     def test_transform_rank4_tensor(self):
         """Test transformation of rank-4 tensor (e.g., elasticity tensor).
-        
+
         The elasticity tensor (Hooke's law) has 4 indices and transforms as:
             C'_ijkl = R_im * R_jn * R_ko * R_lp * C_mnop
         """
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0]])
         cells = torch.tensor([[0, 1]])
         mesh = Mesh(points=points, cells=cells)
-        
+
         # Create a simple rank-4 tensor - identity-like tensor
         # C[i,j,k,l] = 1 if i==j==k==l, else 0
         rank4_tensor = torch.zeros(mesh.n_points, 2, 2, 2, 2)
         for i in range(2):
             rank4_tensor[:, i, i, i, i] = 1.0
-        
+
         mesh.point_data["elasticity"] = rank4_tensor
-        
+
         # Rotate 90 degrees in 2D
         # R = [[0, -1], [1, 0]]
         angle = np.pi / 2
         rotated = rotate(mesh, axis=None, angle=angle, transform_data=True)
-        
+
         transformed = rotated.point_data["elasticity"]
-        
+
         # Verify shape is preserved
         assert transformed.shape == rank4_tensor.shape
-        
+
         # For a 90° rotation in 2D: R = [[0, -1], [1, 0]]
         # C'[0,0,0,0] = R[0,0]^4 * C[0,0,0,0] + R[0,1]^4 * C[1,1,1,1]
         #             = 0^4 * 1 + (-1)^4 * 1 = 1
         # C'[1,1,1,1] = R[1,0]^4 * C[0,0,0,0] + R[1,1]^4 * C[1,1,1,1]
         #             = 1^4 * 1 + 0^4 * 1 = 1
-        
+
         expected = torch.zeros(mesh.n_points, 2, 2, 2, 2)
         expected[:, 0, 0, 0, 0] = 1.0  # (-1)^4 = 1
         expected[:, 1, 1, 1, 1] = 1.0  # 1^4 = 1
-        
-        assert torch.allclose(transformed, expected, atol=1e-5), \
+
+        assert torch.allclose(transformed, expected, atol=1e-5), (
             f"Rank-4 tensor transformation failed.\nExpected diagonal elements [1, 1], got [{transformed[0, 0, 0, 0, 0]}, {transformed[0, 1, 1, 1, 1]}]"
+        )
 
 
 class TestDataTransformation:

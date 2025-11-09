@@ -126,7 +126,7 @@ class TestPCATangentSpace:
 
     def test_surface_in_3d_tangent_space(self, device):
         """Test PCA tangent space estimation works for surface in 3D (codimension-1).
-        
+
         Note: While codimension-1 has more efficient normal-based methods,
         the PCA method should still work correctly for these cases.
         """
@@ -150,29 +150,41 @@ class TestPCATangentSpace:
         tangent_basis, normal_basis = estimate_tangent_space_pca(mesh, k_neighbors=2)
 
         ### Verify shapes
-        assert tangent_basis.shape == (3, 2, 3)  # (n_points, n_manifold_dims, n_spatial_dims)
-        assert normal_basis.shape == (3, 1, 3)   # (n_points, codimension, n_spatial_dims)
+        assert tangent_basis.shape == (
+            3,
+            2,
+            3,
+        )  # (n_points, n_manifold_dims, n_spatial_dims)
+        assert normal_basis.shape == (
+            3,
+            1,
+            3,
+        )  # (n_points, codimension, n_spatial_dims)
 
         ### For a triangle in the XY plane:
         # Tangent space should span XY directions
         # Normal space should point in Z direction
-        
+
         ### Check that tangent vectors are orthogonal to normal
         for i in range(3):
             for j in range(2):
                 tangent_vec = tangent_basis[i, j]
                 normal_vec = normal_basis[i, 0]
-                
+
                 # Tangent and normal should be orthogonal
                 dot_product = torch.dot(tangent_vec, normal_vec)
-                assert torch.abs(dot_product) < 1e-4, f"Tangent {j} at point {i} not orthogonal to normal"
+                assert torch.abs(dot_product) < 1e-4, (
+                    f"Tangent {j} at point {i} not orthogonal to normal"
+                )
 
         ### Check that normal points primarily in Z direction (since triangle is in XY plane)
         for i in range(3):
             normal_vec = normal_basis[i, 0]
             # Z component should dominate
-            assert torch.abs(normal_vec[2]) > 0.9, f"Normal at point {i} should point in Z direction"
-        
+            assert torch.abs(normal_vec[2]) > 0.9, (
+                f"Normal at point {i} should point in Z direction"
+            )
+
         ### Check that tangent vectors are unit length
         tangent_norms = torch.norm(tangent_basis, dim=-1)
         assert torch.allclose(tangent_norms, torch.ones_like(tangent_norms), atol=1e-4)

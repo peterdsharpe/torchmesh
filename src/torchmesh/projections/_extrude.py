@@ -1,6 +1,5 @@
 """Extrusion operations for generating higher-dimensional meshes."""
 
-
 import torch
 from tensordict import TensorDict
 

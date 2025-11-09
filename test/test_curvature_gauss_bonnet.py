@@ -70,8 +70,6 @@ def compute_gaussian_curvature_integral(mesh: Mesh) -> torch.Tensor:
     return total_curvature
 
 
-
-
 def create_lumpy_sphere_mesh(
     perturbation_amplitude: float = 0.2,
     subdivisions: int = 2,
@@ -97,11 +95,9 @@ def create_lumpy_sphere_mesh(
     n_points = mesh.n_points
 
     # Random radii in range [1-amplitude, 1+amplitude]
-    radii = (
-        torch.rand(n_points, dtype=torch.float32, device=device)
-        * (2 * perturbation_amplitude)
-        + (1.0 - perturbation_amplitude)
-    )
+    radii = torch.rand(n_points, dtype=torch.float32, device=device) * (
+        2 * perturbation_amplitude
+    ) + (1.0 - perturbation_amplitude)
 
     # Apply radial perturbations
     perturbed_points = mesh.points * radii.unsqueeze(-1)
@@ -335,7 +331,7 @@ class TestGaussBonnetRobustness:
         assert relative_error < tolerance, (
             f"Lumpy sphere (amplitude={amplitude}) integral far from 4π. "
             f"Integral={integral:.6f}, expected={expected_integral:.6f}, "
-            f"relative_error={relative_error:.1%} exceeds {tolerance*100}%"
+            f"relative_error={relative_error:.1%} exceeds {tolerance * 100}%"
         )
 
     def test_octahedron_base_mesh(self, device):
@@ -347,7 +343,9 @@ class TestGaussBonnetRobustness:
 
         ### Perturb and subdivide
         torch.manual_seed(42)
-        radii = torch.rand(mesh.n_points, dtype=torch.float32, device=device) * 0.4 + 0.8
+        radii = (
+            torch.rand(mesh.n_points, dtype=torch.float32, device=device) * 0.4 + 0.8
+        )
         perturbed_points = mesh.points * radii.unsqueeze(-1)
 
         mesh = Mesh(
@@ -380,7 +378,9 @@ class TestGaussBonnetRobustness:
 
         ### Perturb and subdivide
         torch.manual_seed(42)
-        radii = torch.rand(mesh.n_points, dtype=torch.float32, device=device) * 0.4 + 0.8
+        radii = (
+            torch.rand(mesh.n_points, dtype=torch.float32, device=device) * 0.4 + 0.8
+        )
         perturbed_points = mesh.points * radii.unsqueeze(-1)
 
         mesh = Mesh(
@@ -438,4 +438,3 @@ class TestGaussBonnetEdgeCases:
         # but total should be related to Euler characteristic
         assert not torch.isnan(integral), "Integral should not be NaN"
         assert torch.isfinite(integral), "Integral should be finite"
-
