@@ -447,7 +447,7 @@ def _draw_3d(
 
     ### Set axis limits based on data
     if len(points_np) > 0:
-        margin = 0.05 * (points_np.max() - points_np.min())
+        margin = 0.01 * (points_np.max() - points_np.min())
         ax.set_xlim(points_np[:, 0].min() - margin, points_np[:, 0].max() + margin)
         ax.set_ylim(points_np[:, 1].min() - margin, points_np[:, 1].max() + margin)
         ax.set_zlim(points_np[:, 2].min() - margin, points_np[:, 2].max() + margin)
