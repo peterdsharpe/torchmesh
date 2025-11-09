@@ -34,8 +34,10 @@ def get_boundary_vertices(mesh: "Mesh") -> torch.Tensor:
     Note:
         For closed manifolds (watertight meshes), returns all False.
     """
-    from torchmesh.subdivision._topology import extract_unique_edges
-    from torchmesh.boundaries._facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries._facet_extraction import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     device = mesh.cells.device
     n_points = mesh.n_points
@@ -46,26 +48,15 @@ def get_boundary_vertices(mesh: "Mesh") -> torch.Tensor:
 
     ### Extract boundary edges (codimension-1 facets that appear in only 1 cell)
     # For n-manifolds, a boundary edge is an (n-1)-facet with only 1 adjacent cell
-    edges, _ = extract_unique_edges(mesh)
     candidate_edges, _ = extract_candidate_facets(
         mesh.cells,
         manifold_codimension=mesh.n_manifold_dims - 1,
     )
 
-    # Map candidate edges to unique edges
-    _, inverse_indices = torch.unique(candidate_edges, dim=0, return_inverse=True)
-
-    # Count how many cells use each edge
-    edge_cell_count = torch.zeros(len(edges), dtype=torch.long, device=device)
-    edge_cell_count.scatter_add_(
-        dim=0,
-        index=inverse_indices,
-        src=torch.ones(len(inverse_indices), dtype=torch.long, device=device),
+    # Get boundary edges (appear exactly once)
+    boundary_edges, _, _ = categorize_facets_by_count(
+        candidate_edges, target_counts="boundary"
     )
-
-    # Boundary edges appear in only 1 cell
-    is_boundary_edge = edge_cell_count == 1
-    boundary_edges = edges[is_boundary_edge]
 
     ### Mark all vertices incident to boundary edges
     is_boundary_vertex = torch.zeros(n_points, dtype=torch.bool, device=device)
@@ -108,7 +99,10 @@ def get_boundary_cells(
     Note:
         For closed manifolds (watertight meshes), returns all False.
     """
-    from torchmesh.boundaries._facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries._facet_extraction import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     device = mesh.cells.device
     n_cells = mesh.n_cells
@@ -130,19 +124,13 @@ def get_boundary_cells(
         manifold_codimension=boundary_codimension,
     )
 
-    ### Find which facets are on the boundary (appear in only 1 cell)
-    unique_facets, inverse_indices, counts = torch.unique(
-        candidate_facets,
-        dim=0,
-        return_inverse=True,
-        return_counts=True,
+    ### Find boundary facets (appear exactly once)
+    _, inverse_indices, _ = categorize_facets_by_count(
+        candidate_facets, target_counts="boundary"
     )
 
-    # Boundary facets appear exactly once
-    is_boundary_facet = counts == 1
-
     ### Map back to candidate facets
-    candidate_is_boundary = is_boundary_facet[inverse_indices]
+    candidate_is_boundary = inverse_indices >= 0
 
     ### Mark cells that contain at least one boundary facet
     is_boundary_cell = torch.zeros(n_cells, dtype=torch.bool, device=device)
@@ -177,8 +165,10 @@ def get_boundary_edges(mesh: "Mesh") -> torch.Tensor:
     Note:
         For closed manifolds (watertight meshes), returns empty tensor.
     """
-    from torchmesh.subdivision._topology import extract_unique_edges
-    from torchmesh.boundaries._facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries._facet_extraction import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     device = mesh.cells.device
 
@@ -186,26 +176,15 @@ def get_boundary_edges(mesh: "Mesh") -> torch.Tensor:
     if mesh.n_cells == 0:
         return torch.zeros((0, 2), dtype=torch.int64, device=device)
 
-    ### Extract all edges
-    edges, _ = extract_unique_edges(mesh)
+    ### Extract all edges (with duplicates)
     candidate_edges, _ = extract_candidate_facets(
         mesh.cells,
         manifold_codimension=mesh.n_manifold_dims - 1,
     )
 
-    # Map candidate edges to unique edges
-    _, inverse_indices = torch.unique(candidate_edges, dim=0, return_inverse=True)
-
-    # Count how many cells use each edge
-    edge_cell_count = torch.zeros(len(edges), dtype=torch.long, device=device)
-    edge_cell_count.scatter_add_(
-        dim=0,
-        index=inverse_indices,
-        src=torch.ones(len(inverse_indices), dtype=torch.long, device=device),
+    # Get boundary edges (appear exactly once)
+    boundary_edges, _, _ = categorize_facets_by_count(
+        candidate_edges, target_counts="boundary"
     )
-
-    # Boundary edges appear in only 1 cell
-    is_boundary_edge = edge_cell_count == 1
-    boundary_edges = edges[is_boundary_edge]
 
     return boundary_edges

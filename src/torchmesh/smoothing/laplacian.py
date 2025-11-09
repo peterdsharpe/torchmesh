@@ -118,7 +118,7 @@ def smooth_laplacian(
 
     if boundary_smoothing:
         # Boundary vertices should not move
-        boundary_vertex_mask = _get_boundary_vertices(mesh, edges, edge_angle)
+        boundary_vertex_mask = _get_boundary_vertices(mesh, edges)
         constrained_vertices |= boundary_vertex_mask
 
     if feature_smoothing:

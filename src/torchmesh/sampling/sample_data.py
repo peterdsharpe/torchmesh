@@ -9,6 +9,63 @@ if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
 
+def _solve_barycentric_system(
+    relative_vectors: torch.Tensor,  # shape: (..., n_manifold_dims, n_spatial_dims)
+    query_relative: torch.Tensor,  # shape: (..., n_spatial_dims)
+) -> torch.Tensor:
+    """Core barycentric coordinate solver (shared by both variants).
+
+    Solves the linear system to find barycentric coordinates w_1, ..., w_n such that:
+        query_relative = sum(w_i * relative_vectors[i])
+
+    Then computes w_0 = 1 - sum(w_i) and returns all coordinates [w_0, w_1, ..., w_n].
+
+    Args:
+        relative_vectors: Edge vectors from first vertex to others,
+            shape (..., n_manifold_dims, n_spatial_dims)
+        query_relative: Query point relative to first vertex,
+            shape (..., n_spatial_dims)
+
+    Returns:
+        Barycentric coordinates, shape (..., n_vertices_per_cell) where
+        n_vertices_per_cell = n_manifold_dims + 1
+
+    Algorithm:
+        For square systems (n_spatial_dims == n_manifold_dims): use direct solve
+        For over/under-determined systems: use least squares
+    """
+    n_manifold_dims = relative_vectors.shape[-2]
+    n_spatial_dims = relative_vectors.shape[-1]
+
+    if n_spatial_dims == n_manifold_dims:
+        ### Square system: use torch.linalg.solve
+        # Transpose to get (..., n_spatial_dims, n_manifold_dims)
+        A = relative_vectors.transpose(-2, -1)
+        # query_relative: (..., n_spatial_dims) -> (..., n_spatial_dims, 1)
+        b = query_relative.unsqueeze(-1)
+
+        # Solve: A @ x = b
+        try:
+            weights_1_to_n = torch.linalg.solve(A, b).squeeze(-1)
+        except torch.linalg.LinAlgError:
+            # Singular matrix - use lstsq as fallback
+            weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
+
+    else:
+        ### Over-determined or under-determined system: use least squares
+        A = relative_vectors.transpose(-2, -1)
+        b = query_relative.unsqueeze(-1)
+        weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
+
+    ### Compute w_0 = 1 - sum(w_i for i=1..n)
+    w_0 = 1.0 - weights_1_to_n.sum(dim=-1, keepdim=True)
+
+    ### Concatenate to get all barycentric coordinates
+    barycentric_coords = torch.cat([w_0, weights_1_to_n], dim=-1)
+
+    return barycentric_coords
+
+
 def compute_barycentric_coordinates(
     query_points: torch.Tensor,
     cell_vertices: torch.Tensor,
@@ -49,57 +106,17 @@ def compute_barycentric_coordinates(
     # Shape: (n_queries, n_cells, n_spatial_dims)
     query_relative = query_points.unsqueeze(1) - v0.squeeze(1).unsqueeze(0)
 
-    ### Solve the linear system for barycentric coordinates
-    # We need to solve: query_relative = relative_vectors @ weights
-    # where weights has shape (n_queries, n_cells, n_manifold_dims)
-    #
-    # For over-determined systems (n_spatial_dims > n_manifold_dims), use least squares
-    # For square systems (n_spatial_dims == n_manifold_dims), use direct solve
-
-    # Expand dimensions for batch operations
+    ### Solve using shared barycentric solver
+    # Expand relative_vectors to broadcast with queries
     # relative_vectors: (n_cells, n_manifold_dims, n_spatial_dims)
-    # Need to solve for each query-cell pair
+    # query_relative: (n_queries, n_cells, n_spatial_dims)
+    # Need to expand relative_vectors to (1, n_cells, n_manifold_dims, n_spatial_dims)
+    relative_vectors_expanded = relative_vectors.unsqueeze(0)
 
-    n_manifold_dims = n_vertices_per_cell - 1
-
-    if n_spatial_dims == n_manifold_dims:
-        ### Square system: use torch.linalg.solve
-        # Transpose to get (n_cells, n_spatial_dims, n_manifold_dims)
-        A = relative_vectors.transpose(
-            -2, -1
-        )  # (n_cells, n_spatial_dims, n_manifold_dims)
-        # Expand for all queries: (1, n_cells, n_spatial_dims, n_manifold_dims)
-        A_expanded = A.unsqueeze(0)
-        # query_relative: (n_queries, n_cells, n_spatial_dims) -> (n_queries, n_cells, n_spatial_dims, 1)
-        b_expanded = query_relative.unsqueeze(-1)
-
-        # Solve: A @ x = b
-        try:
-            weights_1_to_n = torch.linalg.solve(A_expanded, b_expanded).squeeze(-1)
-        except torch.linalg.LinAlgError:
-            # Singular matrix - use lstsq as fallback
-            weights_1_to_n = torch.linalg.lstsq(
-                A_expanded, b_expanded
-            ).solution.squeeze(-1)
-
-    else:
-        ### Over-determined or under-determined system: use least squares
-        # relative_vectors: (n_cells, n_manifold_dims, n_spatial_dims)
-        # Transpose to get (n_cells, n_spatial_dims, n_manifold_dims)
-        A = relative_vectors.transpose(-2, -1)
-        A_expanded = A.unsqueeze(0).expand(n_queries, -1, -1, -1)
-        b_expanded = query_relative.unsqueeze(-1)
-
-        # Solve least squares: minimize ||A @ x - b||
-        weights_1_to_n = torch.linalg.lstsq(A_expanded, b_expanded).solution.squeeze(-1)
-
-    ### Compute w_0 = 1 - sum(w_i for i=1..n)
-    # weights_1_to_n: (n_queries, n_cells, n_manifold_dims)
-    w_0 = 1.0 - weights_1_to_n.sum(dim=-1, keepdim=True)  # (n_queries, n_cells, 1)
-
-    ### Concatenate to get all barycentric coordinates
-    # Shape: (n_queries, n_cells, n_vertices_per_cell)
-    barycentric_coords = torch.cat([w_0, weights_1_to_n], dim=-1)
+    # Use shared solver that handles the linear system
+    barycentric_coords = _solve_barycentric_system(
+        relative_vectors_expanded, query_relative
+    )
 
     return barycentric_coords
 
@@ -147,35 +164,11 @@ def compute_barycentric_coordinates_pairwise(
     # Shape: (n_pairs, n_spatial_dims)
     query_relative = query_points - v0
 
-    ### Solve the linear system for barycentric coordinates
-    # For each pair independently (no broadcasting across pairs)
-
-    if n_spatial_dims == n_manifold_dims:
-        ### Square system: use torch.linalg.solve
-        # A: (n_pairs, n_spatial_dims, n_manifold_dims)
-        # b: (n_pairs, n_spatial_dims, 1)
-        A = relative_vectors.transpose(-2, -1)
-        b = query_relative.unsqueeze(-1)
-
-        try:
-            weights_1_to_n = torch.linalg.solve(A, b).squeeze(-1)
-        except torch.linalg.LinAlgError:
-            # Singular matrix - use lstsq as fallback
-            weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
-
-    else:
-        ### Over-determined or under-determined system: use least squares
-        A = relative_vectors.transpose(-2, -1)
-        b = query_relative.unsqueeze(-1)
-        weights_1_to_n = torch.linalg.lstsq(A, b).solution.squeeze(-1)
-
-    ### Compute w_0 = 1 - sum(w_i for i=1..n)
-    # Shape: (n_pairs, 1)
-    w_0 = 1.0 - weights_1_to_n.sum(dim=-1, keepdim=True)
-
-    ### Concatenate to get all barycentric coordinates
-    # Shape: (n_pairs, n_vertices_per_cell)
-    barycentric_coords = torch.cat([w_0, weights_1_to_n], dim=-1)
+    ### Solve using shared barycentric solver
+    # relative_vectors: (n_pairs, n_manifold_dims, n_spatial_dims)
+    # query_relative: (n_pairs, n_spatial_dims)
+    # Both are already in the right shape for pairwise solving
+    barycentric_coords = _solve_barycentric_system(relative_vectors, query_relative)
 
     return barycentric_coords
 

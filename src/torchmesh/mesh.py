@@ -677,79 +677,37 @@ class Mesh:
                     )
 
         ### Convert each cell data field to point data
+        from torchmesh.utilities import scatter_aggregate
+
         new_point_data = self.point_data.clone()
 
+        # Get flat list of point indices and corresponding cell indices
+        # self.cells shape: (n_cells, n_vertices_per_cell)
+        n_vertices_per_cell = self.cells.shape[1]
+
+        # Flatten: all point indices that appear in cells
+        # Shape: (n_cells * n_vertices_per_cell,)
+        point_indices = self.cells.flatten()
+
+        # Corresponding cell index for each point
+        # Shape: (n_cells * n_vertices_per_cell,)
+        cell_indices = torch.arange(
+            self.n_cells, device=self.points.device
+        ).repeat_interleave(n_vertices_per_cell)
+
         for key, cell_values in self.cell_data.exclude("_cache").items():
-            ### Vectorized approach: use scatter operations to accumulate
-            # For each cell, we need to add its value to all its vertices
-            # Then divide by the count of cells touching each vertex
+            ### Use scatter aggregation utility to average cell values to points
+            # Expand cell values to one entry per vertex
+            src_data = cell_values[cell_indices]
 
-            # Get flat list of point indices and corresponding cell indices
-            # self.cells shape: (n_cells, n_vertices_per_cell)
-            n_vertices_per_cell = self.cells.shape[1]
-
-            # Flatten: all point indices that appear in cells
-            # Shape: (n_cells * n_vertices_per_cell,)
-            point_indices = self.cells.flatten()
-
-            # Corresponding cell index for each point
-            # Shape: (n_cells * n_vertices_per_cell,)
-            cell_indices = torch.arange(
-                self.n_cells, device=self.points.device
-            ).repeat_interleave(n_vertices_per_cell)
-
-            ### Accumulate sum of cell values at each point
-            if cell_values.ndim == 1:
-                # Scalar data: shape (n_cells,)
-                point_sum = torch.zeros(
-                    self.n_points, dtype=cell_values.dtype, device=self.points.device
-                )
-                # Add each cell's value to all its points
-                point_sum.scatter_add_(
-                    0,  # dim
-                    point_indices,  # index
-                    cell_values[cell_indices],  # src
-                )
-            else:
-                # Multi-dimensional data: shape (n_cells, ...)
-                point_sum = torch.zeros(
-                    (self.n_points,) + cell_values.shape[1:],
-                    dtype=cell_values.dtype,
-                    device=self.points.device,
-                )
-                # Expand indices for multi-dimensional scatter
-                # Need to broadcast cell_indices to match the shape
-                expanded_shape = [len(point_indices)] + [1] * (cell_values.ndim - 1)
-                expanded_indices = point_indices.view(expanded_shape).expand(
-                    -1, *cell_values.shape[1:]
-                )
-                point_sum.scatter_add_(
-                    0,  # dim
-                    expanded_indices,  # index
-                    cell_values[cell_indices],  # src
-                )
-
-            ### Count how many cells contribute to each point
-            point_count = torch.zeros(
-                self.n_points, dtype=torch.float32, device=self.points.device
+            # Aggregate to points using mean
+            point_values = scatter_aggregate(
+                src_data=src_data,
+                src_to_dst_mapping=point_indices,
+                n_dst=self.n_points,
+                weights=None,
+                aggregation="mean",
             )
-            point_count.scatter_add_(
-                0,
-                point_indices,
-                torch.ones_like(point_indices, dtype=torch.float32),
-            )
-
-            ### Average: divide sum by count
-            # Avoid division by zero (though shouldn't happen for valid meshes)
-            point_count = point_count.clamp(min=1.0)
-
-            if cell_values.ndim == 1:
-                point_values = point_sum / point_count
-            else:
-                # Broadcast count for multi-dimensional data
-                point_values = point_sum / point_count.view(
-                    -1, *([1] * (cell_values.ndim - 1))
-                )
 
             new_point_data[key] = point_values
 

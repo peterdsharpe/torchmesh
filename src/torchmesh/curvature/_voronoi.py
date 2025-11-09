@@ -14,6 +14,36 @@ if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
 
+def _scatter_add_cell_contributions_to_vertices(
+    voronoi_areas: torch.Tensor,  # shape: (n_points,)
+    cells: torch.Tensor,  # shape: (n_selected_cells, n_vertices_per_cell)
+    contributions: torch.Tensor,  # shape: (n_selected_cells,)
+) -> None:
+    """Scatter cell area contributions to all cell vertices.
+
+    This is a common pattern in Voronoi area computation where each cell
+    contributes a fraction of its area to each of its vertices.
+
+    Args:
+        voronoi_areas: Accumulator for voronoi areas (modified in place)
+        cells: Cell connectivity for selected cells
+        contributions: Area contribution from each cell to its vertices
+
+    Example:
+        >>> # Add 1/3 of each triangle area to each vertex
+        >>> _scatter_add_cell_contributions_to_vertices(
+        ...     voronoi_areas, triangle_cells, triangle_areas / 3.0
+        ... )
+    """
+    n_vertices_per_cell = cells.shape[1]
+    for vertex_idx in range(n_vertices_per_cell):
+        voronoi_areas.scatter_add_(
+            0,
+            cells[:, vertex_idx],
+            contributions,
+        )
+
+
 def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
     """Compute mixed Voronoi areas at mesh vertices.
 
@@ -61,14 +91,9 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
     ### Dimension-specific computation
     if n_manifold_dims == 1:
         ### 1D: Each vertex gets half the length of each incident edge
-        # Scatter half of each edge length to both endpoints
-
-        for vertex_idx in range(2):  # Each edge has 2 vertices
-            voronoi_areas.scatter_add_(
-                0,
-                mesh.cells[:, vertex_idx],
-                cell_areas / 2.0,
-            )
+        _scatter_add_cell_contributions_to_vertices(
+            voronoi_areas, mesh.cells, cell_areas / 2.0
+        )
 
     elif n_manifold_dims == 2:
         ### 2D: Mixed Voronoi area for triangles
@@ -118,36 +143,26 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
             non_obtuse_areas = cell_areas[non_obtuse_mask] / 3.0
             non_obtuse_cells = mesh.cells[non_obtuse_mask]
 
-            for vertex_idx in range(3):
-                voronoi_areas.scatter_add_(
-                    0,
-                    non_obtuse_cells[:, vertex_idx],
-                    non_obtuse_areas,
-                )
+            _scatter_add_cell_contributions_to_vertices(
+                voronoi_areas, non_obtuse_cells, non_obtuse_areas
+            )
 
         ### Obtuse triangles: Use barycentric subdivision
         if is_obtuse.any():
             obtuse_areas = cell_areas[is_obtuse] / 3.0
             obtuse_cells = mesh.cells[is_obtuse]
 
-            for vertex_idx in range(3):
-                voronoi_areas.scatter_add_(
-                    0,
-                    obtuse_cells[:, vertex_idx],
-                    obtuse_areas,
-                )
+            _scatter_add_cell_contributions_to_vertices(
+                voronoi_areas, obtuse_cells, obtuse_areas
+            )
 
     elif n_manifold_dims == 3:
         ### 3D: Barycentric subdivision for tetrahedra
         # Each vertex gets 1/4 of the volume of each incident tet
         # (Circumsphere-based Voronoi is complex; barycentric is standard approximation)
-
-        for vertex_idx in range(4):
-            voronoi_areas.scatter_add_(
-                0,
-                mesh.cells[:, vertex_idx],
-                cell_areas / 4.0,
-            )
+        _scatter_add_cell_contributions_to_vertices(
+            voronoi_areas, mesh.cells, cell_areas / 4.0
+        )
 
     else:
         raise NotImplementedError(

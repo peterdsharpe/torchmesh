@@ -49,7 +49,10 @@ def get_cell_to_cells_adjacency(
         >>> adj.to_list()
         [[1], [0]]  # Triangle 0 neighbors triangle 1 (share edge [1,2])
     """
-    from torchmesh.boundaries import extract_candidate_facets
+    from torchmesh.boundaries import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     ### Handle empty mesh
     if mesh.n_cells == 0:
@@ -66,24 +69,14 @@ def get_cell_to_cells_adjacency(
         manifold_codimension=adjacency_codimension,
     )
 
-    ### Deduplicate facets and find which ones are shared
-    # unique_facets are already sorted within each facet by extract_candidate_facets
-    # inverse_indices maps each candidate facet to its unique facet index
-    # counts tells us how many times each unique facet appears
-    unique_facets, inverse_indices, counts = torch.unique(
-        candidate_facets,
-        dim=0,
-        return_inverse=True,
-        return_counts=True,
+    ### Find shared facets (those appearing in 2+ cells)
+    _, inverse_indices, _ = categorize_facets_by_count(
+        candidate_facets, target_counts="shared"
     )
 
-    ### Find shared facets (those appearing in multiple cells)
-    # Shape: (n_shared_facets,)
-    shared_facet_mask = counts > 1
-
-    ### Filter to only keep candidate facets that belong to shared unique facets
-    # This creates a mask over all candidate facets
-    candidate_is_shared = shared_facet_mask[inverse_indices]
+    ### Filter to only keep candidate facets that are shared
+    # inverse_indices maps candidates to unique shared facets (or -1 if not shared)
+    candidate_is_shared = inverse_indices >= 0
 
     # Extract only the parent cells and inverse indices for shared facets
     shared_parent_cells = parent_cell_indices[candidate_is_shared]
@@ -259,37 +252,15 @@ def get_cell_to_cells_adjacency(
 
     ### Remove duplicate pairs (can happen if cells share multiple facets)
     # This ensures each neighbor appears exactly once per source
+    from torchmesh.neighbors._adjacency import build_adjacency_from_pairs
+
     unique_pairs = torch.unique(cell_pairs_tensor, dim=0)
 
-    ### Sort by source cell for grouping
-    sort_indices = torch.argsort(
-        unique_pairs[:, 0] * (mesh.n_cells + 1) + unique_pairs[:, 1]
-    )
-    sorted_pairs = unique_pairs[sort_indices]
-
-    ### Compute offsets for each cell
-    offsets = torch.zeros(
-        mesh.n_cells + 1,
-        dtype=torch.int64,
-        device=mesh.cells.device,
-    )
-
-    # Count occurrences of each source cell
-    source_cells = sorted_pairs[:, 0]
-    cell_counts = torch.bincount(
-        source_cells,
-        minlength=mesh.n_cells,
-    )
-
-    # Cumulative sum to get offsets
-    offsets[1:] = torch.cumsum(cell_counts, dim=0)
-
-    # Extract target cells (the neighbors)
-    neighbor_indices = sorted_pairs[:, 1]
-
-    return Adjacency(
-        offsets=offsets,
-        indices=neighbor_indices,
+    ### Build adjacency using shared utility
+    return build_adjacency_from_pairs(
+        source_indices=unique_pairs[:, 0],
+        target_indices=unique_pairs[:, 1],
+        n_sources=mesh.n_cells,
     )
 
 

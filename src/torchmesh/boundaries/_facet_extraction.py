@@ -50,6 +50,96 @@ def _generate_combination_indices(n: int, k: int) -> torch.Tensor:
     return torch.tensor(combos, dtype=torch.int64)
 
 
+def categorize_facets_by_count(
+    candidate_facets: torch.Tensor,  # shape: (n_candidate_facets, n_vertices_per_facet)
+    target_counts: list[int] | Literal["boundary", "shared", "interior", "all"] = "all",
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Deduplicate facets and optionally filter by occurrence count.
+
+    This utility consolidates the common pattern of deduplicating facets using
+    torch.unique and filtering based on how many times each facet appears.
+
+    Args:
+        candidate_facets: All candidate facets (may contain duplicates), already sorted
+        target_counts: How to filter the results:
+            - "all": Return all unique facets with their counts (no filtering)
+            - "boundary": Return facets appearing exactly once (counts == 1)
+            - "interior": Return facets appearing exactly twice (counts == 2)
+            - "shared": Return facets appearing 2+ times (counts >= 2)
+            - list[int]: Return facets with counts in the specified list
+
+    Returns:
+        Tuple of (unique_facets, inverse_indices, counts):
+        - unique_facets: Deduplicated facets, possibly filtered by count
+        - inverse_indices: Mapping from candidate facets to unique facet indices
+        - counts: How many times each unique facet appears
+
+        If filtering is applied, only the matching facets and their data are returned.
+
+    Example:
+        >>> # Find boundary facets (appear exactly once)
+        >>> boundary_facets, _, counts = categorize_facets_by_count(
+        ...     candidate_facets, target_counts="boundary"
+        ... )
+        >>>
+        >>> # Find shared facets (appear 2+ times)
+        >>> shared, inv, counts = categorize_facets_by_count(
+        ...     candidate_facets, target_counts="shared"
+        ... )
+    """
+    ### Deduplicate and count occurrences
+    unique_facets, inverse_indices, counts = torch.unique(
+        candidate_facets,
+        dim=0,
+        return_inverse=True,
+        return_counts=True,
+    )
+
+    ### Apply filtering based on target_counts
+    if target_counts == "all":
+        # Return everything, no filtering
+        return unique_facets, inverse_indices, counts
+
+    elif target_counts == "boundary":
+        # Facets appearing exactly once (on boundary)
+        mask = counts == 1
+
+    elif target_counts == "interior":
+        # Facets appearing exactly twice (interior of watertight mesh)
+        mask = counts == 2
+
+    elif target_counts == "shared":
+        # Facets appearing 2+ times (shared by multiple cells)
+        mask = counts >= 2
+
+    elif isinstance(target_counts, list):
+        # Custom list of target counts
+        mask = torch.zeros_like(counts, dtype=torch.bool)
+        for target_count in target_counts:
+            mask |= counts == target_count
+
+    else:
+        raise ValueError(
+            f"Invalid {target_counts=}. "
+            f"Must be 'all', 'boundary', 'interior', 'shared', or a list of integers."
+        )
+
+    ### Filter facets and update inverse indices
+    filtered_facets = unique_facets[mask]
+    filtered_counts = counts[mask]
+
+    # Update inverse indices to point to filtered facets
+    # Create mapping from old unique indices to new filtered indices
+    # For facets that don't pass the filter, map to -1
+    old_to_new = torch.full((len(unique_facets),), -1, dtype=torch.int64, device=unique_facets.device)
+    old_to_new[mask] = torch.arange(mask.sum(), dtype=torch.int64, device=unique_facets.device)
+
+    # Remap inverse indices
+    filtered_inverse = old_to_new[inverse_indices]
+
+    return filtered_facets, filtered_inverse, filtered_counts
+
+
 def extract_candidate_facets(
     cells: torch.Tensor,  # shape: (n_cells, n_vertices_per_cell)
     manifold_codimension: int = 1,
@@ -159,55 +249,20 @@ def _aggregate_tensor_data(
     Returns:
         Aggregated data for unique facets
     """
+    from torchmesh.utilities import scatter_aggregate
+
     ### Gather parent cell data for each candidate facet
     # Shape: (n_candidate_facets, *data_shape)
     candidate_data = parent_data[parent_cell_indices]
 
-    ### Set up weights
-    if aggregation_weights is None:
-        aggregation_weights = torch.ones(
-            len(parent_cell_indices),
-            dtype=parent_data.dtype,
-            device=parent_data.device,
-        )
-
-    ### Weight the data
-    # Broadcast weights to match data shape: (n_candidate_facets, *data_shape)
-    data_shape = candidate_data.shape[1:]
-    weight_shape = [len(aggregation_weights)] + [1] * len(data_shape)
-    weighted_data = candidate_data * aggregation_weights.view(weight_shape)
-
-    ### Aggregate data for each unique facet using scatter
-    aggregated_data = torch.zeros(
-        (n_unique_facets, *data_shape),
-        dtype=weighted_data.dtype,
-        device=weighted_data.device,
+    ### Use unified scatter aggregation utility
+    return scatter_aggregate(
+        src_data=candidate_data,
+        src_to_dst_mapping=inverse_indices,
+        n_dst=n_unique_facets,
+        weights=aggregation_weights,
+        aggregation="mean",
     )
-    aggregated_data.scatter_add_(
-        dim=0,
-        index=inverse_indices.view(-1, *([1] * len(data_shape))).expand_as(
-            weighted_data
-        ),
-        src=weighted_data,
-    )
-
-    ### Sum weights for normalization
-    weight_sums = torch.zeros(
-        n_unique_facets,
-        dtype=aggregation_weights.dtype,
-        device=aggregation_weights.device,
-    )
-    weight_sums.scatter_add_(
-        dim=0,
-        index=inverse_indices,
-        src=aggregation_weights,
-    )
-
-    ### Normalize by total weight
-    weight_sums = weight_sums.clamp(min=1e-30)
-    aggregated_data = aggregated_data / weight_sums.view(-1, *([1] * len(data_shape)))
-
-    return aggregated_data
 
 
 def deduplicate_and_aggregate_facets(

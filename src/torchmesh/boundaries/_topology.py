@@ -38,7 +38,10 @@ def is_watertight(mesh: "Mesh") -> bool:
         >>> tet = Mesh(points, cells=torch.tensor([[0, 1, 2, 3]]))
         >>> is_watertight(tet)  # False
     """
-    from torchmesh.boundaries._facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries._facet_extraction import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     ### Empty mesh is considered watertight
     if mesh.n_cells == 0:
@@ -50,12 +53,8 @@ def is_watertight(mesh: "Mesh") -> bool:
         manifold_codimension=1,
     )
 
-    ### Count how many times each unique facet appears
-    _, counts = torch.unique(
-        candidate_facets,
-        dim=0,
-        return_counts=True,
-    )
+    ### Deduplicate and get counts
+    _, _, counts = categorize_facets_by_count(candidate_facets, target_counts="all")
 
     ### Watertight iff all facets appear exactly twice
     # Each facet should be shared by exactly 2 cells
@@ -138,7 +137,10 @@ def _check_facets_manifold(mesh: "Mesh") -> bool:
     Returns:
         True if facets satisfy manifold constraints
     """
-    from torchmesh.boundaries._facet_extraction import extract_candidate_facets
+    from torchmesh.boundaries._facet_extraction import (
+        extract_candidate_facets,
+        categorize_facets_by_count,
+    )
 
     ### Extract all codimension-1 facets
     candidate_facets, _ = extract_candidate_facets(
@@ -146,12 +148,8 @@ def _check_facets_manifold(mesh: "Mesh") -> bool:
         manifold_codimension=1,
     )
 
-    ### Count how many times each unique facet appears
-    _, counts = torch.unique(
-        candidate_facets,
-        dim=0,
-        return_counts=True,
-    )
+    ### Deduplicate and get counts
+    _, _, counts = categorize_facets_by_count(candidate_facets, target_counts="all")
 
     ### For manifold: each facet appears at most twice (1 = boundary, 2 = interior)
     # If any facet appears 3+ times, it's a non-manifold edge
@@ -245,7 +243,7 @@ def _check_vertices_manifold(mesh: "Mesh") -> bool:
 
     ### For 3D meshes, check that faces around each vertex form a connected surface
     if mesh.n_manifold_dims == 3:
-        return _check_3d_vertex_manifold(mesh)
+        return _check_3d_vertex_manifold()
 
     ### For other dimensions, no specific check
     return True

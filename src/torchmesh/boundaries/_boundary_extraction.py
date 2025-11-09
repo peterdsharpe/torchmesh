@@ -47,6 +47,7 @@ def extract_boundary_mesh_data(
     """
     from torchmesh.boundaries._facet_extraction import (
         extract_candidate_facets,
+        categorize_facets_by_count,
         compute_aggregation_weights,
         _aggregate_point_data_to_facets,
     )
@@ -57,29 +58,26 @@ def extract_boundary_mesh_data(
         manifold_codimension=1,  # Always codimension-1 for boundaries
     )
 
-    ### Find unique facets and their counts
-    unique_facets, inverse_indices, counts = torch.unique(
-        candidate_facets,
-        dim=0,
-        return_inverse=True,
-        return_counts=True,
-    )
-
     ### Filter to boundary facets (appear exactly once)
-    is_boundary_facet = counts == 1
-    boundary_facet_mask = is_boundary_facet[inverse_indices]
+    boundary_facets, inverse_indices, _ = categorize_facets_by_count(
+        candidate_facets, target_counts="boundary"
+    )
+    n_boundary_facets = len(boundary_facets)
 
-    ### Extract boundary facets and their parent cells
-    boundary_facets_candidates = candidate_facets[boundary_facet_mask]
+    ### Extract parent cells for boundary facets
+    # inverse_indices maps candidate facets to filtered unique facets
+    # We need only the candidates that map to valid filtered facets (not -1)
+    boundary_facet_mask = inverse_indices >= 0
     boundary_parent_indices = parent_cell_indices[boundary_facet_mask]
+    boundary_facets_candidates = candidate_facets[boundary_facet_mask]
 
-    ### Get unique boundary facets (should already be unique, but ensure it)
-    boundary_facets, boundary_inverse = torch.unique(
+    ### Get mapping from boundary candidates to unique boundary facets
+    # Since we already filtered, we just need to get the inverse mapping
+    _, boundary_inverse = torch.unique(
         boundary_facets_candidates,
         dim=0,
         return_inverse=True,
     )
-    n_boundary_facets = len(boundary_facets)
 
     ### Initialize empty output TensorDict
     boundary_cell_data = TensorDict(

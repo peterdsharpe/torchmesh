@@ -113,3 +113,71 @@ class Adjacency:
     def n_total_neighbors(self) -> int:
         """Total number of neighbor relationships across all sources."""
         return len(self.indices)
+
+
+def build_adjacency_from_pairs(
+    source_indices: torch.Tensor,  # shape: (n_pairs,)
+    target_indices: torch.Tensor,  # shape: (n_pairs,)
+    n_sources: int,
+) -> Adjacency:
+    """Build offset-index adjacency from (source, target) pairs.
+
+    This utility consolidates the common pattern of constructing an Adjacency object
+    from a list of directed edges (source → target pairs).
+
+    Algorithm:
+        1. Sort pairs by source index (then by target for consistency)
+        2. Use bincount to count neighbors per source
+        3. Use cumsum to compute offsets
+        4. Return Adjacency with sorted neighbor lists
+
+    Args:
+        source_indices: Source entity indices, shape (n_pairs,)
+        target_indices: Target entity (neighbor) indices, shape (n_pairs,)
+        n_sources: Total number of source entities (may exceed max(source_indices))
+
+    Returns:
+        Adjacency object where adjacency.to_list()[i] contains all targets
+        connected from source i. Sources with no outgoing edges have empty lists.
+
+    Example:
+        >>> # Create adjacency: 0→[1,2], 1→[3], 2→[], 3→[0]
+        >>> sources = torch.tensor([0, 0, 1, 3])
+        >>> targets = torch.tensor([1, 2, 3, 0])
+        >>> adj = build_adjacency_from_pairs(sources, targets, n_sources=4)
+        >>> adj.to_list()
+        [[1, 2], [3], [], [0]]
+    """
+    device = source_indices.device
+
+    ### Handle empty pairs
+    if len(source_indices) == 0:
+        return Adjacency(
+            offsets=torch.zeros(n_sources + 1, dtype=torch.int64, device=device),
+            indices=torch.zeros(0, dtype=torch.int64, device=device),
+        )
+
+    ### Sort by (source, target) for grouping
+    # Use lexicographic sort: sort by source first, then by target
+    # Multiply source by (max_target + 1) to ensure source dominates in sort order
+    max_target = target_indices.max().item() if len(target_indices) > 0 else 0
+    sort_keys = source_indices * (max_target + 2) + target_indices
+    sort_indices = torch.argsort(sort_keys)
+
+    sorted_sources = source_indices[sort_indices]
+    sorted_targets = target_indices[sort_indices]
+
+    ### Compute offsets for each source
+    # offsets[i] marks the start of source i's neighbor list
+    offsets = torch.zeros(n_sources + 1, dtype=torch.int64, device=device)
+
+    # Count occurrences of each source index
+    source_counts = torch.bincount(sorted_sources, minlength=n_sources)
+
+    # Cumulative sum to get offsets
+    offsets[1:] = torch.cumsum(source_counts, dim=0)
+
+    return Adjacency(
+        offsets=offsets,
+        indices=sorted_targets,
+    )

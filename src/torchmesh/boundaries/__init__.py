@@ -15,6 +15,7 @@ from torchmesh.boundaries._detection import (
 )
 from torchmesh.boundaries._facet_extraction import (
     extract_candidate_facets,
+    categorize_facets_by_count,
     deduplicate_and_aggregate_facets,
     extract_facet_mesh_data,
     compute_aggregation_weights,
@@ -40,6 +41,7 @@ __all__ = [
     "get_boundary_edges",
     # Facet extraction
     "extract_candidate_facets",
+    "categorize_facets_by_count",
     "deduplicate_and_aggregate_facets",
     "extract_facet_mesh_data",
     "compute_aggregation_weights",

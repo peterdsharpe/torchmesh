@@ -15,6 +15,44 @@ if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
 
 
+def _compute_duplicate_mask(
+    points: torch.Tensor,  # shape: (n_points, n_spatial_dims)
+    rtol: float,
+    atol: float,
+) -> torch.Tensor:
+    """Compute pairwise duplicate mask based on distance tolerance.
+
+    Two points are considered duplicates if:
+        ||p1 - p2|| <= atol + rtol * max(||p1||, ||p2||)
+
+    Args:
+        points: Point coordinates
+        rtol: Relative tolerance
+        atol: Absolute tolerance
+
+    Returns:
+        Boolean mask of shape (n_points, n_points) where True indicates duplicates
+    """
+    ### Compute pairwise distances: ||pi - pj||
+    # Shape: (n_points, n_points)
+    diff = points.unsqueeze(0) - points.unsqueeze(1)  # (n_points, n_points, n_dims)
+    distances = torch.norm(diff, dim=-1)  # (n_points, n_points)
+
+    ### Compute threshold for each pair: atol + rtol * max(||pi||, ||pj||)
+    # Shape: (n_points,)
+    point_norms = torch.norm(points, dim=-1)
+
+    ### Threshold matrix: atol + rtol * max(||pi||, ||pj||)
+    # Use max to ensure symmetry
+    threshold_matrix = atol + rtol * torch.maximum(
+        point_norms.unsqueeze(1),
+        point_norms.unsqueeze(0),
+    )
+
+    ### Find duplicate pairs: distance <= threshold
+    return distances <= threshold_matrix
+
+
 def merge_duplicate_points(
     points: torch.Tensor,  # shape: (n_points, n_spatial_dims)
     cells: torch.Tensor,  # shape: (n_cells, n_vertices_per_cell)
@@ -130,24 +168,8 @@ def _merge_points_pairwise(
     n_points = len(points)
     device = points.device
 
-    ### Compute pairwise distances: ||pi - pj||
-    # Shape: (n_points, n_points)
-    diff = points.unsqueeze(0) - points.unsqueeze(1)  # (n_points, n_points, n_dims)
-    distances = torch.norm(diff, dim=-1)  # (n_points, n_points)
-
-    ### Compute threshold for each pair: atol + rtol * ||pi||
-    # Shape: (n_points,)
-    point_norms = torch.norm(points, dim=-1)
-
-    ### Threshold matrix: atol + rtol * max(||pi||, ||pj||)
-    # Use max to ensure symmetry
-    threshold_matrix = atol + rtol * torch.maximum(
-        point_norms.unsqueeze(1),
-        point_norms.unsqueeze(0),
-    )
-
-    ### Find duplicate pairs: distance <= threshold
-    is_duplicate = distances <= threshold_matrix
+    ### Compute duplicate mask using shared tolerance computation
+    is_duplicate = _compute_duplicate_mask(points, rtol, atol)
 
     ### Build connected components using union-find
     # Start with each point mapping to itself
@@ -241,19 +263,8 @@ def _merge_points_spatial_hash(
         bucket_points = sorted_points[indices_in_bucket]
         bucket_original_indices = sorted_indices[indices_in_bucket]
 
-        ### Compute pairwise distances within bucket
-        diff = bucket_points.unsqueeze(0) - bucket_points.unsqueeze(1)
-        distances = torch.norm(diff, dim=-1)
-
-        ### Compute thresholds
-        point_norms = torch.norm(bucket_points, dim=-1)
-        threshold_matrix = atol + rtol * torch.maximum(
-            point_norms.unsqueeze(1),
-            point_norms.unsqueeze(0),
-        )
-
-        ### Find duplicates within bucket
-        is_duplicate = distances <= threshold_matrix
+        ### Find duplicates within bucket using shared tolerance computation
+        is_duplicate = _compute_duplicate_mask(bucket_points, rtol, atol)
 
         ### Update mapping for duplicates
         for i in range(len(indices_in_bucket)):
@@ -290,6 +301,8 @@ def _merge_point_data(
     Returns:
         Merged point data
     """
+    from torchmesh.utilities import scatter_aggregate
+
     if len(point_data.keys()) == 0:
         return TensorDict(
             {},
@@ -297,52 +310,26 @@ def _merge_point_data(
             device=point_data.device,
         )
 
+    ### Create reverse mapping: unique_indices[i] corresponds to output index i
+    device = point_mapping.device
+    reverse_map = torch.zeros(len(point_mapping), dtype=torch.int64, device=device)
+    reverse_map[unique_indices] = torch.arange(
+        n_unique, device=device, dtype=torch.int64
+    )
+
+    ### Get output indices for all input points
+    output_indices = reverse_map[point_mapping]
+
     ### For each unique point, average the data from all points that map to it
     def _merge_tensor(tensor: torch.Tensor) -> torch.Tensor:
-        ### Compute indices after remapping
-        # For each unique index, find all original points that map to it
-        device = tensor.device
-        dtype = tensor.dtype
-
-        ### Create output tensor
-        merged = torch.zeros(
-            (n_unique, *tensor.shape[1:]),
-            dtype=dtype,
-            device=device,
+        ### Use scatter aggregation utility
+        return scatter_aggregate(
+            src_data=tensor,
+            src_to_dst_mapping=output_indices,
+            n_dst=n_unique,
+            weights=None,
+            aggregation="mean",
         )
-
-        ### Count how many points map to each unique point
-        counts = torch.zeros(n_unique, dtype=torch.float32, device=device)
-
-        ### Create reverse mapping: unique_indices[i] corresponds to output index i
-        reverse_map = torch.zeros(len(point_mapping), dtype=torch.int64, device=device)
-        reverse_map[unique_indices] = torch.arange(
-            n_unique, device=device, dtype=torch.int64
-        )
-
-        ### Get output indices for all input points
-        output_indices = reverse_map[point_mapping]
-
-        ### Scatter add the data
-        data_shape = tensor.shape[1:]
-        merged.scatter_add_(
-            dim=0,
-            index=output_indices.view(-1, *([1] * len(data_shape))).expand_as(tensor),
-            src=tensor,
-        )
-
-        ### Count contributions
-        counts.scatter_add_(
-            dim=0,
-            index=output_indices,
-            src=torch.ones_like(output_indices, dtype=torch.float32),
-        )
-
-        ### Average
-        counts = counts.clamp(min=1.0)
-        merged = merged / counts.view(-1, *([1] * len(data_shape)))
-
-        return merged
 
     return point_data.apply(
         _merge_tensor,
