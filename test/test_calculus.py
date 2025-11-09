@@ -492,35 +492,32 @@ class TestLaplacian:
         )
 
     def test_dec_laplacian_quadratic_reasonable(self):
-        """DEC Laplacian of φ=||r||² gives reasonable approximation."""
-        # Simple 2D mesh
-        points = torch.tensor(
-            [
-                [0.0, 0.0],
-                [1.0, 0.0],
-                [1.0, 1.0],
-                [0.0, 1.0],
-                [0.5, 0.5],
-            ],
-            dtype=torch.float32,
-        )
-        cells = torch.tensor([[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]])
+        """DEC Laplacian of φ=||r||² gives reasonable approximation.
+        
+        Note: Uses a Delaunay-quality mesh. Circumcentric duals work best on
+        well-centered meshes where circumcenters lie inside triangles. Axis-aligned
+        grids create poorly-conditioned duals.
+        """
+        import pyvista as pv
+        from torchmesh.io import from_pyvista
+        
+        # Use a sphere mesh which is naturally well-centered (close to Delaunay)
+        # Subdivide for refinement
+        sphere_pv = pv.Sphere(radius=1.0, theta_resolution=20, phi_resolution=20)
+        mesh = from_pyvista(sphere_pv)
 
-        from torchmesh.mesh import Mesh
-
-        mesh = Mesh(points=points, cells=cells)
-
-        # Quadratic
-        phi = (points**2).sum(dim=-1)
+        # Test function: φ = z²
+        # On a sphere, this is NOT constant, so we get a non-trivial Laplacian
+        # Analytical: ∂²(z²)/∂z² = 2
+        phi = mesh.points[:, 2] ** 2
 
         from torchmesh.calculus.laplacian import compute_laplacian_points_dec
 
         lap = compute_laplacian_points_dec(mesh, phi)
 
         # Expected: 4 (∇²(x²+y²) = 2+2)
-        # Interior point should be within 30% (coarse mesh discretization error)
         expected = 4.0
-        assert torch.abs(lap[4] - expected) < expected * 0.3, (
+        assert torch.abs(lap[4] - expected) < expected * 0.01, (
             f"Laplacian at interior: {lap[4]:.3f}, expected ≈{expected}"
         )
 
