@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 
 from torchmesh.examples.text import text_2d_2d, text_2d_3d
 from torchmesh.examples.procedural import perlin_noise_nd
-from torchmesh.smoothing import smooth_laplacian
 
 
 if __name__ == "__main__":
