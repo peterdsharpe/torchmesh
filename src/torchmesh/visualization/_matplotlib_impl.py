@@ -175,7 +175,27 @@ def draw_mesh_matplotlib(
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
-        # Note: 3D axes don't have good equal aspect ratio support
+        
+        ### Make 3D axes equal by adjusting limits to have same range
+        ax.set_box_aspect((1, 1, 1))
+        
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+        
+        x_range = abs(xlim[1] - xlim[0])
+        x_middle = np.mean(xlim)
+        y_range = abs(ylim[1] - ylim[0])
+        y_middle = np.mean(ylim)
+        z_range = abs(zlim[1] - zlim[0])
+        z_middle = np.mean(zlim)
+        
+        # Use the maximum range to ensure all axes have equal scale
+        plot_radius = 0.5 * max([x_range, y_range, z_range])
+        
+        ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+        ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+        ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
     if show:
         plt.show()
