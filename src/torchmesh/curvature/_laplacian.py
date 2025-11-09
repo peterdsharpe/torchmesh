@@ -104,15 +104,15 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
     """Compute cotangent weights for edges in the mesh.
 
     For 2D manifolds (triangles):
-        w_ij = (1/2) * (cot α + cot β)
+        w_ij = (1/2) × (cot α + cot β)
     where α, β are opposite angles in the two adjacent triangles.
 
     For 3D manifolds (tets):
-        w_ij = (1/2) * (cot θ_1 + cot θ_2 + ...)
+        w_ij = (1/2) × (cot θ_1 + cot θ_2 + ...)
     where θ_k are dihedral angles at the edge in adjacent tets.
 
     For boundary edges (only one adjacent cell):
-        w_ij = (1/2) * cot α
+        w_ij = (1/2) × cot α
     where α is the angle in the single adjacent triangle.
 
     Args:
