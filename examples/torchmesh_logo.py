@@ -35,14 +35,14 @@ if __name__ == "__main__":
     )
 
     ### Apply smoothing and subdivision for final quality
-    m33 = smooth_laplacian(
-        m33,
-        n_iter=100,
-        relaxation_factor=0.02,
-        boundary_smoothing=False,
-        feature_smoothing=False,
-    )
-    m33 = m33.subdivide(levels=2, filter="butterfly")
+    m33 = m33.subdivide(levels=2, filter="loop")
+    # m33 = smooth_laplacian(
+    #     m33,
+    #     n_iter=100,
+    #     relaxation_factor=0.01,
+    #     boundary_smoothing=False,
+    #     feature_smoothing=False,
+    # )
 
     ### Add procedural coloring
     m22.cell_data["noise"] = perlin_noise_nd(m22.cell_centroids, scale=0.5, seed=42)
@@ -68,6 +68,6 @@ if __name__ == "__main__":
         alpha_cells=1.0,
         alpha_edges=0.0,
         alpha_points=0.0,
-        backend="pyvista",
+        backend="matplotlib",
         show=True,
     )
