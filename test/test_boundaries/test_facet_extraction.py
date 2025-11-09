@@ -515,7 +515,7 @@ class TestEdgeCases:
         assert len(facet_mesh.cell_data.keys()) == 0
 
     def test_cached_properties_not_inherited(self):
-        """Cached properties like _centroids should not be inherited."""
+        """Cached properties should not be inherited from parent mesh."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
         cells = torch.tensor([[0, 1, 2]])
 
@@ -529,8 +529,11 @@ class TestEdgeCases:
         facet_mesh = mesh.get_facet_mesh()
 
         ### Cached properties should not be in edge mesh cell_data
-        assert "_centroids" not in facet_mesh.cell_data
-        assert "_areas" not in facet_mesh.cell_data
+        # With new cache syntax, caches are stored under ("_cache", key)
+        assert ("_cache", "centroids") not in facet_mesh.cell_data.keys(
+            include_nested=True
+        )
+        assert ("_cache", "areas") not in facet_mesh.cell_data.keys(include_nested=True)
 
     def test_3d_triangle_mesh(self):
         """Test triangle mesh embedded in 3D space."""

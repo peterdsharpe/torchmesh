@@ -1,7 +1,8 @@
 """Geometric transformations for simplicial meshes.
 
 This module implements linear and affine transformations with intelligent
-cache handling for geometric properties (_areas, _centroids, _normals).
+cache handling for geometric properties stored in cell_data[("_cache", "areas")],
+cell_data[("_cache", "centroids")], and cell_data[("_cache", "normals")].
 """
 
 from typing import TYPE_CHECKING
@@ -341,17 +342,17 @@ def transform(
             For non-square matrices, this performs dimensional projections.
         transform_data: If True, also transform vector and tensor fields in
             point_data and cell_data. Scalar fields are always unchanged.
-            Geometric caches (_centroids, _normals) are always transformed
+            Geometric caches (centroids, normals) are always transformed
             regardless of this flag.
 
     Returns:
         New Mesh with transformed geometry and appropriately updated caches.
 
     Cache Handling:
-        - _areas: For square matrices, multiplied by |det(matrix)|^(n_manifold_dims/n_spatial_dims).
-                  For non-square matrices, invalidated.
-        - _centroids: Always transformed by the matrix (geometric property).
-        - _normals: Invalidated (directions change for non-orthogonal transforms).
+        - areas: For square matrices, multiplied by |det(matrix)|^(n_manifold_dims/n_spatial_dims).
+                 For non-square matrices, invalidated.
+        - centroids: Always transformed by the matrix (geometric property).
+        - normals: Invalidated (directions change for non-orthogonal transforms).
 
     Example:
         >>> # 2D shear transformation
@@ -483,9 +484,9 @@ def translate(mesh: "Mesh", offset: torch.Tensor | list | tuple) -> "Mesh":
         New Mesh with translated geometry.
 
     Cache Handling:
-        - _areas: Unchanged (translation doesn't affect sizes).
-        - _centroids: Translated by offset.
-        - _normals: Unchanged (translation doesn't affect directions).
+        - areas: Unchanged (translation doesn't affect sizes).
+        - centroids: Translated by offset.
+        - normals: Unchanged (translation doesn't affect directions).
 
     Note:
         This function does not have a transform_data parameter because translation
@@ -571,16 +572,16 @@ def rotate(
             If provided, translates the mesh so that 'center' is at the origin,
             performs rotation, then translates back.
         transform_data: If True, also rotate vector and tensor fields in
-            point_data and cell_data. Geometric caches (_centroids, _normals)
+            point_data and cell_data. Geometric caches (centroids, normals)
             are always rotated regardless of this flag.
 
     Returns:
         New Mesh with rotated geometry.
 
     Cache Handling:
-        - _areas: Unchanged (rotation preserves volumes).
-        - _centroids: Rotated (geometric property, always transformed).
-        - _normals: Rotated (geometric property, always transformed).
+        - areas: Unchanged (rotation preserves volumes).
+        - centroids: Rotated (geometric property, always transformed).
+        - normals: Rotated (geometric property, always transformed).
 
     Raises:
         ValueError: If axis is None for 3D mesh, or has incorrect shape.
@@ -745,14 +746,14 @@ def scale(
         New Mesh with scaled geometry.
 
     Cache Handling (uniform scaling):
-        - _areas: Multiplied by |factor|^n_manifold_dims.
-        - _centroids: Scaled.
-        - _normals: Unchanged if factor > 0, flipped if factor < 0.
+        - areas: Multiplied by |factor|^n_manifold_dims.
+        - centroids: Scaled.
+        - normals: Unchanged if factor > 0, flipped if factor < 0.
 
     Cache Handling (non-uniform scaling):
-        - _areas: Multiplied by |det(scale_matrix)|^(n_manifold_dims/n_spatial_dims).
-        - _centroids: Scaled (component-wise).
-        - _normals: Invalidated (directions change with non-uniform scaling).
+        - areas: Multiplied by |det(scale_matrix)|^(n_manifold_dims/n_spatial_dims).
+        - centroids: Scaled (component-wise).
+        - normals: Invalidated (directions change with non-uniform scaling).
 
     Example:
         >>> # Uniform scaling: double all dimensions

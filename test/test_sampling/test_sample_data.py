@@ -386,14 +386,14 @@ class TestSampleAtPoints:
         assert not torch.isnan(result["temperature"][0])
 
     def test_skip_cached_properties(self):
-        """Test that cached properties (starting with _) are skipped."""
+        """Test that cached properties stored in _cache are skipped."""
         ### Create a mesh and trigger cached property computation
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
         cells = torch.tensor([[0, 1, 2]])
         mesh = Mesh(points=points, cells=cells)
 
         ### Access a cached property to populate it
-        _ = mesh.cell_centroids  # This creates _centroids in cell_data
+        _ = mesh.cell_centroids  # This creates ("_cache", "centroids") in cell_data
 
         ### Query point
         queries = torch.tensor([[0.25, 0.25]])
@@ -401,8 +401,8 @@ class TestSampleAtPoints:
         ### Sample should not include cached properties
         result = sample_data_at_points(mesh, queries, data_source="cells")
 
-        ### Result should not contain _centroids
-        assert "_centroids" not in result.keys()
+        ### Result should not contain the _cache nested dict
+        assert "_cache" not in result.keys()
 
     def test_3d_tetrahedral_mesh(self):
         """Test sampling on a 3D tetrahedral mesh."""

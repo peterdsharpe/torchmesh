@@ -26,7 +26,7 @@ def compute_point_derivatives(
     Args:
         mesh: Simplicial mesh
         keys: Fields to compute gradients of. Options:
-            - None: All non-cached fields (not starting with "_")
+            - None: All non-cached fields (excludes "_cache" subdictionary)
             - str: Single field name (e.g., "pressure")
             - tuple: Nested path (e.g., ("flow", "temperature"))
             - Sequence: List of above (e.g., ["pressure", ("flow", "velocity")])
