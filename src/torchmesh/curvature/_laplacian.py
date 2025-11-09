@@ -143,12 +143,25 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
         manifold_codimension=n_manifold_dims - 1,
     )
 
-    # Find mapping from unique edges to candidate edges
-    _, inverse_indices = torch.unique(
-        candidate_edges,
-        dim=0,
-        return_inverse=True,
-    )
+    ### Map candidate edges to provided unique edges using hashing
+    # Sort both sets of edges for consistent comparison
+    sorted_candidate_edges = torch.sort(candidate_edges, dim=1).values
+    sorted_edges = torch.sort(edges, dim=1).values
+
+    # Hash edges: hash = v0 * (n_points + 1) + v1
+    def edge_to_hash(e: torch.Tensor) -> torch.Tensor:
+        return e[:, 0] * (mesh.n_points + 1) + e[:, 1]
+
+    unique_edge_hashes = edge_to_hash(sorted_edges)
+    candidate_edge_hashes = edge_to_hash(sorted_candidate_edges)
+
+    # Build hash-to-index mapping
+    max_hash = unique_edge_hashes.max().item() if len(unique_edge_hashes) > 0 else 0
+    edge_hash_to_idx = torch.full((max_hash + 1,), -1, dtype=torch.long, device=device)
+    edge_hash_to_idx[unique_edge_hashes] = torch.arange(len(unique_edge_hashes), device=device)
+
+    # Map candidate edges to unique edge indices
+    inverse_indices = edge_hash_to_idx[candidate_edge_hashes]
 
     ### Compute weights based on manifold dimension
     if n_manifold_dims == 1:

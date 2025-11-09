@@ -222,9 +222,9 @@ def _compute_edge_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor:
         weights = compute_cotangent_weights(mesh, edges)
 
         ### Clamp weights for numerical stability
-        # Negative cotangents can occur for obtuse angles
-        # Very large cotangents occur for nearly degenerate triangles
-        weights = weights.clamp(min=-10.0, max=10.0)
+        # Negative cotangents occur for obtuse angles - treat as zero (no contribution)
+        # Very large cotangents occur for nearly degenerate triangles - cap for stability
+        weights = weights.clamp(min=0.0, max=10.0)
 
     else:
         ### Use uniform weights for 1D manifolds or higher codimension
