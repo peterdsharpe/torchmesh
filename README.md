@@ -195,21 +195,35 @@ Starting with the airplane mesh, we can compute its surface [Gaussian curvature]
 
 ```python
 mesh = mesh.subdivide(levels=2, filter="loop")
-
-mesh.point_data["curvature"] = mesh.gaussian_curvature_vertices
-mesh.cell_data["curvature"] = mesh.gaussian_curvature_cells
-
-plotter = mesh.draw(
-    point_scalars="curvature",
+mesh.point_data["gaussian_curvature"] = mesh.gaussian_curvature_vertices
+mesh.draw(
+    point_scalars="gaussian_curvature",
+    show_edges=False,
     ...
 )
 ```
 
 <p align="center">
-  <img src="examples/readme_examples/airplane_curvature.png" width="80%" alt="Gaussian Curvature">
+  <img src="examples/readme_examples/airplane_gaussian_curvature.png" width="80%" alt="Gaussian Curvature">
 </p>
 
-*Warmer colors indicate positive curvature (convex regions), cooler colors indicate negative curvature (concave regions).*
+*Warmer colors indicate positive Gaussian curvature (convex regions), cooler colors indicate negative Gaussian curvature (concave regions).*
+
+Or, compute the [mean curvature](https://en.wikipedia.org/wiki/Mean_curvature):
+```python
+mesh.point_data["mean_curvature"] = mesh.mean_curvature_vertices
+mesh.draw(
+    point_scalars="mean_curvature",
+    show_edges=False,
+    ...
+)
+```
+
+<p align="center">
+  <img src="examples/readme_examples/airplane_mean_curvature.png" width="80%" alt="Mean Curvature">
+</p>
+
+*Warmer colors indicate positive mean curvature (convex regions), cooler colors indicate negative mean curvature (concave regions).*
 
 ### Computing Field Derivatives
 
@@ -290,10 +304,11 @@ Comprehensive overview of TorchMesh capabilities:
 | Data sampling at points | ✅ | |
 | **Transformations** | | |
 | Translation | ✅ | |
-| Rotation | ✅ | Arbitrary axis |
+| Rotation | ✅ | In 2D or 3D (angle-axis); for higher dimensions rotation is ill-defined, use `transform()` instead |
 | Scaling | ✅ | Uniform or anisotropic |
 | Arbitrary matrix transform | ✅ | |
 | Extrusion | ✅ | Manifold → higher dimension |
+| Projection / Intersection | ❌ | Manifold → lower dimension; work in progress |
 | **Neighbors & Adjacency** | | |
 | Point-to-points | ✅ | Graph edges |
 | Point-to-cells | ✅ | Vertex star |
