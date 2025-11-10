@@ -20,7 +20,7 @@ As the mesh is refined, this sum should converge to 4π.
 import pytest
 import torch
 
-from torchmesh.curvature._voronoi import compute_voronoi_areas
+from torchmesh.geometry.dual_meshes import compute_dual_volumes_0 as compute_voronoi_areas
 from torchmesh.examples.surfaces import (
     icosahedron_surface,
     octahedron_surface,

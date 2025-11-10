@@ -198,9 +198,9 @@ class TestGaussianCurvature:
         K_vertices = mesh.gaussian_curvature_vertices
 
         # Compute Voronoi areas for integration
-        from torchmesh.curvature._voronoi import compute_voronoi_areas
+        from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
 
-        voronoi_areas = compute_voronoi_areas(mesh)
+        voronoi_areas = compute_dual_volumes_0(mesh)
 
         # Integrate: ∫K dA ≈ Σ K_i * A_i
         total_curvature = (K_vertices * voronoi_areas).sum()
@@ -271,13 +271,13 @@ class TestGaussianCurvature:
         The sum of Voronoi areas should equal the sum of triangle areas,
         ensuring perfect tiling without gaps or overlaps (Meyer et al. 2003, Sec 3.4).
         """
-        from torchmesh.curvature._voronoi import compute_voronoi_areas
+        from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
 
         for subdivisions in [0, 2, 4]:
             mesh = create_sphere_mesh(
                 radius=1.0, subdivisions=subdivisions, device=device
             )
-            voronoi_areas = compute_voronoi_areas(mesh)
+            voronoi_areas = compute_dual_volumes_0(mesh)
 
             # Sum of Voronoi areas should equal sum of triangle areas
             total_voronoi_area = voronoi_areas.sum().item()
