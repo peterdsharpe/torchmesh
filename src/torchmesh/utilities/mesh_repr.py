@@ -15,6 +15,7 @@ def format_mesh_repr(mesh, exclude_cache: bool = False) -> str:
         Formatted string representation of the mesh
     """
     ### Build the first line with class name and key properties
+    # These properties are guaranteed by __post_init__
     class_name = mesh.__class__.__name__
     parts = [
         f"manifold_dim={mesh.n_manifold_dims}",
@@ -144,12 +145,15 @@ def _format_tensordict_repr(
                 items.append(f"{key}: {nested_repr}")
             else:
                 # Format tensor with trailing shape
-                trailing_shape = _get_trailing_shape(value, batch_dims)
-                items.append(f"{key}: {trailing_shape}")
+                if isinstance(value, torch.Tensor):
+                    trailing_shape = _get_trailing_shape(value, batch_dims)
+                    items.append(f"{key}: {trailing_shape}")
+                else:
+                    # Non-tensor, non-TensorDict value (shouldn't happen in practice)
+                    items.append(f"{key}: <{type(value).__name__}>")
         return "{" + ", ".join(items) + "}"
     
     # Multi-line format
-    indent = "    " * indent_level
     next_indent = "    " * (indent_level + 1)
     
     # Find max key length for alignment
@@ -187,13 +191,19 @@ def _format_tensordict_repr(
                 field_lines.append(f"{next_indent}{padded_key}: {nested_repr},")
         else:
             # Format tensor with trailing shape
-            trailing_shape = _get_trailing_shape(value, batch_dims)
+            if isinstance(value, torch.Tensor):
+                trailing_shape = _get_trailing_shape(value, batch_dims)
+                shape_str = str(trailing_shape)
+            else:
+                # Non-tensor, non-TensorDict value (shouldn't happen in practice)
+                shape_str = f"<{type(value).__name__}>"
+            
             if is_last:
                 # Last item: add closing brace inline
-                field_lines.append(f"{next_indent}{padded_key}: {trailing_shape}}}")
+                field_lines.append(f"{next_indent}{padded_key}: {shape_str}}}")
             else:
                 # Not last: add comma
-                field_lines.append(f"{next_indent}{padded_key}: {trailing_shape},")
+                field_lines.append(f"{next_indent}{padded_key}: {shape_str},")
     
     # Return just the field lines - opening brace goes on the same line as parent key
     return "{\n" + "\n".join(field_lines)

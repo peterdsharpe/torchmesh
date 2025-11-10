@@ -564,3 +564,30 @@ def test_repr_cache_always_last():
     assert alpha_pos < beta_pos < zebra_pos < cache_pos, \
         f"Keys not in correct order: alpha={alpha_pos}, beta={beta_pos}, zebra={zebra_pos}, _cache={cache_pos}"
 
+
+def test_repr_edge_case_empty_cells():
+    """Test that __repr__ handles meshes with zero cells gracefully."""
+    # Create a mesh with zero cells (edge case)
+    points = torch.randn(10, 3)
+    cells = torch.randint(0, 10, (0, 3))  # Zero cells
+    mesh = Mesh(
+        points=points,
+        cells=cells,
+        point_data={},
+        cell_data={},
+        global_data={},
+    )
+    
+    result = repr(mesh)
+    
+    # Should handle zero cells gracefully
+    assert "n_cells=0" in result
+    assert "n_points=10" in result
+    
+    expected = r"""Mesh(manifold_dim=2, spatial_dim=3, n_points=10, n_cells=0)
+    point_data : {}
+    cell_data  : {}
+    global_data: {}"""
+    
+    assert result == expected, f"Expected:\n{expected}\n\nGot:\n{result}"
+
