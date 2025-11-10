@@ -216,9 +216,8 @@ def _draw_0d(
     else:
         colors = point_neutral_color
 
-    # Draw points at the origin with slight jitter for visibility
-    x_positions = np.zeros(n_points)
-    ax.scatter(x_positions, np.zeros(n_points), c=colors, alpha=alpha_points, s=50)
+    # Draw points at the origin
+    ax.scatter(np.zeros(n_points), np.zeros(n_points), c=colors, alpha=alpha_points, s=5)
     ax.set_xlim(-1, 1)
     ax.set_ylim(-0.5, 0.5)
 
@@ -241,7 +240,6 @@ def _draw_1d(
     if points_np.shape[1] == 1:
         # Truly 1D: plot on x-axis
         x = points_np[:, 0]
-        y = np.zeros_like(x)
     else:
         # Should not happen for n_spatial_dims=1, but handle gracefully
         raise ValueError(
@@ -272,7 +270,7 @@ def _draw_1d(
         else:
             colors = point_neutral_color
 
-        ax.scatter(x, y, c=colors, alpha=alpha_points, s=50, zorder=2)
+        ax.scatter(x, np.zeros_like(x), c=colors, alpha=alpha_points, s=5, zorder=2)
 
 
 def _draw_2d(
@@ -334,7 +332,7 @@ def _draw_2d(
             points_np[:, 1],
             c=colors,
             alpha=alpha_points,
-            s=20,
+            s=5,
             zorder=2,
         )
 
@@ -431,7 +429,7 @@ def _draw_3d(
             points_np[:, 2],
             c=colors,
             alpha=alpha_points,
-            s=20,
+            s=5,
             zorder=2,
         )
 
