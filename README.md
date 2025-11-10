@@ -27,7 +27,7 @@
 - **Computer vision researchers** think "point cloud" (0D vertices in 3D space)
 - **Robotics engineers** think "curves" (1D edges in 2D or 3D space)
 
-**TorchMesh handles all of these** in a unified, dimensionally-generic framework. At its core, TorchMesh operates on **arbitrary-dimensional [simplicial complexes](https://en.wikipedia.org/wiki/Simplicial_complex) embedded in arbitrary-dimensional [Euclidean spaces](https://en.wikipedia.org/wiki/Euclidean_space)**.
+**TorchMesh handles all of these** in a unified, dimensionally-generic framework. More precisely, TorchMesh operates on **arbitrary-dimensional [pure simplicial complexes](https://en.wikipedia.org/wiki/Simplicial_complex) embedded in arbitrary-dimensional [Euclidean spaces](https://en.wikipedia.org/wiki/Euclidean_space)**.
 
 This means you can work with:
 - 2D triangles in 2D space (planar meshes for 2D simulations)
