@@ -191,24 +191,27 @@ Then, with `mesh.draw()`, you can visualize the mesh:
 
 ### Computing Curvature
 
+Starting with the airplane mesh, we can compute its surface [Gaussian curvature](https://en.wikipedia.org/wiki/Gaussian_curvature):
+
 ```python
-# Gaussian curvature (intrinsic geometric property)
-K = mesh.gaussian_curvature_vertices
+mesh = mesh.subdivide(levels=2, filter="loop")
 
-print(f"Curvature range: [{K.min():.6f}, {K.max():.6f}]")
-# Curvature range: [-0.000795, 8.618090]
+mesh.point_data["curvature"] = mesh.gaussian_curvature_vertices
+mesh.cell_data["curvature"] = mesh.gaussian_curvature_cells
 
-# Visualize
-mesh.draw(point_scalars=K, cmap="coolwarm")
+plotter = mesh.draw(
+    point_scalars="curvature",
+    ...
+)
 ```
 
 <p align="center">
   <img src="examples/readme_examples/airplane_curvature.png" width="80%" alt="Gaussian Curvature">
 </p>
 
-*Warmer colors indicate positive curvature (convex regions), cooler colors indicate near-zero curvature (flat/saddle regions).*
+*Warmer colors indicate positive curvature (convex regions), cooler colors indicate negative curvature (concave regions).*
 
-### Computing Derivatives
+### Computing Field Derivatives
 
 ```python
 # Create scalar field: T = x + 2y
