@@ -14,15 +14,16 @@ This creates a beautiful 3D solid text logo with smooth surface and procedural c
 
 import torch
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from torchmesh.examples.text import text_2d_2d, text_2d_3d
 from torchmesh.examples.procedural import perlin_noise_nd
 from torchmesh.projections import embed_in_spatial_dims
 from torchmesh.remeshing import remesh
 from torchmesh.projections import extrude
-import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
+    script_dir = Path(__file__).parent
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     ### Generate 2D flat logo and 3D boundary surface
@@ -40,9 +41,9 @@ if __name__ == "__main__":
     m.draw(
         cell_scalars="noise",
         cmap="viridis",
-        show_edges=False,
+        show_edges=True,
         alpha_cells=1.0,
-        alpha_edges=0.0,
+        alpha_edges=0.1,
         alpha_points=0.0,
         backend="matplotlib",
         show=False,
@@ -80,14 +81,14 @@ if __name__ == "__main__":
     ax.patch.set_alpha(0.0)
 
     plt.savefig(
-        "torchmesh_logo.png",
+        script_dir / "torchmesh_logo.png",
         transparent=True,
         bbox_inches="tight",
         pad_inches=0,
         dpi=300,
     )
     plt.savefig(
-        "torchmesh_logo.svg", transparent=True, bbox_inches="tight", pad_inches=0
+        script_dir / "torchmesh_logo.svg", transparent=True, bbox_inches="tight", pad_inches=0
     )
 
     plt.show()

@@ -303,7 +303,7 @@ def _draw_2d(
 
         if show_edges and alpha_edges > 0:
             edgecolors = "black"
-            linewidths = 0.5
+            linewidths = 0.25
         else:
             edgecolors = "none"
             linewidths = 0
@@ -396,7 +396,7 @@ def _draw_3d(
 
             if show_edges and alpha_edges > 0:
                 edgecolors = [(0, 0, 0, alpha_edges)] * len(verts)
-                linewidths = 0.5
+                linewidths = 0.25
             else:
                 edgecolors = "none"
                 linewidths = 0
