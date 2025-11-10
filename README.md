@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <em>It's not just a bag of triangles -- it's a fast bag of triangles!</em>
+  <em>"It's not just a bag of triangles -- it's a fast bag of triangles!"</em>
 </p>
 
 ---
@@ -115,15 +115,15 @@ points = torch.tensor([
     [0.0, 0.0],
     [1.0, 0.0],
     [0.5, 1.0]
-], dtype=torch.float32)
+])
 
-cells = torch.tensor([[0, 1, 2]], dtype=torch.long)
+cells = torch.tensor([[0, 1, 2]])  # Indicates that points 0, 1, and 2 form a cell (in 2D, a triangle)
 
 mesh = Mesh(points=points, cells=cells)
 print(mesh)
 ```
 
-**Output:**
+**Output:** (dimensionality is inferred from `points` and `cells` shapes)
 ```
 Mesh(manifold_dim=2, spatial_dim=2, n_points=3, n_cells=1)
     point_data : {}
@@ -131,25 +131,28 @@ Mesh(manifold_dim=2, spatial_dim=2, n_points=3, n_cells=1)
     global_data: {}
 ```
 
-The `__repr__` immediately tells you the dimensional configuration and data structure.
-
 ### Adding Data to a Mesh
 
 ```python
-# Add scalar field at points
+# Scalar data (shape: n_points or n_cells)
 mesh.point_data["temperature"] = torch.tensor([300.0, 350.0, 325.0])
-
-# Add scalar field at cells
 mesh.cell_data["pressure"] = torch.tensor([101.3])
+
+# Vector data (shape: n_points × n_spatial_dims or n_cells × n_spatial_dims)
+mesh.point_data["velocity"] = torch.tensor([[1.0, 0.5], [0.8, 1.2], [0.0, 0.9]])
+
+# Tensor data (shape: n_cells × n_spatial_dims × n_spatial_dims)
+# Reynolds stress tensor: symmetric 2×2 tensor for each cell
+mesh.cell_data["reynolds_stress"] = torch.tensor([[[2.1, 0.3], [0.3, 1.8]]])
 
 print(mesh)
 ```
 
-**Output:**
+**Output:** (data fields show the trailing dimensions)
 ```
 Mesh(manifold_dim=2, spatial_dim=2, n_points=3, n_cells=1)
-    point_data : {temperature: ()}
-    cell_data  : {pressure: ()}
+    point_data : {temperature: (), velocity: (2,)}
+    cell_data  : {pressure: (), reynolds_stress: (2, 2)}
     global_data: {}
 ```
 
@@ -163,6 +166,10 @@ import pyvista as pv
 pv_mesh = pv.examples.load_airplane()  # See pyvista.org for more datasets
 mesh = from_pyvista(pv_mesh)
 
+# Or, equivalently:
+from torchmesh.examples.pyvista_datasets.airplane import load
+mesh = load()
+
 print(mesh)
 ```
 
@@ -175,6 +182,8 @@ Mesh(manifold_dim=2, spatial_dim=3, n_points=1335, n_cells=2452)
 ```
 
 This is a **2D surface mesh** (triangles) embedded in **3D space** - a typical graphics/CAD mesh.
+
+Then, with `mesh.draw()`, you can visualize the mesh:
 
 <p align="center">
   <img src="examples/readme_examples/airplane.png" width="80%" alt="Airplane Mesh">
@@ -314,94 +323,54 @@ Comprehensive overview of TorchMesh capabilities:
 
 ## Examples
 
+### Transformations
+
+```python
+import numpy as np
+
+mesh_translated = mesh.translate([1.0, 0.0, 0.0])
+mesh_rotated = mesh.rotate(axis=[0, 0, 1], angle=np.pi/4)
+mesh_scaled = mesh.scale(2.0)  # Or [2.0, 1.0, 0.5] for anisotropic
+```
+
+### Subdivision
+
+```python
+refined = mesh.subdivide(levels=2, filter="linear")    # Topology only
+smooth = mesh.subdivide(levels=2, filter="loop")       # C² continuous
+interp = mesh.subdivide(levels=2, filter="butterfly")  # Interpolating
+```
+
 ### Discrete Calculus
 
 ```python
-from torchmesh.io import from_pyvista
-import pyvista as pv
+from torchmesh.calculus import compute_divergence_points_lsq, compute_curl_points_lsq
 
-# Load a mesh
-mesh = from_pyvista(pv.examples.load_tetbeam())
-
-# Add scalar field: pressure
+# Gradient
 mesh.point_data["pressure"] = (mesh.points ** 2).sum(dim=-1)
+mesh_grad = mesh.compute_point_derivatives(keys="pressure", method="lsq")
+grad_p = mesh_grad.point_data["pressure_gradient"]  # (n_points, n_spatial_dims)
 
-# Compute gradient
-mesh_with_grad = mesh.compute_point_derivatives(keys="pressure", method="lsq")
-grad_p = mesh_with_grad.point_data["pressure_gradient"]
-# Shape: (n_points, 3)
-
-# Compute divergence
-from torchmesh.calculus import compute_divergence_points_lsq
-
+# Divergence and curl
 mesh.point_data["velocity"] = mesh.points.clone()
 div_v = compute_divergence_points_lsq(mesh, mesh.point_data["velocity"])
-# Expected: ≈3.0 for v = r
+curl_v = compute_curl_points_lsq(mesh, mesh.point_data["velocity"])  # 3D only
 
-# Compute curl (3D only)
-from torchmesh.calculus import compute_curl_points_lsq
-
-curl_v = compute_curl_points_lsq(mesh, mesh.point_data["velocity"])
-
-# Compute Laplace-Beltrami operator (intrinsic to manifold)
-from torchmesh.calculus import compute_laplacian_points_dec
-
-laplacian_p = compute_laplacian_points_dec(mesh, mesh.point_data["pressure"])
+# For surfaces: intrinsic (tangent space) vs extrinsic (ambient space)
+grad_intrinsic = mesh.compute_point_derivatives(keys="T", gradient_type="intrinsic")
+grad_extrinsic = mesh.compute_point_derivatives(keys="T", gradient_type="extrinsic")
 ```
 
-### Intrinsic vs Extrinsic Derivatives
-
-For surfaces embedded in 3D, you can compute derivatives in the [tangent space](https://en.wikipedia.org/wiki/Tangent_space) (intrinsic) or [ambient space](https://en.wikipedia.org/wiki/Ambient_space) (extrinsic):
+### Mesh Operations
 
 ```python
-# Load a surface mesh (2D in 3D)
-mesh = from_pyvista(pv.examples.load_airplane())
-mesh.point_data["temperature"] = (mesh.points ** 2).sum(dim=-1)
-
-# Intrinsic gradient (lives in tangent plane)
-mesh_intrinsic = mesh.compute_point_derivatives(
-    keys="temperature",
-    method="lsq",
-    gradient_type="intrinsic"
-)
-grad_intrinsic = mesh_intrinsic.point_data["temperature_gradient"]
-# Orthogonal to surface normal
-
-# Extrinsic gradient (lives in 3D ambient space)
-mesh_extrinsic = mesh.compute_point_derivatives(
-    keys="temperature",
-    method="lsq",
-    gradient_type="extrinsic"
-)
-grad_extrinsic = mesh_extrinsic.point_data["temperature_gradient"]
-# Full 3D vector
-```
-
-### Mesh Subdivision
-
-```python
-# Linear subdivision (simplest, topology only)
-refined = mesh.subdivide(levels=2, filter="linear")
-
-# Loop subdivision (smooth, C² continuous)
-smooth = mesh.subdivide(levels=2, filter="loop")
-
-# Butterfly subdivision (interpolating, preserves original vertices)
-interp = mesh.subdivide(levels=2, filter="butterfly")
-```
-
-### Boundary Extraction and Topology
-
-```python
-# Extract boundary mesh
+# Boundary detection
 boundary = mesh.get_boundary_mesh()
-
-# Check topology
+facets = mesh.get_facet_mesh()
 is_watertight = mesh.is_watertight()
-is_manifold = mesh.is_manifold()
 
-# Extract facets (edges from triangles, faces from tets)
-facet_mesh = mesh.get_facet_mesh()
+# Repair
+clean = mesh.clean()  # All-in-one
 ```
 
 ### Spatial Queries
@@ -409,150 +378,35 @@ facet_mesh = mesh.get_facet_mesh()
 ```python
 from torchmesh.spatial import BVH
 
-# Build bounding volume hierarchy acceleration structure
 bvh = BVH.from_mesh(mesh)
-
-# Find which cells contain query points
-query_points = torch.rand(1000, 3)
-cell_candidates = bvh.find_candidate_cells(query_points)
-
-# Sample data at arbitrary points using barycentric interpolation
-sampled_data = mesh.sample_data_at_points(
-    query_points,
-    data_source="points",  # or "cells"
-)
+cell_candidates = bvh.find_candidate_cells(torch.rand(1000, 3))
+sampled = mesh.sample_data_at_points(query_points, data_source="points")
 ```
 
-### Neighbor and Adjacency Structures
+### Neighbors
 
 ```python
-# Point-to-points adjacency (graph edges)
-adj = mesh.get_point_to_points_adjacency()
-neighbors = adj.to_list()  # List of neighbors for each point
-
-# Cell-to-cells adjacency (cells sharing facets)
-cell_adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
-cell_neighbors = cell_adj.to_list()
-
-# All adjacency types use efficient ragged array format
-print(f"Total edges: {adj.n_total_neighbors // 2}")
-```
-
-### Mesh Repair and Cleaning
-
-```python
-# Clean mesh (all-in-one)
-clean_mesh = mesh.clean(
-    merge_points=True,
-    remove_duplicate_cells=True,
-    remove_unused_points=True,
-)
-
-# Or use individual operations
-from torchmesh.repair import (
-    remove_duplicate_vertices,
-    remove_degenerate_cells,
-    fix_orientation,
-    fill_holes,
-)
-
-mesh = remove_duplicate_vertices(mesh)
-mesh = remove_degenerate_cells(mesh)
-mesh = fix_orientation(mesh)
-mesh = fill_holes(mesh)
-```
-
-### Transformations
-
-```python
-# Translate
-mesh_translated = mesh.translate([1.0, 0.0, 0.0])
-
-# Rotate (3D)
-import numpy as np
-mesh_rotated = mesh.rotate(axis=[0, 0, 1], angle=np.pi/4)
-
-# Scale
-mesh_scaled = mesh.scale(2.0)  # Uniform
-mesh_scaled_aniso = mesh.scale([2.0, 1.0, 0.5])  # Anisotropic
-
-# Arbitrary transformation matrix
-matrix = torch.eye(3)
-mesh_transformed = mesh.transform(matrix)
+point_neighbors = mesh.get_point_to_points_adjacency().to_list()
+cell_neighbors = mesh.get_cell_to_cells_adjacency().to_list()
 ```
 
 ---
 
 ## Core Concepts
 
-### Mesh Data Structure
-
-The `Mesh` class is a [`tensorclass`](https://pytorch.org/tensordict/stable/reference/tensorclass.html) (from PyTorch's [TensorDict](https://github.com/pytorch/tensordict) library) with five core components:
+The `Mesh` class is a [`tensorclass`](https://pytorch.org/tensordict/stable/reference/tensorclass.html) with five components:
 
 ```python
-@tensorclass
-class Mesh:
-    points: torch.Tensor          # Shape: (n_points, n_spatial_dims)
-    cells: torch.Tensor           # Shape: (n_cells, n_manifold_dims + 1), dtype: int
-    point_data: TensorDict        # Per-vertex data
-    cell_data: TensorDict         # Per-cell data  
-    global_data: TensorDict       # Mesh-level data
+Mesh(
+    points: torch.Tensor,      # (n_points, n_spatial_dims)
+    cells: torch.Tensor,       # (n_cells, n_manifold_dims + 1), integer dtype
+    point_data: TensorDict,    # Per-vertex data
+    cell_data: TensorDict,     # Per-cell data  
+    global_data: TensorDict,   # Mesh-level data
+)
 ```
 
-All data moves together when you call `.to("cuda")` or `.to("cpu")`.
-
-### Dimensional Terminology
-
-- **`n_spatial_dims`**: Dimension of the [embedding space](https://en.wikipedia.org/wiki/Embedding) (2 for 2D, 3 for 3D, etc.)
-- **`n_manifold_dims`**: Dimension of the mesh [manifold](https://en.wikipedia.org/wiki/Manifold) itself
-  - 0 for point clouds
-  - 1 for curves/polylines
-  - 2 for surfaces/shells
-  - 3 for volumes
-- **`codimension`**: `n_spatial_dims - n_manifold_dims` (see [codimension](https://en.wikipedia.org/wiki/Codimension))
-  - Codimension-0: Volume meshes (manifold fills the space)
-  - Codimension-1: Surface meshes (normals are well-defined)
-  - Codimension-2+: Curves and point clouds (no unique normal direction)
-
-Examples:
-- Triangles in 2D: `n_spatial_dims=2`, `n_manifold_dims=2`, `codimension=0`
-- Triangles in 3D: `n_spatial_dims=3`, `n_manifold_dims=2`, `codimension=1`
-- Edges in 3D: `n_spatial_dims=3`, `n_manifold_dims=1`, `codimension=2`
-- Tetrahedra in 3D: `n_spatial_dims=3`, `n_manifold_dims=3`, `codimension=0`
-
-### Cached Properties
-
-Expensive computations are automatically cached:
-
-```python
-# First access computes and caches
-centroids = mesh.cell_centroids  # Cached in mesh.cell_data["_centroids"]
-areas = mesh.cell_areas          # Cached in mesh.cell_data["_areas"]
-normals = mesh.cell_normals      # Cached in mesh.cell_data["_normals"]
-
-# Subsequent accesses are free (retrieves from cache)
-centroids_again = mesh.cell_centroids  # Fast lookup
-```
-
-Properties starting with `_` in data dictionaries are cache entries.
-
-### TensorDict for Complex Data
-
-[TensorDict](https://github.com/pytorch/tensordict) enables hierarchical data structures:
-
-```python
-from tensordict import TensorDict
-
-# Nested data
-mesh.point_data["flow"] = TensorDict({
-    "velocity": torch.randn(mesh.n_points, 3),
-    "pressure": torch.randn(mesh.n_points),
-    "temperature": torch.randn(mesh.n_points),
-}, batch_size=[mesh.n_points])
-
-# Access with tuple keys
-mesh.draw(point_scalars=("flow", "temperature"))
-```
+All data moves together with `.to("cuda")` or `.to("cpu")`. Expensive computations (centroids, normals, curvature) are automatically cached in the data dictionaries with keys starting with `_`.
 
 ---
 
@@ -564,17 +418,10 @@ TorchMesh is built on three principles:
 2. **Performance Second**: Fully vectorized GPU operations, no Python loops over mesh elements
 3. **Usability Third**: Clean APIs that don't sacrifice power for simplicity
 
-**Key Design Decisions:**
-
-- **Simplicial Meshes Only**: Restricting to [simplices](https://en.wikipedia.org/wiki/Simplex) (vs general polygons/polyhedra) enables rigorous [discrete exterior calculus](https://en.wikipedia.org/wiki/Discrete_exterior_calculus) operators with solid mathematical foundations.
-
-- **TensorDict for Data**: Structured data management with [TensorDict](https://github.com/pytorch/tensordict), providing automatic batching, device movement, and hierarchical organization. All data structures move together as a unit.
-
-- **Explicit Dimensionality**: `n_spatial_dims` and `n_manifold_dims` are first-class concepts, enabling truly dimension-agnostic algorithms.
-
-- **Cached Properties**: Expensive computations (normals, curvature, dual volumes) are computed once and cached automatically.
-
-- **Fail Loudly**: Validation catches errors early with helpful messages. No silent failures or NaN propagation.
+Key design decisions enable these principles:
+- Simplicial meshes only (enables rigorous [discrete exterior calculus](https://en.wikipedia.org/wiki/Discrete_exterior_calculus))
+- Explicit dimensionality (`n_spatial_dims`, `n_manifold_dims` as first-class concepts)
+- Fail loudly with helpful error messages (no silent failures)
 
 ---
 
