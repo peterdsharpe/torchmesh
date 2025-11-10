@@ -1720,3 +1720,15 @@ class Mesh:
             remove_duplicate_cells_flag=remove_duplicate_cells,
             remove_unused_points_flag=remove_unused_points,
         )
+
+
+### Override the tensorclass __repr__ with custom formatting
+# Note: Must be done after class definition because @tensorclass overrides __repr__
+# even when defined inside the class body
+def _mesh_repr(self) -> str:
+    from torchmesh.utilities.mesh_repr import format_mesh_repr
+
+    return format_mesh_repr(self, exclude_cache=False)
+
+
+Mesh.__repr__ = _mesh_repr  # type: ignore
