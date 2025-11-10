@@ -317,6 +317,10 @@ Comprehensive overview of TorchMesh capabilities:
 | Cell-to-cells | ✅ | Shared facets |
 | Cells-to-points | ✅ | Cell vertices |
 | Ragged array format | ✅ | Efficient sparse encoding via offsets + indices |
+| **Geometry** | | |
+| Delaunay triangulation from points | ❌ | Work in progress |
+| Voronoi areas | ✅ | |
+| Convex hulls | ❌ | Work in progress |
 | **Topology & Repair** | | |
 | Watertight detection | ✅ | |
 | Manifold detection | ✅ | |
@@ -337,7 +341,7 @@ Comprehensive overview of TorchMesh capabilities:
 | PyVista backend | ✅ | Interactive 3D |
 | Scalar colormapping on points or cells | ✅ | Auto L2-norm for vectors |
 
-**Legend:** ✅ Complete | ❌ Not Implemented
+**Legend:** ✅ Complete | ❌ Not Implemented, but planned
 
 ---
 
