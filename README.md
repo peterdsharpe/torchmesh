@@ -2,68 +2,120 @@
   <img src="examples/logo/torchmesh_logo.svg" width="100%" alt="TorchMesh">
 </p>
 
-**GPU-Accelerated Mesh Processing for Physics Simulation and Scientific Visualization**
+<p align="center">
+  <strong>GPU-Accelerated Mesh Processing for Any Dimension</strong>
+</p>
 
-by Peter Sharpe
+<p align="center">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.13+-blue.svg" alt="Python 3.13+"></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/pytorch-2.9+-ee4c2c.svg" alt="PyTorch 2.9+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-yellow.svg" alt="License: Apache 2.0"></a>
+</p>
 
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.9+](https://img.shields.io/badge/pytorch-2.9+-ee4c2c.svg)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-> It's not just a bag of triangles -- it's a *fast* bag of triangles!
+<p align="center">
+  <em>It's not just a bag of triangles -- it's a fast bag of triangles!</em>
+</p>
 
 ---
 
 ## What is TorchMesh?
 
-TorchMesh is a high-performance mesh processing library built on PyTorch, designed for researchers and engineers working with computational meshes in physics simulation, computational fluid dynamics (CFD), finite element analysis (FEM), computer graphics, and scientific visualization.
+**The word "mesh" means different things to different communities:**
 
-**Key Features:**
-- **GPU-Accelerated**: All operations are vectorized and run natively on CUDA GPUs
-- **Differential Geometry**: Complete discrete calculus operators (grad, div, curl, Laplacian) with both LSQ and DEC methods
-- **Arbitrary Dimensions**: Support for n-dimensional manifolds embedded in m-dimensional space (curves in 3D, surfaces in 3D, volumes, etc.)
-- **TensorDict Integration**: First-class support for complex data structures on meshes
-- **Differentiable Operations**: Mesh operations integrate seamlessly with PyTorch autograd
-- **Production-Ready**: 88% test coverage with 1100+ tests, rigorous numerical validation
+- **CFD/FEM engineers** think "volume mesh" (3D tetrahedra filling a 3D domain)
+- **Graphics programmers** think "surface mesh" (2D triangles in 3D space)
+- **Computer vision researchers** think "point cloud" (0D vertices in 3D space)
+- **Robotics engineers** think "curves" (1D edges in 2D or 3D space)
 
-**Why TorchMesh?**
-- **For CFD/FEM Researchers**: Compute derivatives, curvature, and quality metrics on your computational meshes
-- **For Graphics**: Subdivision, curvature analysis, and geometry processing on GPU
-- **For ML/AI**: Differentiable mesh operations for learning-based geometry processing
-- **For Scientific Computing**: BVH-accelerated spatial queries, data sampling, and conservative interpolation
+**TorchMesh handles all of these** in a unified, dimensionally-generic framework. At its core, TorchMesh operates on **arbitrary-dimensional simplicial complexes embedded in arbitrary-dimensional Euclidean spaces**.
+
+This means you can work with:
+- 2D triangles in 2D space (planar meshes for 2D simulations)
+- 2D triangles in 3D space (surface meshes for graphics/CFD)
+- 3D tetrahedra in 3D space (volume meshes for FEM/CFD)
+- 1D edges in 3D space (curve meshes for path planning)
+- ...and any other n-dimensional manifold in m-dimensional space (where n ≤ m)
+
+The only restriction: **meshes must be simplicial** (composed of points, line segments, triangles, and tetrahedra). This enables rigorous discrete calculus operators and differential geometry computations.
+
+---
+
+## Key Features
+
+**Core Capabilities:**
+- **GPU-Accelerated**: All operations vectorized with PyTorch, run natively on CUDA
+- **Dimensionally Generic**: Works with n-D manifolds embedded in m-D spaces
+- **TensorDict Integration**: Structured data management with automatic device handling
+- **Differentiable**: Seamless integration with PyTorch autograd
+
+**Mathematical Operations:**
+- **Discrete Calculus**: Gradient, divergence, curl, Laplace-Beltrami operator
+  - Both DEC (Discrete Exterior Calculus) and LSQ (Least-Squares) methods
+  - Intrinsic (tangent space) and extrinsic (ambient space) derivatives
+- **Differential Geometry**: Gaussian curvature, mean curvature, normals, tangent spaces
+- **Curvature Analysis**: Angle defect (intrinsic) and cotangent Laplacian (extrinsic) methods
+
+**Mesh Operations:**
+- **Subdivision**: Linear, Loop (C²), and Butterfly (interpolating) schemes
+- **Smoothing**: Laplacian smoothing with feature preservation
+- **Remeshing**: Uniform remeshing via clustering (dimension-agnostic)
+- **Repair**: Remove duplicates, fix orientation, fill holes, clean topology
+
+**Analysis Tools:**
+- **Topology**: Boundary detection, watertight/manifold checking
+- **Neighbors**: Point-to-point, point-to-cell, cell-to-cell adjacency
+- **Quality Metrics**: Aspect ratio, edge lengths, angles, quality scores
+- **Spatial Queries**: BVH-accelerated point containment and nearest-cell search
+
+**Production Ready:**
+- **Rigorous Testing**: 1600+ passing tests with comprehensive validation
+- **No Python Loops**: Fully vectorized operations for maximum performance
+- **Type Safe**: Complete type hints and validation
 
 ---
 
 ## Installation
 
-### CPU Version
+### Standard Installation
+
 ```bash
 pip install torchmesh
 ```
 
-### GPU Version (CUDA 12.6)
+This installs TorchMesh with its core dependencies: PyTorch and TensorDict.
+
+### With I/O and Visualization
+
 ```bash
-pip install torchmesh --extra-index-url https://download.pytorch.org/whl/nightly/cu126
+pip install torchmesh[io]
 ```
 
+This adds PyVista, matplotlib, and numpy for file I/O and visualization. **Note:** PyVista is a **soft dependency** used only for:
+- Loading/saving mesh files (STL, OBJ, VTK, PLY, etc.)
+- Interactive 3D visualization
+- Uniform remeshing (via pyacvd)
+
+All core TorchMesh operations (calculus, curvature, subdivision, etc.) work without PyVista and can stay entirely on GPU.
+
 ### From Source
+
 ```bash
 git clone https://github.com/peterdsharpe/torchmesh.git
 cd torchmesh
-pip install -e .
+pip install -e ".[io]"
 ```
 
 ---
 
 ## Quick Start
 
-### Create and Visualize a Mesh
+### Creating a Simple Mesh
 
 ```python
 import torch
 from torchmesh import Mesh
 
-# Create a simple triangle mesh
+# Create a triangle mesh in 2D
 points = torch.tensor([
     [0.0, 0.0],
     [1.0, 0.0],
@@ -73,110 +125,107 @@ points = torch.tensor([
 cells = torch.tensor([[0, 1, 2]], dtype=torch.long)
 
 mesh = Mesh(points=points, cells=cells)
-
-# Visualize
-mesh.draw()
+print(mesh)
 ```
 
-### Load from File
+**Output:**
+```
+Mesh(manifold_dim=2, spatial_dim=2, n_points=3, n_cells=1)
+    point_data : {}
+    cell_data  : {}
+    global_data: {}
+```
+
+The `__repr__` immediately tells you the dimensional configuration and data structure.
+
+### Adding Data to a Mesh
+
+```python
+# Add scalar field at points
+mesh.point_data["temperature"] = torch.tensor([300.0, 350.0, 325.0])
+
+# Add scalar field at cells
+mesh.cell_data["pressure"] = torch.tensor([101.3])
+
+print(mesh)
+```
+
+**Output:**
+```
+Mesh(manifold_dim=2, spatial_dim=2, n_points=3, n_cells=1)
+    point_data : {temperature: ()}
+    cell_data  : {pressure: ()}
+    global_data: {}
+```
+
+### Loading a Real Mesh
 
 ```python
 from torchmesh.io import from_pyvista
 import pyvista as pv
 
-# Load any mesh format supported by PyVista
-pv_mesh = pv.read("airplane.stl")
+# Load any mesh format PyVista supports
+pv_mesh = pv.examples.load_airplane()
 mesh = from_pyvista(pv_mesh)
 
-print(f"Mesh: {mesh.n_points} points, {mesh.n_cells} cells")
-print(f"Dimensions: {mesh.n_manifold_dims}D manifold in {mesh.n_spatial_dims}D space")
+print(mesh)
 ```
 
-### Compute Derivatives on Meshes
-
-```python
-# Add scalar field (e.g., temperature)
-mesh.point_data["temperature"] = torch.randn(mesh.n_points)
-
-# Compute gradient using weighted least squares
-mesh_with_grad = mesh.compute_point_derivatives(
-    keys="temperature",
-    method="lsq"  # or "dec" for Discrete Exterior Calculus
-)
-
-grad_T = mesh_with_grad.point_data["temperature_gradient"]
-print(f"Gradient shape: {grad_T.shape}")  # (n_points, n_spatial_dims)
-
-# Compute divergence
-from torchmesh.calculus import compute_divergence_points_lsq
-
-mesh.point_data["velocity"] = torch.randn(mesh.n_points, 3)
-div_v = compute_divergence_points_lsq(mesh, mesh.point_data["velocity"])
-
-# Compute curl (3D only)
-from torchmesh.calculus import compute_curl_points_lsq
-
-curl_v = compute_curl_points_lsq(mesh, mesh.point_data["velocity"])
-
-# Compute Laplace-Beltrami operator
-from torchmesh.calculus import compute_laplacian_points_dec
-
-laplacian = compute_laplacian_points_dec(mesh, mesh.point_data["temperature"])
+**Output:**
+```
+Mesh(manifold_dim=2, spatial_dim=3, n_points=1335, n_cells=2452)
+    point_data : {}
+    cell_data  : {}
+    global_data: {}
 ```
 
-### Curvature Analysis
+This is a **2D surface mesh** (triangles) embedded in **3D space** - a typical graphics/CAD mesh.
+
+<p align="center">
+  <img src="examples/readme_examples/airplane.png" width="80%" alt="Airplane Mesh">
+</p>
+
+### Computing Curvature
 
 ```python
-# Gaussian curvature (intrinsic, works for any codimension)
-K = mesh.gaussian_curvature_vertices  # (n_points,)
+# Gaussian curvature (intrinsic geometric property)
+K = mesh.gaussian_curvature_vertices
 
-# Mean curvature (for surfaces)
-H = mesh.mean_curvature_vertices  # (n_points,)
+print(f"Curvature range: [{K.min():.6f}, {K.max():.6f}]")
+# Curvature range: [-0.000795, 8.618090]
 
 # Visualize
 mesh.draw(point_scalars=K, cmap="coolwarm")
 ```
 
-### Mesh Subdivision
+<p align="center">
+  <img src="examples/readme_examples/airplane_curvature.png" width="80%" alt="Gaussian Curvature">
+</p>
+
+*Warmer colors indicate positive curvature (convex regions), cooler colors indicate near-zero curvature (flat/saddle regions).*
+
+### Computing Derivatives
 
 ```python
-# Loop subdivision (for triangle meshes)
-refined = mesh.subdivide(levels=2, filter="loop")
+# Create scalar field: T = x + 2y
+mesh.point_data["temperature"] = mesh.points[:, 0] + 2 * mesh.points[:, 1]
 
-# Butterfly subdivision (for smoother results)
-smooth = mesh.subdivide(levels=2, filter="butterfly")
+# Compute gradient
+mesh_with_grad = mesh.compute_point_derivatives(keys="temperature", method="lsq")
+grad_T = mesh_with_grad.point_data["temperature_gradient"]
 
-# Linear subdivision
-simple = mesh.subdivide(levels=2, filter="linear")
+print(f"Gradient shape: {grad_T.shape}")  # (n_points, n_spatial_dims)
+print(f"∇T = {grad_T[0]}")  # tensor([1.0000, 2.0000])
 ```
 
-### Spatial Queries with BVH
+### Moving to GPU
 
 ```python
-from torchmesh.spatial import BVH
-
-# Build acceleration structure
-bvh = BVH.from_mesh(mesh)
-
-# Find which cells contain query points
-query_points = torch.rand(1000, 3)
-candidates = bvh.find_candidate_cells(query_points)
-
-# Sample data at arbitrary points
-sampled = mesh.sample_data_at_points(
-    query_points,
-    data_source="points",  # interpolate from vertices
-)
-```
-
-### Move to GPU
-
-```python
-# All operations work seamlessly on GPU
+# Move entire mesh and all data to GPU
 mesh_gpu = mesh.to("cuda")
 
 # Compute on GPU
-grad_gpu = mesh_gpu.compute_point_derivatives("temperature")
+K_gpu = mesh_gpu.gaussian_curvature_vertices
 
 # Move back to CPU
 mesh_cpu = mesh_gpu.to("cpu")
@@ -186,179 +235,376 @@ mesh_cpu = mesh_gpu.to("cpu")
 
 ## Feature Matrix
 
-| Feature | Status | Performance | Notes |
-|---------|--------|-------------|-------|
-| **Core Operations** |
-| Mesh creation & manipulation | ✅ | - | n-dimensional simplicial meshes |
-| Point/cell data management | ✅ | - | TensorDict-based |
-| GPU acceleration | ✅ | Fast | Full CUDA support |
-| Batched operations | ✅ | Fast | Process multiple meshes |
-| **Calculus** |
-| Gradient (LSQ) | ✅ | Fast | O(n × avg_degree) |
-| Gradient (DEC) | 🚧 | Fast | Sharp operator in progress |
-| Divergence | ✅ | Fast | Via component gradients |
-| Curl (3D) | ✅ | Fast | Antisymmetric Jacobian |
-| Laplace-Beltrami | ✅ | Fast | Cotangent weights |
-| Intrinsic derivatives | ✅ | Fast | Tangent space projection |
-| **Geometry** |
-| Cell centroids | ✅ | Fast | Cached |
-| Cell areas/volumes | ✅ | Fast | Gram determinant |
-| Cell normals | ✅ | Fast | Generalized cross product |
-| Point normals | ✅ | Fast | Area-weighted |
-| Edge extraction | ✅ | Fast | Facet extraction |
-| Boundary detection | ✅ | Fast | Manifold/non-manifold |
-| **Curvature** |
-| Gaussian curvature | ✅ | Fast | Angle defect |
-| Mean curvature | ✅ | Fast | Laplace-Beltrami |
-| Principal curvatures | ✅ | Medium | Via Hessian |
-| **Subdivision** |
-| Linear | ✅ | Fast | Topology only |
-| Loop | ✅ | Fast | C2 continuous |
-| Butterfly | ✅ | Fast | Interpolating |
-| **Spatial Queries** |
-| BVH construction | ✅ | Medium | CPU-based |
-| Point containment | ✅ | Fast | BVH-accelerated |
-| Data sampling | ✅ | Fast | Barycentric interp |
-| **Sampling** |
-| Random points on cells | ✅ | Fast | Dirichlet distribution |
-| Data interpolation | ✅ | Fast | Barycentric |
-| **Transformations** |
-| Translation | ✅ | Fast | Rigid |
-| Rotation | ✅ | Fast | Arbitrary axis |
-| Scaling | ✅ | Fast | Uniform/anisotropic |
-| **Neighbors** |
-| Cell-to-cell | ✅ | Fast | Via shared facets |
-| Point-to-point | ✅ | Fast | Via shared cells |
-| Adjacency structures | ✅ | Fast | Ragged arrays |
-| **I/O** |
-| PyVista | ✅ | Fast | All formats |
-| STL | 🚧 | - | In progress |
-| OBJ | 🚧 | - | In progress |
-| HDF5 | 🚧 | - | In progress |
-| **Visualization** |
-| Matplotlib backend | ✅ | Fast | 2D/3D |
-| PyVista backend | ✅ | Fast | Interactive 3D |
-| Scalar colormapping | ✅ | Fast | Vector norm |
+Comprehensive overview of TorchMesh capabilities:
 
-✅ Complete | 🚧 In Progress | ❌ Not Yet Implemented
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Core Operations** | | |
+| Mesh creation & manipulation | ✅ | n-dimensional simplicial meshes |
+| Point/cell/global data | ✅ | TensorDict-based |
+| GPU acceleration | ✅ | Full CUDA support |
+| Merge multiple meshes | ✅ | |
+| Device management (CPU/GPU) | ✅ | |
+| **Calculus** | | |
+| Gradient (LSQ) | ✅ | Weighted least-squares reconstruction |
+| Gradient (DEC) | ✅ | Via sharp operator |
+| Divergence (LSQ) | ✅ | Component-wise gradients |
+| Divergence (DEC) | ✅ | Explicit dual volume formula |
+| Curl (LSQ, 3D only) | ✅ | Antisymmetric Jacobian |
+| Laplace-Beltrami (DEC) | ✅ | Cotangent weights |
+| Intrinsic derivatives | ✅ | Tangent space projection |
+| Extrinsic derivatives | ✅ | Ambient space |
+| **Geometry** | | |
+| Cell centroids | ✅ | Arithmetic mean of vertices |
+| Cell areas/volumes | ✅ | Gram determinant method |
+| Cell normals | ✅ | Generalized cross product |
+| Point normals | ✅ | Area-weighted from adjacent cells |
+| Facet extraction | ✅ | Extract (n-1)-dimensional simplices |
+| Boundary detection | ✅ | |
+| **Curvature** | | |
+| Gaussian curvature (vertices) | ✅ | Angle defect method |
+| Gaussian curvature (cells) | ✅ | |
+| Mean curvature | ✅ | Cotangent Laplacian method |
+| **Subdivision** | | |
+| Linear | ✅ | Midpoint subdivision |
+| Loop | ✅ | C² smooth, approximating |
+| Butterfly | ✅ | Interpolating |
+| **Smoothing** | | |
+| Laplacian smoothing | ✅ | |
+| **Remeshing** | | |
+| Uniform remeshing | ✅ | Clustering-based (ACVD) |
+| **Spatial Queries** | | |
+| BVH construction | ✅ | |
+| Point containment | ✅ | BVH-accelerated |
+| Nearest cell search | ✅ | |
+| Data interpolation | ✅ | Barycentric coordinates |
+| **Sampling** | | |
+| Random points on cells | ✅ | Dirichlet distribution |
+| Data sampling at points | ✅ | |
+| **Transformations** | | |
+| Translation | ✅ | |
+| Rotation | ✅ | Arbitrary axis |
+| Scaling | ✅ | Uniform or anisotropic |
+| Arbitrary matrix transform | ✅ | |
+| Extrusion | ✅ | Manifold → higher dimension |
+| **Neighbors & Adjacency** | | |
+| Point-to-points | ✅ | Graph edges |
+| Point-to-cells | ✅ | Vertex star |
+| Cell-to-cells | ✅ | Shared facets |
+| Cells-to-points | ✅ | Cell vertices |
+| Ragged array format | ✅ | Efficient offset-indices encoding |
+| **Topology & Repair** | | |
+| Watertight detection | ✅ | |
+| Manifold detection | ✅ | |
+| Remove duplicate vertices | ✅ | |
+| Remove duplicate cells | ✅ | |
+| Remove degenerate cells | ✅ | |
+| Remove isolated vertices | ✅ | |
+| Fix orientation | ✅ | |
+| Fill holes | ✅ | |
+| Clean mesh (all-in-one) | ✅ | |
+| **Validation & Analysis** | | |
+| Quality metrics | ✅ | Aspect ratio, angles, edge ratios |
+| Mesh statistics | ✅ | |
+| **I/O** | | |
+| PyVista integration | ✅ | All PyVista-supported formats |
+| Direct STL/OBJ/HDF5 | ❌ | Use PyVista for these |
+| **Visualization** | | |
+| Matplotlib backend | ✅ | 2D/3D plotting |
+| PyVista backend | ✅ | Interactive 3D |
+| Scalar colormapping | ✅ | Auto L2-norm for vectors |
+| Nested TensorDict keys | ✅ | |
 
----
-
-## Performance
-
-TorchMesh is designed for high performance on both CPU and GPU. All operations are fully vectorized with no Python-level loops over mesh elements.
-
-### Speedup vs. Trimesh (CPU, 100K triangles)
-
-| Operation | TorchMesh | Trimesh | Speedup |
-|-----------|-----------|---------|---------|
-| Vertex normals | 2.3ms | 45ms | 20x |
-| Face normals | 0.8ms | 12ms | 15x |
-| Vertex adjacency | 5.1ms | 78ms | 15x |
-| Subdivision (1 level) | 18ms | 320ms | 18x |
-| Gaussian curvature | 12ms | N/A | - |
-
-### GPU Acceleration (1M triangles)
-
-| Operation | CPU (1 core) | GPU (RTX 4090) | Speedup |
-|-----------|--------------|----------------|---------|
-| Gradient computation | 850ms | 12ms | 71x |
-| Laplace-Beltrami | 620ms | 8ms | 78x |
-| BVH queries (10K points) | 45ms | 2.1ms | 21x |
-| Subdivision | 1.2s | 35ms | 34x |
-
-*Benchmarks on Intel i9-13900K CPU and NVIDIA RTX 4090 GPU*
-
----
-
-## Documentation
-
-- **[Tutorials](tutorials/)**: Step-by-step Jupyter notebooks
-- **[API Reference](https://torchmesh.readthedocs.io/)**: Complete API documentation
-- **[Examples](src/torchmesh/examples/)**: Gallery of example meshes
-- **[Theory](docs/theory/)**: Mathematical background
+**Legend:** ✅ Complete | ❌ Not Implemented
 
 ---
 
 ## Examples
 
-### CFD Post-Processing
+### Discrete Calculus
 
 ```python
 from torchmesh.io import from_pyvista
 import pyvista as pv
 
-# Load CFD results
-mesh = from_pyvista(pv.read("flow_field.vtu"))
+# Load a mesh
+mesh = from_pyvista(pv.examples.load_tetbeam())
 
-# Compute vorticity: ω = ∇ × u
+# Add scalar field: pressure
+mesh.point_data["pressure"] = (mesh.points ** 2).sum(dim=-1)
+
+# Compute gradient
+mesh_with_grad = mesh.compute_point_derivatives(keys="pressure", method="lsq")
+grad_p = mesh_with_grad.point_data["pressure_gradient"]
+# Shape: (n_points, 3)
+
+# Compute divergence
+from torchmesh.calculus import compute_divergence_points_lsq
+
+mesh.point_data["velocity"] = mesh.points.clone()
+div_v = compute_divergence_points_lsq(mesh, mesh.point_data["velocity"])
+# Expected: ≈3.0 for v = r
+
+# Compute curl (3D only)
 from torchmesh.calculus import compute_curl_points_lsq
-vorticity = compute_curl_points_lsq(mesh, mesh.point_data["velocity"])
-mesh.point_data["vorticity"] = vorticity
 
-# Q-criterion for vortex identification
-S = 0.5 * (grad_u + grad_u.transpose(-2, -1))  # Symmetric part
-Omega = 0.5 * (grad_u - grad_u.transpose(-2, -1))  # Antisymmetric part
-Q = 0.5 * (torch.norm(Omega, dim=(-2, -1))**2 - torch.norm(S, dim=(-2, -1))**2)
+curl_v = compute_curl_points_lsq(mesh, mesh.point_data["velocity"])
 
-# Visualize
-mesh.draw(point_scalars="vorticity", cmap="seismic")
-```
-
-### Mesh Quality Analysis
-
-```python
-# Compute quality metrics
-areas = mesh.cell_areas
-centroids = mesh.cell_centroids
-
-# Edge lengths
-edges = mesh.get_edge_mesh()
-edge_lengths = edges.cell_areas  # For 1D cells, "area" is length
-
-# Aspect ratio (for triangles)
-# (ratio of circumradius to inradius)
-mesh.point_data["quality"] = compute_mesh_quality(mesh)
-mesh.draw(cell_scalars="quality", cmap="RdYlGn")
-```
-
-### Feature-Preserving Smoothing
-
-```python
+# Compute Laplace-Beltrami operator
 from torchmesh.calculus import compute_laplacian_points_dec
 
-# Implicit Laplacian smoothing
-n_iterations = 10
-dt = 0.01
+laplacian_p = compute_laplacian_points_dec(mesh, mesh.point_data["pressure"])
+```
 
-points_smooth = mesh.points.clone()
-for i in range(n_iterations):
-    laplacian = compute_laplacian_points_dec(
-        mesh.clone().update(points=points_smooth),
-        points_smooth
-    )
-    points_smooth = points_smooth + dt * laplacian
+### Intrinsic vs Extrinsic Derivatives
 
-mesh_smooth = mesh.clone().update(points=points_smooth)
+For surfaces embedded in 3D, you can compute derivatives in the tangent space (intrinsic) or ambient space (extrinsic):
+
+```python
+# Load a surface mesh (2D in 3D)
+mesh = from_pyvista(pv.examples.load_airplane())
+mesh.point_data["temperature"] = (mesh.points ** 2).sum(dim=-1)
+
+# Intrinsic gradient (lives in tangent plane)
+mesh_intrinsic = mesh.compute_point_derivatives(
+    keys="temperature",
+    method="lsq",
+    gradient_type="intrinsic"
+)
+grad_intrinsic = mesh_intrinsic.point_data["temperature_gradient"]
+# Orthogonal to surface normal
+
+# Extrinsic gradient (lives in 3D ambient space)
+mesh_extrinsic = mesh.compute_point_derivatives(
+    keys="temperature",
+    method="lsq",
+    gradient_type="extrinsic"
+)
+grad_extrinsic = mesh_extrinsic.point_data["temperature_gradient"]
+# Full 3D vector
+```
+
+### Mesh Subdivision
+
+```python
+# Linear subdivision (simplest)
+refined = mesh.subdivide(levels=2, filter="linear")
+
+# Loop subdivision (smooth, C²)
+smooth = mesh.subdivide(levels=2, filter="loop")
+
+# Butterfly subdivision (interpolating)
+interp = mesh.subdivide(levels=2, filter="butterfly")
+```
+
+### Boundary Extraction and Topology
+
+```python
+# Extract boundary mesh
+boundary = mesh.get_boundary_mesh()
+
+# Check topology
+is_watertight = mesh.is_watertight()
+is_manifold = mesh.is_manifold()
+
+# Extract facets (edges from triangles, faces from tets)
+facet_mesh = mesh.get_facet_mesh()
+```
+
+### Spatial Queries
+
+```python
+from torchmesh.spatial import BVH
+
+# Build acceleration structure
+bvh = BVH.from_mesh(mesh)
+
+# Find which cells contain query points
+query_points = torch.rand(1000, 3)
+cell_candidates = bvh.find_candidate_cells(query_points)
+
+# Sample data at arbitrary points
+sampled_data = mesh.sample_data_at_points(
+    query_points,
+    data_source="points",  # or "cells"
+)
+```
+
+### Neighbor and Adjacency Structures
+
+```python
+# Point-to-points adjacency (graph edges)
+adj = mesh.get_point_to_points_adjacency()
+neighbors = adj.to_list()  # List of neighbors for each point
+
+# Cell-to-cells adjacency (cells sharing facets)
+cell_adj = mesh.get_cell_to_cells_adjacency(adjacency_codimension=1)
+cell_neighbors = cell_adj.to_list()
+
+# All adjacency types use efficient ragged array format
+print(f"Total edges: {adj.n_total_neighbors // 2}")
+```
+
+### Mesh Repair and Cleaning
+
+```python
+# Clean mesh (all-in-one)
+clean_mesh = mesh.clean(
+    merge_points=True,
+    remove_duplicate_cells=True,
+    remove_unused_points=True,
+)
+
+# Or use individual operations
+from torchmesh.repair import (
+    remove_duplicate_vertices,
+    remove_degenerate_cells,
+    fix_orientation,
+    fill_holes,
+)
+
+mesh = remove_duplicate_vertices(mesh)
+mesh = remove_degenerate_cells(mesh)
+mesh = fix_orientation(mesh)
+mesh = fill_holes(mesh)
+```
+
+### Transformations
+
+```python
+# Translate
+mesh_translated = mesh.translate([1.0, 0.0, 0.0])
+
+# Rotate (3D)
+import numpy as np
+mesh_rotated = mesh.rotate(axis=[0, 0, 1], angle=np.pi/4)
+
+# Scale
+mesh_scaled = mesh.scale(2.0)  # Uniform
+mesh_scaled_aniso = mesh.scale([2.0, 1.0, 0.5])  # Anisotropic
+
+# Arbitrary transformation matrix
+matrix = torch.eye(3)
+mesh_transformed = mesh.transform(matrix)
+```
+
+---
+
+## Core Concepts
+
+### Mesh Data Structure
+
+The `Mesh` class is a `tensorclass` (from PyTorch's TensorDict library) with five core components:
+
+```python
+@tensorclass
+class Mesh:
+    points: torch.Tensor          # Shape: (n_points, n_spatial_dims)
+    cells: torch.Tensor           # Shape: (n_cells, n_manifold_dims + 1), dtype: int
+    point_data: TensorDict        # Per-vertex data
+    cell_data: TensorDict         # Per-cell data  
+    global_data: TensorDict       # Mesh-level data
+```
+
+All data moves together when you call `.to("cuda")` or `.to("cpu")`.
+
+### Dimensional Terminology
+
+- **`n_spatial_dims`**: Dimension of the embedding space (2 for 2D, 3 for 3D, etc.)
+- **`n_manifold_dims`**: Dimension of the mesh manifold itself
+  - 0 for point clouds
+  - 1 for curves/polylines
+  - 2 for surfaces/shells
+  - 3 for volumes
+- **`codimension`**: `n_spatial_dims - n_manifold_dims`
+  - Codimension-0: Volume meshes (manifold fills the space)
+  - Codimension-1: Surface meshes (normals are well-defined)
+  - Codimension-2+: Curves and point clouds (no unique normal direction)
+
+Examples:
+- Triangles in 2D: `n_spatial_dims=2`, `n_manifold_dims=2`, `codimension=0`
+- Triangles in 3D: `n_spatial_dims=3`, `n_manifold_dims=2`, `codimension=1`
+- Edges in 3D: `n_spatial_dims=3`, `n_manifold_dims=1`, `codimension=2`
+- Tetrahedra in 3D: `n_spatial_dims=3`, `n_manifold_dims=3`, `codimension=0`
+
+### Cached Properties
+
+Expensive computations are automatically cached:
+
+```python
+# First access computes and caches
+centroids = mesh.cell_centroids  # Cached in mesh.cell_data["_centroids"]
+areas = mesh.cell_areas          # Cached in mesh.cell_data["_areas"]
+normals = mesh.cell_normals      # Cached in mesh.cell_data["_normals"]
+
+# Subsequent accesses are free (retrieves from cache)
+centroids_again = mesh.cell_centroids  # Fast lookup
+```
+
+Properties starting with `_` in data dictionaries are cache entries.
+
+### TensorDict for Complex Data
+
+TensorDict enables hierarchical data structures:
+
+```python
+from tensordict import TensorDict
+
+# Nested data
+mesh.point_data["flow"] = TensorDict({
+    "velocity": torch.randn(mesh.n_points, 3),
+    "pressure": torch.randn(mesh.n_points),
+    "temperature": torch.randn(mesh.n_points),
+}, batch_size=[mesh.n_points])
+
+# Access with tuple keys
+mesh.draw(point_scalars=("flow", "temperature"))
 ```
 
 ---
 
 ## Philosophy & Design
 
-**TorchMesh is built on three core principles:**
+TorchMesh is built on three principles:
 
-1. **Correctness First**: Rigorous mathematical foundations with extensive testing
-2. **Performance Second**: Fully vectorized, GPU-accelerated operations
+1. **Correctness First**: Rigorous mathematical foundations, extensive validation
+2. **Performance Second**: Fully vectorized GPU operations, no Python loops over mesh elements
 3. **Usability Third**: Clean APIs that don't sacrifice power for simplicity
 
-**Key Design Choices:**
+**Key Design Decisions:**
 
-- **Simplicial Meshes Only**: Triangles (2D), tetrahedra (3D), etc. Enables rigorous discrete calculus.
-- **TensorDict for Data**: Structured data with batch operations and device management.
-- **Explicit Dimensionality**: `n_spatial_dims` and `n_manifold_dims` are first-class concepts.
-- **Cached Properties**: Expensive computations (normals, curvature) are cached automatically.
-- **No Silent Failures**: Validation catches errors early with helpful messages.
+- **Simplicial Meshes Only**: Restricting to simplices (vs general polygons/polyhedra) enables rigorous discrete exterior calculus operators with solid mathematical foundations.
+
+- **TensorDict for Data**: Structured data management with automatic batching, device movement, and hierarchical organization. All data structures move together as a unit.
+
+- **Explicit Dimensionality**: `n_spatial_dims` and `n_manifold_dims` are first-class concepts, enabling truly dimension-agnostic algorithms.
+
+- **Cached Properties**: Expensive computations (normals, curvature, dual volumes) are computed once and cached automatically.
+
+- **Fail Loudly**: Validation catches errors early with helpful messages. No silent failures or NaN propagation.
+
+---
+
+## Documentation & Resources
+
+- **Examples**: See [`examples/`](examples/) for runnable demonstrations
+- **Tests**: See [`test/`](test/) for comprehensive test suite (1600+ tests)
+- **Source**: Explore [`src/torchmesh/`](src/torchmesh/) for implementation details
+
+**Module Organization:**
+- `torchmesh.calculus` - Discrete differential operators
+- `torchmesh.curvature` - Gaussian and mean curvature
+- `torchmesh.subdivision` - Mesh refinement schemes
+- `torchmesh.boundaries` - Boundary detection and facet extraction
+- `torchmesh.neighbors` - Adjacency computations
+- `torchmesh.spatial` - BVH and spatial queries
+- `torchmesh.sampling` - Point sampling and interpolation
+- `torchmesh.transformations` - Geometric operations
+- `torchmesh.repair` - Mesh cleaning and topology repair
+- `torchmesh.validation` - Quality metrics and statistics
+- `torchmesh.visualization` - Matplotlib and PyVista backends
+- `torchmesh.io` - PyVista import/export
+- `torchmesh.examples` - Example mesh generators
 
 ---
 
@@ -378,28 +624,9 @@ If you use TorchMesh in your research, please cite:
 
 ---
 
-## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Development Setup:**
-```bash
-git clone https://github.com/peterdsharpe/torchmesh.git
-cd torchmesh
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run tests with coverage
-pytest --cov=torchmesh --cov-report=term-missing
-```
-
----
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+TorchMesh is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -407,32 +634,17 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 TorchMesh builds on decades of research in discrete differential geometry and computational geometry:
 
-- **Discrete Exterior Calculus**: Desbrun, Hirani, Leok, Marsden (2005)
+- **Discrete Exterior Calculus**: Desbrun, Hirani, Leok, Marsden (2005) - [arXiv:math/0508341](https://arxiv.org/abs/math/0508341)
 - **Discrete Differential Operators**: Meyer, Desbrun, Schröder, Barr (2003)
 - **Loop Subdivision**: Loop (1987)
 - **Butterfly Subdivision**: Dyn, Levin, Gregory (1990)
 
-Special thanks to the PyTorch and PyVista teams for excellent foundational libraries.
-
----
-
-## Status & Roadmap
-
-**Current Version**: 0.1.0 (Beta)
-
-**In Progress:**
-- Complete DEC gradient with sharp operator
-- Extended file I/O (STL, OBJ, PLY, HDF5)
-- Mesh repair and cleanup utilities
-- Adaptive remeshing
-
-**Planned:**
-- Triton kernels for maximum GPU performance
-- Distributed mesh processing for extreme scale
-- Higher-order elements (quadratics, cubics)
-- Mesh Boolean operations (CSG)
+**Special thanks to:**
+- **[PyTorch](https://pytorch.org/)** team for the foundational deep learning framework
+- **[PyVista](https://pyvista.org/)** team for the excellent 3D visualization and I/O library
+- The discrete differential geometry community for rigorous mathematical foundations
 
 ---
 
 **Questions? Issues? Feature requests?**  
-Open an issue on [GitHub](https://github.com/peterdsharpe/torchmesh/issues) or start a [discussion](https://github.com/peterdsharpe/torchmesh/discussions)!
+Open an issue on [GitHub](https://github.com/peterdsharpe/torchmesh/issues)!
