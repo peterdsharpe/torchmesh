@@ -25,6 +25,9 @@ io = [
     "numpy>=2.3.4",
     "pyvista>=0.46.4",
 ]
+remeshing = [
+    "pyacvd>=0.2.10",
+]
 dev = [
     "ipykernel>=7.1.0",
     "ipython>=9.6.0",
@@ -36,6 +39,7 @@ dev = [
     "coverage>=7.11.0",
     "pytest-cov>=7.0.0",
     "scipy>=1.16.3",
+    "pyacvd>=0.2.10",
 ]
 
 [tool.uv]

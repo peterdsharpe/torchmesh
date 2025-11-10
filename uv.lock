@@ -2,18 +2,28 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
-    "python_full_version >= '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
-    "python_full_version >= '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version >= '3.14' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version >= '3.14' and sys_platform != 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and sys_platform != 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
     "python_full_version >= '3.14' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
     "python_full_version < '3.14' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version >= '3.14' and sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
     "python_full_version >= '3.14' and sys_platform == 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
     "python_full_version < '3.14' and sys_platform == 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
 ]
@@ -963,7 +973,7 @@ dependencies = [
     { name = "nbformat" },
     { name = "packaging" },
     { name = "prometheus-client" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'aarch64' and sys_platform == 'linux') or (os_name == 'nt' and sys_platform != 'darwin' and sys_platform != 'linux') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "pyzmq" },
     { name = "send2trash" },
     { name = "terminado" },
@@ -997,7 +1007,7 @@ name = "jupyter-server-terminals"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'aarch64' and sys_platform == 'linux') or (os_name == 'nt' and sys_platform != 'darwin' and sys_platform != 'linux') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "terminado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/d5/562469734f476159e99a55426d697cbf8e7eb5efe89fb0e0b4f83a3d3459/jupyter_server_terminals-0.5.3.tar.gz", hash = "sha256:5ae0295167220e9ace0edcfdb212afd2b01ee8d179fe6f23c899590e9b8a5269", size = 31430, upload-time = "2024-03-12T14:37:03.049Z" }
@@ -1502,8 +1512,10 @@ name = "nvidia-cublas-cu12"
 version = "12.6.4.1"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:08ed2686e9875d01b58e3cb379c6896df8e76c75e0d4a7f7dace3d7b6d9ef8eb" },
@@ -1516,8 +1528,10 @@ name = "nvidia-cublas-cu12"
 version = "12.8.4.1"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_aarch64.whl" },
@@ -1540,8 +1554,10 @@ name = "nvidia-cuda-cupti-cu12"
 version = "12.6.80"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_cuda_cupti_cu12-12.6.80-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
@@ -1556,8 +1572,10 @@ name = "nvidia-cuda-cupti-cu12"
 version = "12.8.90"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
@@ -1580,8 +1598,10 @@ name = "nvidia-cuda-nvrtc-cu12"
 version = "12.6.77"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_cuda_nvrtc_cu12-12.6.77-py3-none-manylinux2014_aarch64.whl" },
@@ -1594,8 +1614,10 @@ name = "nvidia-cuda-nvrtc-cu12"
 version = "12.8.93"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu128/nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl", hash = "sha256:a7756528852ef889772a84c6cd89d41dfa74667e24cca16bb31f8f061e3e9994" },
@@ -1618,8 +1640,10 @@ name = "nvidia-cuda-runtime-cu12"
 version = "12.6.77"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_cuda_runtime_cu12-12.6.77-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
@@ -1634,8 +1658,10 @@ name = "nvidia-cuda-runtime-cu12"
 version = "12.8.90"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu128/nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:52bf7bbee900262ffefe5e9d5a2a69a30d97e2bc5bb6cc866688caa976966e3d" },
@@ -1688,8 +1714,10 @@ name = "nvidia-cufft-cu12"
 version = "11.3.0.4"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu126' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1707,8 +1735,10 @@ name = "nvidia-cufft-cu12"
 version = "11.3.3.83"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-nvjitlink-cu12", version = "12.8.93", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu128' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1733,8 +1763,10 @@ name = "nvidia-cufile-cu12"
 version = "1.11.1.6"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_cufile_cu12-1.11.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:cc23469d1c7e52ce6c1d55253273d32c565dd22068647f3aa59b3c6b005bf159" },
@@ -1746,8 +1778,10 @@ name = "nvidia-cufile-cu12"
 version = "1.13.1.3"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu128/nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1d069003be650e131b21c932ec3d8969c1715379251f8d23a1860554b1cb24fc" },
@@ -1769,8 +1803,10 @@ name = "nvidia-curand-cu12"
 version = "10.3.7.77"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_curand_cu12-10.3.7.77-py3-none-manylinux2014_aarch64.whl" },
@@ -1785,8 +1821,10 @@ name = "nvidia-curand-cu12"
 version = "10.3.9.90"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_aarch64.whl" },
@@ -1814,8 +1852,10 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.1.2"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu126' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1835,8 +1875,10 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.3.90"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-cublas-cu12", version = "12.8.4.1", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu128' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1867,8 +1909,10 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.4.2"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu126' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1886,8 +1930,10 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.8.93"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "nvidia-nvjitlink-cu12", version = "12.8.93", source = { registry = "https://download.pytorch.org/whl/" }, marker = "extra == 'extra-9-torchmesh-cu128' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -1959,8 +2005,10 @@ name = "nvidia-nvjitlink-cu12"
 version = "12.6.85"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_nvjitlink_cu12-12.6.85-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl", hash = "sha256:eedc36df9e88b682efe4309aa16b5b4e78c2407eac59e8c10a6a47535164369a" },
@@ -1973,8 +2021,10 @@ name = "nvidia-nvjitlink-cu12"
 version = "12.8.93"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu128/nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl", hash = "sha256:81ff63371a7ebd6e6451970684f916be2eab07321b73c9d244dc2b4da7f73b88" },
@@ -2015,8 +2065,10 @@ name = "nvidia-nvtx-cu12"
 version = "12.6.77"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu126/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl" },
@@ -2031,8 +2083,10 @@ name = "nvidia-nvtx-cu12"
 version = "12.8.90"
 source = { registry = "https://download.pytorch.org/whl/" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cu128/nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d7ad891da111ebafbf7e015d34879f7112832fc239ff0d7d776b6cb685274615" },
@@ -2290,6 +2344,53 @@ wheels = [
 ]
 
 [[package]]
+name = "pyacvd"
+version = "0.2.10"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "numpy", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyvista", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "scipy", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/55/1b/fdcee5c5c20df922b8016de68ec6863abb8eb5458a646a885bc8abb0986b/pyacvd-0.2.10.tar.gz", hash = "sha256:48f5140e3593a5efe94c6c68396cec50db09fc3068f1186fc34d4b12e0a12eee", size = 14713, upload-time = "2023-11-07T06:29:55.779Z" }
+
+[[package]]
+name = "pyacvd"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "python_full_version < '3.14' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and sys_platform == 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "python_full_version < '3.14' and sys_platform == 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+]
+dependencies = [
+    { name = "numpy", marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pykdtree", marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyvista", marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/eb/cad05bd2009b3e32ea882f038894354de23a1163e5dc801a6ffc44d45b19/pyacvd-0.3.2-cp313-cp313-macosx_10_14_x86_64.whl", hash = "sha256:b0d7f35bc69bf2bacf432bc6b0043e4c4f7324485d21b7a15e6953f9a20e196a", size = 73292, upload-time = "2025-04-03T10:20:23.624Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/f0/1d91a515409ec581eb4a234c951592fda09536f3cf8671b9a4d3c432ac3f/pyacvd-0.3.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:2bf09297e58c2e242b1770c2c99685a4be5e451849c18e69eca14c5a8defc19b", size = 66013, upload-time = "2025-04-03T10:20:25.243Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/45/23c6f065d0bf3bed24223c3fbf48524c1623daf50c3adaf6d86614163fd2/pyacvd-0.3.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7ede09a9363f9bdc80462c6d6fe7ff28951207c80e9ad3c7a55f01e189550fc", size = 96258, upload-time = "2025-04-03T10:20:27.251Z" },
+    { url = "https://files.pythonhosted.org/packages/53/42/f41f19b1cf5a65e0b4c729d6f53333f633549e04972faf4b593c0b8ef932/pyacvd-0.3.2-cp313-cp313-win_amd64.whl", hash = "sha256:08ffa7ae4dff1a6642e00c51713293cfdd3686c5d0b83513a2359568bea3c492", size = 71098, upload-time = "2025-04-03T10:20:28.342Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "2.23"
 source = { registry = "https://download.pytorch.org/whl/nightly/cu130" }
@@ -2303,6 +2404,38 @@ version = "2.19.2"
 source = { registry = "https://download.pytorch.org/whl/nightly/cu130" }
 wheels = [
     { url = "https://download.pytorch.org/whl/nightly/pygments-2.19.2-py3-none-any.whl" },
+]
+
+[[package]]
+name = "pykdtree"
+version = "1.4.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/8d/ab32411372d016404e8cf0a30ff955c4420717a88c9df4ab0bd3dc4740be/pykdtree-1.4.3.tar.gz", hash = "sha256:d9187930ffb8c822c52595b64948b47346694ee2a49e2702420b58f743d786f5", size = 30472, upload-time = "2025-08-06T11:11:38.915Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/4b/76a3ee5a14053a7e7f7584ac6f8fd0e01959919773b6c6aad95aaf041288/pykdtree-1.4.3-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:8e1c1fff9f3893a82bf5b5f09be8d6ee83b05ed9d577e30eb50e6d729e15e455", size = 349780, upload-time = "2025-08-06T11:11:09.454Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/87/205f0a5c0fe687c10d1e8d1869146a7e20e4549a7cea12ae0ee4968a5a73/pykdtree-1.4.3-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:165bfa54a1a98609bfa1f52ea739f6347a01f5da418512bf8f7fa360cfca979f", size = 314048, upload-time = "2025-08-06T11:11:10.321Z" },
+    { url = "https://files.pythonhosted.org/packages/19/1f/caf7fd20d7dc9ca065e6fdd4f0fc6c9631e87dea2866121df2cca591c387/pykdtree-1.4.3-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:2a73001e203ea2aa4415ffb251fe9f71de1e0cb935a6cd014d4a4610f7ca7bbb", size = 450018, upload-time = "2025-08-06T11:11:11.19Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/3e/dc89d0757452d1d0207b558f6a40bf2af1770a664b56d2c14f9ccd8ec75d/pykdtree-1.4.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0726995df7f62bee5beabc867ba86ffab96cc38c4cf59dd92cb92eab64c51b91", size = 464481, upload-time = "2025-08-06T11:11:12.184Z" },
+    { url = "https://files.pythonhosted.org/packages/32/84/6ea33dc76a667aba7fc77591028b853d600e335953deac3e9b2f13cff951/pykdtree-1.4.3-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:f9a51e58446f60bb572701179c21191c1a8fdd233c79a79133eff85bf7349362", size = 499285, upload-time = "2025-08-06T11:11:13.673Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/59/7e738300a6d733235ef641398dd7eb297c9a575140ca7e89fcf1c608f42e/pykdtree-1.4.3-cp313-cp313-win_amd64.whl", hash = "sha256:32af4eaf44326b68f0f1a1ec0813b7b134477dd91fee2ce699a7891aec833c6f", size = 66772, upload-time = "2025-08-06T11:11:14.596Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/6d/adc34737c527e606e12da525e530c2c05d80f405b0ddc24f9322a7a39b31/pykdtree-1.4.3-cp313-cp313-win_arm64.whl", hash = "sha256:77eaf63d25ab10f980bc516e1864fb4181e717d4005ef0249dd7119d7601ef6d", size = 54426, upload-time = "2025-08-06T11:11:15.368Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/57/74552a627d3a84b2974ab3a6b8f0eb16dca4de7e707e803da500a89c90cb/pykdtree-1.4.3-cp314-cp314-macosx_13_0_x86_64.whl", hash = "sha256:62d1422df5c79d270e15f298eb34b84556dc8142c1cb9f9d90d7cc138eed68df", size = 349950, upload-time = "2025-08-06T11:11:16.122Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/e1/33314e89bc9a7ec14607e17dbae463e04cf4eb4ada5f2e4663fb4e6510b5/pykdtree-1.4.3-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:b53a9d473d0e5ddeb7608b2b364fb40e8312c6eb3cd81acd095989b7bce6880d", size = 314326, upload-time = "2025-08-06T11:11:16.953Z" },
+    { url = "https://files.pythonhosted.org/packages/48/43/a7ae1c28cdb2f3ee7b9890cb06b7f8df2a4ece0ce2812a5aefc69863fe95/pykdtree-1.4.3-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:089e30a1c249cacb5a36db8ddbe9c450e65df65c9fa7e6294a004ea9acefa59a", size = 448863, upload-time = "2025-08-06T11:11:17.819Z" },
+    { url = "https://files.pythonhosted.org/packages/94/d4/48cd5cec4a1c56a7f5dc5eec734a82d07012f2d1d1b01ff8afa52ded3c62/pykdtree-1.4.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7c8b4ecaf2d9737508eaf342ba8baae969bfff8011521e3ac1b656a70a5a5f32", size = 461634, upload-time = "2025-08-06T11:11:18.804Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/18/c3ee105e02aeea6ae6535f486f659c21011ac306a3a62a3139ad9558b688/pykdtree-1.4.3-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:7a582474f5c504a6e3ac1576d876fc7fdc620882e74eaa554bba660f6d927da8", size = 496965, upload-time = "2025-08-06T11:11:19.733Z" },
+    { url = "https://files.pythonhosted.org/packages/27/b8/75727565956edd9b458f835b6fee3ceeaafc4d7c78bd7fb1a2d274c54944/pykdtree-1.4.3-cp314-cp314-win_amd64.whl", hash = "sha256:9beb58ff9d77c80a6860d536f0100964fb3b191939d2b68a1165027a5993d413", size = 68062, upload-time = "2025-08-06T11:11:21.423Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/33/b6eff9bdc395f5bec8cba7d1a4947e4780ca4f6cca7b5e80ad02152af62b/pykdtree-1.4.3-cp314-cp314-win_arm64.whl", hash = "sha256:658d02283bd53d92653cc033023eb22fad016b294763bbe751fd985bedc595f3", size = 55916, upload-time = "2025-08-06T11:11:22.175Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/88/480bdfb3052859de1e9d6a208e0d5d743f5e5f094777afb32d918fa2e0eb/pykdtree-1.4.3-cp314-cp314t-macosx_13_0_x86_64.whl", hash = "sha256:7c843167ea246ad1a5ece27a38a6f6d3f40484a2a21dcbea902d0d550c355f57", size = 353657, upload-time = "2025-08-06T11:11:23.013Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/28/dcff6150f951600b9194a648d28c4106aca5738e1765077fda7d913c687c/pykdtree-1.4.3-cp314-cp314t-macosx_14_0_arm64.whl", hash = "sha256:76cdc90fa164846ac8e3c2b6a3370dfec7161b3357b24aa68bdcd25bbcaf669f", size = 317584, upload-time = "2025-08-06T11:11:24.398Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/98/f5ce0042ec442ba57c8b7cad08ac1596c34c21f9b02f9ebca46104a19121/pykdtree-1.4.3-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:537efd8b17e2b9dd36254d70d425debe9dbb20a29fc2eb83c7005e212505c517", size = 466553, upload-time = "2025-08-06T11:11:26.038Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/9f/d7faecdd48f4eccc98180ba74dce08384a12117ca73e556cc4fcff83ffd0/pykdtree-1.4.3-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:00cc35d95b9c822580af01619f11800cae24b1888b881195b7eb546c998ffff2", size = 464043, upload-time = "2025-08-06T11:11:27.486Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/5b/a16dcf152140400752c9232edaaac5d3079a58ac3ac1c2672edbfddf0e35/pykdtree-1.4.3-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:a332bd906347e0769363051ff4f67d9aa985b30a8ad4f25ff9538247cd0dda03", size = 498328, upload-time = "2025-08-06T11:11:28.47Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/2a/7729c6cdd3af4fa336b89eb4f4428409be8e8b97b1682dfd68efe674b977/pykdtree-1.4.3-cp314-cp314t-win_amd64.whl", hash = "sha256:bee5fa72ba2b37a731465d6b7e933701af438ce0c72de471bd6a4f9b76c68e33", size = 74061, upload-time = "2025-08-06T11:11:29.371Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/50/cfc0d7d0385168ba7888c28696028670e86d4d2346be52c99bf1ea643c61/pykdtree-1.4.3-cp314-cp314t-win_arm64.whl", hash = "sha256:74f042f39ac8ba599d4b767c8e9162e5e34b108f217a68e9f89f059620f62253", size = 58909, upload-time = "2025-08-06T11:11:30.238Z" },
 ]
 
 [[package]]
@@ -2814,7 +2947,7 @@ version = "0.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ptyprocess", marker = "os_name != 'nt' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'aarch64' and sys_platform == 'linux') or (os_name == 'nt' and sys_platform != 'darwin' and sys_platform != 'linux') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu126') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu128') or (os_name == 'nt' and sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (os_name != 'nt' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "tornado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701, upload-time = "2024-03-12T14:34:39.026Z" }
@@ -2863,8 +2996,10 @@ name = "torch"
 version = "2.10.0.dev20251030+cpu"
 source = { registry = "https://download.pytorch.org/whl/nightly/cpu" }
 resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'darwin'",
-    "python_full_version < '3.14' and sys_platform != 'darwin'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "filelock", marker = "(sys_platform != 'darwin' and extra == 'extra-9-torchmesh-cpu') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -2896,8 +3031,10 @@ name = "torch"
 version = "2.10.0.dev20251030+cu126"
 source = { registry = "https://download.pytorch.org/whl/nightly/cu126" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "filelock", marker = "extra == 'extra-9-torchmesh-cu126' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -2944,8 +3081,10 @@ name = "torch"
 version = "2.10.0.dev20251030+cu128"
 source = { registry = "https://download.pytorch.org/whl/nightly/cu128" }
 resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version < '3.14'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64') or (python_full_version >= '3.14' and sys_platform != 'linux')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64') or (python_full_version < '3.14' and sys_platform != 'linux')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux'",
 ]
 dependencies = [
     { name = "filelock", marker = "extra == 'extra-9-torchmesh-cu128' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
@@ -2992,10 +3131,14 @@ name = "torch"
 version = "2.10.0.dev20251030+cu130"
 source = { registry = "https://download.pytorch.org/whl/nightly/cu130" }
 resolution-markers = [
-    "python_full_version >= '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
-    "python_full_version >= '3.14' and sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
-    "python_full_version < '3.14' and sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130'",
+    "(python_full_version >= '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version >= '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
+    "(python_full_version < '3.14' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130') or (python_full_version < '3.14' and sys_platform != 'darwin' and sys_platform != 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130')",
+    "python_full_version < '3.14' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128' and extra != 'extra-9-torchmesh-cu130'",
 ]
 dependencies = [
     { name = "filelock", marker = "(sys_platform == 'darwin' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'darwin' and extra != 'extra-9-torchmesh-cpu' and extra != 'extra-9-torchmesh-cu126' and extra != 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130')" },
@@ -3072,6 +3215,8 @@ dev = [
     { name = "ipython" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "pyacvd", version = "0.2.10", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyacvd", version = "0.3.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pyvista", extra = ["all"] },
@@ -3082,6 +3227,10 @@ io = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pyvista" },
+]
+remeshing = [
+    { name = "pyacvd", version = "0.2.10", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyacvd", version = "0.3.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
 ]
 
 [package.metadata]
@@ -3102,6 +3251,7 @@ dev = [
     { name = "ipython", specifier = ">=9.6.0" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "numpy", specifier = ">=2.3.4" },
+    { name = "pyacvd", specifier = ">=0.2.10" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pyvista", extras = ["all"], specifier = ">=0.46.4" },
@@ -3113,6 +3263,7 @@ io = [
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "pyvista", specifier = ">=0.46.4" },
 ]
+remeshing = [{ name = "pyacvd", specifier = ">=0.2.10" }]
 
 [[package]]
 name = "tornado"
