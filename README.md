@@ -36,6 +36,8 @@ This means you can work with:
 - 1D edges in 3D space (curve meshes for path planning)
 - ...and any other n-dimensional manifold in m-dimensional space (where n ≤ m)
 
+all with the same API, and with all numerical computations done without leaving the GPU.
+
 The only restriction: **meshes must be simplicial** (composed of [points](https://en.wikipedia.org/wiki/Point_(geometry)), [line segments](https://en.wikipedia.org/wiki/Line_segment), [triangles](https://en.wikipedia.org/wiki/Triangle), [tetrahedra](https://en.wikipedia.org/wiki/Tetrahedron), and higher-dimensional [n-simplices](https://en.wikipedia.org/wiki/Simplex)). This enables rigorous discrete calculus operators and differential geometry computations.
 
 ---
