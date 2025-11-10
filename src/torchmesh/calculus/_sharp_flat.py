@@ -28,9 +28,9 @@ def sharp(
 
     Converts edge-based 1-form values to vectors at vertices using the rigorous
     formula from Hirani Eq. 5.8.1 (line 2596):
-    
+
         α♯(v) = Σ_{edges [v,σ⁰] from v} ⟨α,[v,σ⁰]⟩ × Σ_{cells σⁿ ⊃ edge} (|⋆v ∩ σⁿ|/|σⁿ|) × ∇φ_{σ⁰,σⁿ}
-    
+
     Where:
     - ⟨α,[v,σ⁰]⟩ is the 1-form value on edge [v, σ⁰]
     - |⋆v ∩ σⁿ| is the portion of vertex v's Voronoi cell within cell σⁿ
@@ -77,10 +77,14 @@ def sharp(
     ### Get barycentric gradients for all cells
     from torchmesh.geometry.interpolation import compute_barycentric_gradients
 
-    bary_grads = compute_barycentric_gradients(mesh)  # (n_cells, n_verts_per_cell, n_spatial_dims)
+    bary_grads = compute_barycentric_gradients(
+        mesh
+    )  # (n_cells, n_verts_per_cell, n_spatial_dims)
 
     ### Get support volume fractions |⋆v ∩ cell| / |cell|
-    from torchmesh.geometry.support_volumes import compute_vertex_support_volume_cell_fractions
+    from torchmesh.geometry.support_volumes import (
+        compute_vertex_support_volume_cell_fractions,
+    )
 
     fractions, cell_vertex_pairs = compute_vertex_support_volume_cell_fractions(mesh)
     # fractions: (n_pairs,)
@@ -105,7 +109,7 @@ def sharp(
     ### Implement Hirani Eq. 5.8.1 (FULLY VECTORIZED)
     # Challenge: This is complex to vectorize due to variable vertex valence
     # Strategy: Process all (edge, cell) pairs, then scatter to vertices
-    
+
     ### Build all (edge, cell, vertex_in_edge) triples that contribute
     # For each candidate edge, we have:
     # - edge vertices (2 per edge)
@@ -140,13 +144,15 @@ def sharp(
 
         ### Find local indices in cells
         # For each matched triple, find where vertex appears in cell
-        cells_expanded = mesh.cells[matched_cell_indices]  # (n_matched, n_verts_per_cell)
-        
+        cells_expanded = mesh.cells[
+            matched_cell_indices
+        ]  # (n_matched, n_verts_per_cell)
+
         # Find local index of current vertex
         local_v_mask = cells_expanded == vertex_indices.unsqueeze(1)
         local_v_idx = torch.argmax(local_v_mask.int(), dim=1)  # (n_matched,)
 
-        # Find local index of other vertex  
+        # Find local index of other vertex
         local_other_mask = cells_expanded == other_vertex_indices.unsqueeze(1)
         local_other_idx = torch.argmax(local_other_mask.int(), dim=1)  # (n_matched,)
 
@@ -162,17 +168,24 @@ def sharp(
         ### Get 1-form values (with orientation)
         # Orientation: +1 if vertex is first in canonical edge order, -1 if second
         # Canonical order has smaller index first
-        canonical_v0 = torch.minimum(matched_candidate_edges[:, 0], matched_candidate_edges[:, 1])
+        canonical_v0 = torch.minimum(
+            matched_candidate_edges[:, 0], matched_candidate_edges[:, 1]
+        )
         is_first_in_canonical = vertex_indices == canonical_v0
         orientations = torch.where(is_first_in_canonical, 1.0, -1.0)  # (n_matched,)
 
-        alpha_values = edge_1form[matched_edge_indices]  # (n_matched,) or (n_matched, ...)
+        alpha_values = edge_1form[
+            matched_edge_indices
+        ]  # (n_matched,) or (n_matched, ...)
 
         ### Compute contributions
         if edge_1form.ndim == 1:
             # Scalar case: (n_matched,) * (n_matched,) * (n_matched, n_spatial_dims)
             contributions = (
-                orientations.unsqueeze(-1) * alpha_values.unsqueeze(-1) * weights.unsqueeze(-1) * grad_phi
+                orientations.unsqueeze(-1)
+                * alpha_values.unsqueeze(-1)
+                * weights.unsqueeze(-1)
+                * grad_phi
             )  # (n_matched, n_spatial_dims)
 
             ### Scatter-add to vector_field
@@ -185,11 +198,17 @@ def sharp(
             # Tensor case: more complex broadcasting
             # alpha_values: (n_matched, features...)
             # Need: (n_matched, n_spatial_dims, features...)
-            contrib_spatial = orientations.unsqueeze(-1) * weights.unsqueeze(-1) * grad_phi  # (n_matched, n_spatial_dims)
-            contrib_spatial_expanded = contrib_spatial.unsqueeze(-1)  # (n_matched, n_spatial_dims, 1)
+            contrib_spatial = (
+                orientations.unsqueeze(-1) * weights.unsqueeze(-1) * grad_phi
+            )  # (n_matched, n_spatial_dims)
+            contrib_spatial_expanded = contrib_spatial.unsqueeze(
+                -1
+            )  # (n_matched, n_spatial_dims, 1)
             alpha_expanded = alpha_values.unsqueeze(1)  # (n_matched, 1, features...)
 
-            contributions = contrib_spatial_expanded * alpha_expanded  # (n_matched, n_spatial_dims, features...)
+            contributions = (
+                contrib_spatial_expanded * alpha_expanded
+            )  # (n_matched, n_spatial_dims, features...)
 
             # Flatten and scatter
             contributions_flat = contributions.reshape(len(matched_edge_indices), -1)
@@ -198,7 +217,9 @@ def sharp(
             vertex_indices_expanded = vertex_indices.unsqueeze(-1).expand(
                 -1, contributions_flat.shape[1]
             )
-            vector_field_flat.scatter_add_(0, vertex_indices_expanded, contributions_flat)
+            vector_field_flat.scatter_add_(
+                0, vertex_indices_expanded, contributions_flat
+            )
 
             vector_field = vector_field_flat.reshape(vector_field.shape)
 
@@ -216,9 +237,9 @@ def flat(
 
     Converts vectors at vertices (primal vector field) to edge-based 1-form values.
     Uses the PDP-flat formula from Hirani Section 5.6 (line 2456):
-    
+
         ⟨X♭, edge⟩ = X(v0) · edge⃗/2 + X(v1) · edge⃗/2 = (X(v0) + X(v1))/2 · edge⃗
-    
+
     This is the simplest flat operator for primal fields and is exact for
     linearly interpolated vector fields along edges.
 
@@ -227,7 +248,7 @@ def flat(
         - Source: primal vs dual vector field
         - Interpolation: constant in cells vs barycentric
         - Destination: primal vs dual 1-form
-        
+
         This implements PDP-flat (Primal-Dual-Primal): primal vectors, constant
         in Voronoi regions, to primal 1-form. This is compatible with PP-sharp.
 

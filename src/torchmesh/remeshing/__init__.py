@@ -31,4 +31,3 @@ Example:
 from torchmesh.remeshing._remeshing import remesh
 
 __all__ = ["remesh"]
-

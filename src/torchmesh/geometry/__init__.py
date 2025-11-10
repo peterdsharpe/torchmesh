@@ -16,4 +16,3 @@ from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
 __all__ = [
     "compute_dual_volumes_0",
 ]
-

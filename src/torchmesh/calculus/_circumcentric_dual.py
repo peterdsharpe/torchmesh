@@ -333,7 +333,7 @@ def get_or_compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
         Dual volumes for vertices, shape (n_points,)
     """
     from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
-    
+
     cached = get_cached(mesh.point_data, "dual_volumes_0")
     if cached is None:
         cached = compute_dual_volumes_0(mesh)

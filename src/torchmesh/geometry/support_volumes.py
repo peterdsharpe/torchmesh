@@ -6,7 +6,7 @@ to DEC formulas for sharp and flat operators.
 
 Key concept (Hirani Def. 2.4.9, line 2034):
     V_σᵏ = convex hull(σᵏ, ⋆σᵏ)
-    
+
 The support volumes perfectly tile the mesh: their union is |K| and intersections
 have measure zero.
 
@@ -34,19 +34,19 @@ def compute_edge_support_volume_cell_fractions(
 
     For each edge and each cell containing it, computes the fraction of the edge's
     dual 1-cell (and support volume) that lies within that cell.
-    
+
     This is needed for the DPP-flat operator (Hirani Eq. 5.5.3, line 2398):
         ⟨X♭, edge⟩ = Σ_{cells ⊃ edge} (|⋆edge ∩ cell|/|⋆edge|) × X(cell) · edge⃗
-    
+
     From Hirani Prop. 5.5.1 (line 2348), this equals:
         |⋆edge ∩ cell| / |⋆edge| = |V_edge ∩ cell| / |V_edge|
-    
+
     And from the pyramid volume analysis (lines 2361-2388), for dimension n:
         |V_edge ∩ cell| = 2 × (1/(n+1)) × |edge|/2 × |⋆edge ∩ cell|
         |V_edge| = Σ_{cells ⊃ edge} |V_edge ∩ cell|
-    
+
     So: fraction = |⋆edge ∩ cell| / |⋆edge| = |⋆edge ∩ cell| / Σ|⋆edge ∩ cell|
-    
+
     For 2D triangles, |⋆edge ∩ triangle| is the length of the dual edge segment
     from edge midpoint to triangle circumcenter.
 
@@ -57,7 +57,7 @@ def compute_edge_support_volume_cell_fractions(
     Returns:
         Sparse representation of fractions, shape (n_edges, max_cells_per_edge)
         where max_cells_per_edge = 2 for manifold meshes without boundary.
-        
+
         For boundary edges (only 1 adjacent cell), the fraction is 1.0.
         For interior edges (2 adjacent cells), fractions sum to 1.0.
 
@@ -103,7 +103,9 @@ def compute_edge_support_volume_cell_fractions(
     # Use hash for efficient lookup
     max_vertex = max(edges.max(), candidate_edges.max()) + 1
     edge_hash = sorted_edges[:, 0] * max_vertex + sorted_edges[:, 1]
-    candidate_hash = sorted_candidate_edges[:, 0] * max_vertex + sorted_candidate_edges[:, 1]
+    candidate_hash = (
+        sorted_candidate_edges[:, 0] * max_vertex + sorted_candidate_edges[:, 1]
+    )
 
     ### For each edge, find all cells containing it
     # Most edges have 1 (boundary) or 2 (interior) adjacent cells
@@ -116,7 +118,7 @@ def compute_edge_support_volume_cell_fractions(
     edge_hash_sorted, sort_idx = torch.sort(edge_hash)
     positions = torch.searchsorted(edge_hash_sorted, candidate_hash)
     positions = positions.clamp(max=len(edge_hash_sorted) - 1)
-    
+
     matches = edge_hash_sorted[positions] == candidate_hash
     edge_indices = sort_idx[positions]  # Map candidate → edge index
 
@@ -180,10 +182,10 @@ def compute_vertex_support_volume_cell_fractions(
 
     For each vertex and each cell containing it, computes the fraction of the vertex's
     dual 0-cell volume (Voronoi region) that lies within that cell, divided by the cell volume.
-    
+
     This is needed for the PP-sharp operator (Hirani Eq. 5.8.1, line 2596):
         α♯(v) = Σ_{edges from v} ⟨α,edge⟩ × Σ_{cells ⊃ edge} (|⋆v ∩ cell|/|cell|) × ∇φ
-    
+
     For 2D triangles, |⋆v ∩ triangle| is the area of the Voronoi region within
     the triangle. This was already computed as part of `compute_dual_volumes_0()`.
 
@@ -194,14 +196,14 @@ def compute_vertex_support_volume_cell_fractions(
         Tuple of (fractions, cell_vertex_pairs):
         - fractions: shape (n_pairs,) - the weight |⋆v ∩ cell| / |cell|
         - cell_vertex_pairs: shape (n_pairs, 2) - [cell_idx, local_vertex_idx]
-        
+
         For each pair (cell_i, vertex_j in cell_i), gives the geometric weight.
 
     Algorithm (2D):
         Uses the same Meyer mixed area computation as in compute_dual_volumes_0():
         - Acute triangles: Use Eq. 7 cotangent formula
         - Obtuse triangles: Use Fig. 4 mixed area subdivision
-        
+
         The per-cell contribution is already the |⋆v ∩ cell| value.
         Divide by cell area to get the required fraction.
 
@@ -221,9 +223,13 @@ def compute_vertex_support_volume_cell_fractions(
 
         n_pairs = n_cells * n_vertices_per_cell
         fractions = torch.full((n_pairs,), uniform_fraction, dtype=dtype, device=device)
-        
-        cell_indices = torch.arange(n_cells, device=device).repeat_interleave(n_vertices_per_cell)
-        local_vertex_indices = torch.arange(n_vertices_per_cell, device=device).repeat(n_cells)
+
+        cell_indices = torch.arange(n_cells, device=device).repeat_interleave(
+            n_vertices_per_cell
+        )
+        local_vertex_indices = torch.arange(n_vertices_per_cell, device=device).repeat(
+            n_cells
+        )
         cell_vertex_pairs = torch.stack([cell_indices, local_vertex_indices], dim=1)
 
         return fractions, cell_vertex_pairs
@@ -277,8 +283,14 @@ def compute_vertex_support_volume_cell_fractions(
             next_idx = (local_v_idx + 1) % 3
             prev_idx = (local_v_idx + 2) % 3
 
-            edge_to_next = non_obtuse_vertices[:, next_idx, :] - non_obtuse_vertices[:, local_v_idx, :]
-            edge_to_prev = non_obtuse_vertices[:, prev_idx, :] - non_obtuse_vertices[:, local_v_idx, :]
+            edge_to_next = (
+                non_obtuse_vertices[:, next_idx, :]
+                - non_obtuse_vertices[:, local_v_idx, :]
+            )
+            edge_to_prev = (
+                non_obtuse_vertices[:, prev_idx, :]
+                - non_obtuse_vertices[:, local_v_idx, :]
+            )
 
             edge_to_next_sq = (edge_to_next**2).sum(dim=-1)
             edge_to_prev_sq = (edge_to_prev**2).sum(dim=-1)
@@ -291,7 +303,9 @@ def compute_vertex_support_volume_cell_fractions(
             ).clamp(min=1e-10)
 
             ### Voronoi contribution (Eq. 7)
-            voronoi_in_cell = (edge_to_next_sq * cot_prev + edge_to_prev_sq * cot_next) / 8.0
+            voronoi_in_cell = (
+                edge_to_next_sq * cot_prev + edge_to_prev_sq * cot_next
+            ) / 8.0
 
             ### Fraction = |⋆v ∩ cell| / |cell|
             fraction = voronoi_in_cell / non_obtuse_areas
@@ -376,7 +390,7 @@ def compute_dual_edge_volumes_in_cells(
     edge_hash_sorted, sort_idx = torch.sort(edge_hash)
     positions = torch.searchsorted(edge_hash_sorted, candidate_hash)
     positions = positions.clamp(max=len(edge_hash_sorted) - 1)
-    
+
     matches = edge_hash_sorted[positions] == candidate_hash
     edge_indices_for_candidates = sort_idx[positions]
 
@@ -403,4 +417,3 @@ def compute_dual_edge_volumes_in_cells(
     edge_cell_mapping = torch.stack([edge_indices, cell_indices], dim=1)
 
     return dual_volumes, edge_cell_mapping
-

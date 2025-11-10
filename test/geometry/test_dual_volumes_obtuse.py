@@ -5,7 +5,7 @@ handled obtuse triangles, causing up to 513% conservation error.
 
 The tests ensure:
 1. Conservation: Σ dual_volumes = total_mesh_volume (all triangle types)
-2. Correct per-vertex distribution on obtuse triangles  
+2. Correct per-vertex distribution on obtuse triangles
 3. Meyer mixed area formula (Eq. 7 & Fig. 4) correctly implemented
 4. No regressions on acute triangles
 
@@ -154,9 +154,7 @@ class TestDualVolumesConservation:
             dtype=torch.float32,
             device=device,
         )
-        cells = torch.tensor(
-            [[0, 1], [1, 2], [2, 3]], dtype=torch.int64, device=device
-        )
+        cells = torch.tensor([[0, 1], [1, 2], [2, 3]], dtype=torch.int64, device=device)
         mesh = Mesh(points=points, cells=cells)
 
         dual_vols = compute_dual_volumes_0(mesh)
@@ -232,7 +230,9 @@ class TestDualVolumesObtuseTriangles:
         # A_v1 = (1/8)(||e10||² cot(45°) + ||e12||² cot(90°)) = (1/8)(1×1 + 2×0) = 1/8
         # A_v2 = (1/8)(||e20||² cot(45°) + ||e21||² cot(90°)) = (1/8)(1×1 + 2×0) = 1/8
 
-        expected = torch.tensor([0.25, 0.125, 0.125], dtype=torch.float32, device=device)
+        expected = torch.tensor(
+            [0.25, 0.125, 0.125], dtype=torch.float32, device=device
+        )
 
         assert torch.allclose(dual_vols, expected, atol=1e-5), (
             f"Voronoi areas don't match analytical values for right triangle.\n"
@@ -290,7 +290,7 @@ class TestDualVolumesObtuseTriangles:
 
         assert torch.allclose(dual_vols, expected, atol=1e-5), (
             f"Mixed area subdivision (Meyer Fig. 4) incorrect for obtuse triangle.\n"
-            f"Obtuse angle at vertex {obtuse_idx.item()} ({angles_tensor[obtuse_idx].item()*180/math.pi:.1f}°)\n"
+            f"Obtuse angle at vertex {obtuse_idx.item()} ({angles_tensor[obtuse_idx].item() * 180 / math.pi:.1f}°)\n"
             f"Expected: {expected.cpu().numpy()}\n"
             f"Got: {dual_vols.cpu().numpy()}\n"
             f"Max error: {abs(dual_vols - expected).max().item():.2e}"
@@ -302,7 +302,10 @@ class TestDualVolumesObtuseTriangles:
     def test_obtuse_vs_acute_conservation(self, device):
         """Test that both acute and obtuse formulas conserve correctly."""
         test_cases = [
-            ("Equilateral (acute)", torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 0.866]])),
+            (
+                "Equilateral (acute)",
+                torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.5, 0.866]]),
+            ),
             ("Right angle", torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])),
             ("Obtuse 100°", torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.2, 0.1]])),
             ("Obtuse 130°", torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.1, 0.05]])),
@@ -395,7 +398,9 @@ class TestMeyerFormulaCorrectness:
         #      = (1/8)(1² × 1.0 + 2 × 0.0) = 1/8
         # A_v2 = similar to v1 = 1/8
 
-        expected = torch.tensor([0.25, 0.125, 0.125], dtype=torch.float32, device=device)
+        expected = torch.tensor(
+            [0.25, 0.125, 0.125], dtype=torch.float32, device=device
+        )
 
         assert torch.allclose(dual_vols, expected, atol=1e-5), (
             f"Meyer Eq. 7 verification failed.\n"
@@ -435,7 +440,9 @@ class TestDimensionalCoverage:
                 dtype=torch.float32,
                 device=device,
             )
-            cells = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype=torch.int64, device=device)
+            cells = torch.tensor(
+                [[0, 1, 2], [1, 3, 2]], dtype=torch.int64, device=device
+            )
 
         else:  # n_manifold_dims == 3
             ### 3D: two tetrahedra
@@ -517,4 +524,3 @@ class TestDECOperatorIntegration:
             f"Δf at interior vertex = {lap_f[0].item():.4f}, expected ≈ 0\n"
             f"This suggests the fix introduced a regression."
         )
-

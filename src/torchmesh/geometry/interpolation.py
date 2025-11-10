@@ -40,9 +40,9 @@ def compute_barycentric_gradients(
 
     Returns:
         Gradients of shape (n_cells, n_vertices_per_cell, n_spatial_dims)
-        
+
         gradients[cell_i, local_vertex_j, :] = ∇φ_{v_j, cell_i}
-        
+
         where v_j is the j-th vertex of cell_i (in local indexing).
 
     Algorithm:
@@ -50,7 +50,7 @@ def compute_barycentric_gradients(
         1. The gradient ∇φ_{v₀,cell} is perpendicular to face [v₁,...,vₙ]
         2. Points from face centroid toward v₀
         3. Has magnitude 1/height
-        
+
         Efficient computation:
         - Use barycentric coordinate derivatives
         - For vertex i: ∇φᵢ = ∇(volume ratio) = normal to opposite face / height
@@ -88,7 +88,9 @@ def compute_barycentric_gradients(
         return gradients
 
     ### Get cell vertices
-    cell_vertices = mesh.points[mesh.cells]  # (n_cells, n_vertices_per_cell, n_spatial_dims)
+    cell_vertices = mesh.points[
+        mesh.cells
+    ]  # (n_cells, n_vertices_per_cell, n_spatial_dims)
 
     if n_manifold_dims == 2:
         ### 2D triangles: Efficient closed-form solution
@@ -154,7 +156,7 @@ def compute_barycentric_gradients(
             ### 3D case: Use formula ∇φᵢ = normal × opposite_edge / (2A)
             # Actually, the correct formula involves the dual basis
             # For a triangle in 3D: ∇φ₀ = (normal × (v2-v1)) / (2A)
-            
+
             # Get triangle normal
             normal = torch.linalg.cross(edge1, edge2)  # (n_cells, 3)
             normal = normal / torch.norm(normal, dim=-1, keepdim=True).clamp(min=1e-10)
@@ -178,12 +180,14 @@ def compute_barycentric_gradients(
         ### 3D tetrahedra: Use dual basis / perpendicular to opposite face
         # ∇φᵢ is perpendicular to the triangular face opposite to vertex i
         # and has magnitude 1/(height from i to opposite face)
-        
+
         ### For each vertex, compute gradient
         for local_v_idx in range(4):
             ### Get opposite face (3 vertices excluding current one)
             other_indices = [j for j in range(4) if j != local_v_idx]
-            opposite_face_vertices = cell_vertices[:, other_indices, :]  # (n_cells, 3, n_spatial_dims)
+            opposite_face_vertices = cell_vertices[
+                :, other_indices, :
+            ]  # (n_cells, 3, n_spatial_dims)
 
             ### Compute normal to opposite face
             # Face has 3 vertices: compute normal via cross product
@@ -195,7 +199,9 @@ def compute_barycentric_gradients(
             face_edge2 = face_v2 - face_v0
 
             face_normal = torch.linalg.cross(face_edge1, face_edge2)  # (n_cells, 3)
-            face_area = torch.norm(face_normal, dim=-1, keepdim=True) / 2.0  # (n_cells, 1)
+            face_area = (
+                torch.norm(face_normal, dim=-1, keepdim=True) / 2.0
+            )  # (n_cells, 1)
 
             ### Normalize face normal
             face_normal_unit = face_normal / (2.0 * face_area).clamp(min=1e-10)
@@ -203,11 +209,15 @@ def compute_barycentric_gradients(
             ### Height from vertex to opposite face
             vertex_pos = cell_vertices[:, local_v_idx, :]
             vec_to_face = face_v0 - vertex_pos
-            height = torch.abs((vec_to_face * face_normal_unit).sum(dim=-1, keepdim=True))  # (n_cells, 1)
+            height = torch.abs(
+                (vec_to_face * face_normal_unit).sum(dim=-1, keepdim=True)
+            )  # (n_cells, 1)
 
             ### Gradient: normal direction with magnitude 1/height
             # Direction: toward vertex (opposite of normal if on other side)
-            sign = torch.sign((vec_to_face * face_normal_unit).sum(dim=-1, keepdim=True))
+            sign = torch.sign(
+                (vec_to_face * face_normal_unit).sum(dim=-1, keepdim=True)
+            )
             grad = -sign * face_normal_unit / height.clamp(min=1e-10)
 
             gradients[:, local_v_idx, :] = grad.squeeze(-1)
@@ -219,4 +229,3 @@ def compute_barycentric_gradients(
         )
 
     return gradients
-

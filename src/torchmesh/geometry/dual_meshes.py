@@ -14,10 +14,10 @@ dual volumes require well-centered meshes (Desbrun et al. 2005, Hirani 2003).
 References:
     Meyer, M., Desbrun, M., Schröder, P., & Barr, A. H. (2003).
     "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds". VisMath.
-    
+
     Desbrun, M., Hirani, A. N., Leok, M., & Marsden, J. E. (2005).
     "Discrete Exterior Calculus". arXiv:math/0508341.
-    
+
     Hirani, A. N. (2003). "Discrete Exterior Calculus". PhD thesis, Caltech.
 """
 
@@ -70,33 +70,33 @@ def compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
     The dual 0-cell (also called Voronoi cell or circumcentric dual) of a vertex
     is the region of points closer to that vertex than to any other. In DEC, these
     volumes appear in the Hodge star operator and normalization of the Laplacian.
-    
+
     **Note**: In the curvature/differential geometry literature, these are often
     called "Voronoi areas" (for 2D) or "Voronoi volumes". In DEC literature, they
     are called "dual 0-cell volumes" (denoted |⋆v|). These are identical concepts.
 
     Dimension-specific algorithms:
-    
+
     **1D manifolds (edges)**:
         Each vertex receives half the length of each incident edge.
         Formula: V(v) = Σ_{edges ∋ v} |edge|/2
-        
+
     **2D manifolds (triangles)**:
         Uses Meyer et al. (2003) mixed area approach:
         - **Acute triangles** (all angles ≤ π/2): Circumcentric Voronoi formula (Eq. 7)
           V(v) = (1/8) Σ (||e_i||² cot(α_i) + ||e_j||² cot(α_j))
           where e_i, e_j are edges from v, α_i, α_j are opposite angles
-          
+
         - **Obtuse triangles**: Mixed area subdivision (Figure 4)
           - If obtuse at vertex v: V(v) = area(T)/2
           - Otherwise: V(v) = area(T)/4
-          
+
         This ensures perfect tiling and optimal error bounds.
-        
+
     **3D+ manifolds (tetrahedra, etc.)**:
         Barycentric approximation (standard practice):
         V(v) = Σ_{cells ∋ v} |cell| / (n_manifold_dims + 1)
-        
+
         Note: Rigorous circumcentric dual volumes in 3D require "well-centered"
         meshes where all circumcenters lie inside their simplices (Desbrun 2005).
         Mixed volume formulas for obtuse tetrahedra do not exist in the literature.
@@ -107,7 +107,7 @@ def compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
     Returns:
         Tensor of shape (n_points,) containing dual 0-cell volume for each vertex.
         For isolated vertices, volume is 0.
-        
+
         Property: Σ dual_volumes = total_mesh_volume (perfect tiling)
 
     Raises:
@@ -286,4 +286,3 @@ def compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
         )
 
     return dual_volumes
-

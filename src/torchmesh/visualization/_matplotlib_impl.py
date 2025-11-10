@@ -217,7 +217,9 @@ def _draw_0d(
         colors = point_neutral_color
 
     # Draw points at the origin
-    ax.scatter(np.zeros(n_points), np.zeros(n_points), c=colors, alpha=alpha_points, s=5)
+    ax.scatter(
+        np.zeros(n_points), np.zeros(n_points), c=colors, alpha=alpha_points, s=5
+    )
     ax.set_xlim(-1, 1)
     ax.set_ylim(-0.5, 0.5)
 

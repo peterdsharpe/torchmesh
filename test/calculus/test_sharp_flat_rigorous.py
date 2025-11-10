@@ -4,7 +4,7 @@ These tests verify that the sharp and flat operators follow Hirani's formulas
 with support volume intersections and barycentric interpolation gradients.
 
 The key identities to test:
-1. div(curl(V)) = 0 
+1. div(curl(V)) = 0
 2. curl(grad(f)) = 0
 3. div(grad(f)) ≈ Δf (may not be exact in discrete DEC per Hirani Section 5.9)
 
@@ -42,7 +42,9 @@ class TestSharpFlatProperties:
             device=device,
         )
         cells = torch.tensor(
-            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]], dtype=torch.int64, device=device
+            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]],
+            dtype=torch.int64,
+            device=device,
         )
         mesh = Mesh(points=points, cells=cells)
 
@@ -92,7 +94,9 @@ class TestVectorCalculusIdentities:
             device=device,
         )
         cells = torch.tensor(
-            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]], dtype=torch.int64, device=device
+            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]],
+            dtype=torch.int64,
+            device=device,
         )
         mesh = Mesh(points=points, cells=cells)
 
@@ -107,9 +111,7 @@ class TestVectorCalculusIdentities:
         assert abs(div_grad_f[0]) < 0.1, (
             f"div(grad(linear)) = {div_grad_f[0].item():.4f}, expected ≈ 0"
         )
-        assert abs(lap_f[0]) < 0.01, (
-            f"Δ(linear) = {lap_f[0].item():.4f}, expected ≈ 0"
-        )
+        assert abs(lap_f[0]) < 0.01, f"Δ(linear) = {lap_f[0].item():.4f}, expected ≈ 0"
 
     @pytest.mark.parametrize(
         "device", ["cpu", pytest.param("cuda", marks=pytest.mark.cuda)]
@@ -132,7 +134,9 @@ class TestVectorCalculusIdentities:
             device=device,
         )
         cells = torch.tensor(
-            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]], dtype=torch.int64, device=device
+            [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1]],
+            dtype=torch.int64,
+            device=device,
         )
         mesh = Mesh(points=points, cells=cells)
 
@@ -149,7 +153,10 @@ class TestVectorCalculusIdentities:
         discrepancy = abs(div_grad_f[0] - lap_f[0])
 
         # Both should at least have the same sign and order of magnitude
-        assert torch.sign(div_grad_f[0]) == torch.sign(lap_f[0]) or torch.abs(lap_f[0]) < 0.1, (
+        assert (
+            torch.sign(div_grad_f[0]) == torch.sign(lap_f[0])
+            or torch.abs(lap_f[0]) < 0.1
+        ), (
             f"div(grad(f)) and Δf have opposite signs: "
             f"{div_grad_f[0].item():.2f} vs {lap_f[0].item():.2f}"
         )
@@ -163,4 +170,3 @@ class TestVectorCalculusIdentities:
             f"Ratio = {ratio.item():.2f}\n"
             f"Note: Exact equality not guaranteed in discrete DEC (Hirani Prop. 5.5.3)"
         )
-

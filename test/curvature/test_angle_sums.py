@@ -167,7 +167,9 @@ class TestClosedSurfaceAngleSums:
         K = mesh.gaussian_curvature_vertices
 
         # Compute Voronoi areas
-        from torchmesh.geometry.dual_meshes import compute_dual_volumes_0 as compute_voronoi_areas
+        from torchmesh.geometry.dual_meshes import (
+            compute_dual_volumes_0 as compute_voronoi_areas,
+        )
 
         voronoi_areas = compute_voronoi_areas(mesh)
 
