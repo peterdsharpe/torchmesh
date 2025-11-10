@@ -34,11 +34,11 @@ This means you can work with:
 - 2D triangles in 3D space (surface meshes for graphics/CFD)
 - 3D tetrahedra in 3D space (volume meshes for FEM/CFD)
 - 1D edges in 3D space (curve meshes for path planning)
-- ...and any other n-dimensional manifold in m-dimensional space (where n ≤ m)
+- Any other n-dimensional manifold in m-dimensional space (where n ≤ m)
 
-all with the same API, and with all numerical computations done without leaving the GPU.
+all with the same API. TorchMesh's API design takes heavy inspiration from [PyVista](https://pyvista.org/), but it is designed to be a) end-to-end GPU-accelerated, b) dimensionally generic, c) autograd-differentiable where possible, d) allow arbitrary-rank tensor fields as data, and e) support nested field data.
 
-The only restriction: **meshes must be simplicial** (composed of [points](https://en.wikipedia.org/wiki/Point_(geometry)), [line segments](https://en.wikipedia.org/wiki/Line_segment), [triangles](https://en.wikipedia.org/wiki/Triangle), [tetrahedra](https://en.wikipedia.org/wiki/Tetrahedron), and higher-dimensional [n-simplices](https://en.wikipedia.org/wiki/Simplex)). This enables rigorous discrete calculus operators and differential geometry computations.
+The only restriction: **meshes must be simplicial** (composed of [points](https://en.wikipedia.org/wiki/Point_(geometry)), [line segments](https://en.wikipedia.org/wiki/Line_segment), [triangles](https://en.wikipedia.org/wiki/Triangle), [tetrahedra](https://en.wikipedia.org/wiki/Tetrahedron), and higher-dimensional [n-simplices](https://en.wikipedia.org/wiki/Simplex)). This enables a plethora of rigorous differential geometry + discrete calculus computations, as well as significant performance benefits.
 
 ---
 
@@ -81,14 +81,14 @@ pip install torchmesh
 
 This installs TorchMesh with its core dependencies: [PyTorch](https://pytorch.org/) and [TensorDict](https://github.com/pytorch/tensordict).
 
-### With I/O and Visualization
+### With Additional I/O and Visualization Capabilities
 
 ```bash
 pip install torchmesh[io]
 ```
 
 This adds [PyVista](https://pyvista.org/), [matplotlib](https://matplotlib.org/), and [numpy](https://numpy.org/), which are **soft dependencies** used only for:
-- Loading/saving mesh files ([STL](https://en.wikipedia.org/wiki/STL_(file_format)), [OBJ](https://en.wikipedia.org/wiki/Wavefront_.obj_file), [VTK](https://vtk.org/), PLY, etc.)
+- Loading/saving mesh files ([STL](https://en.wikipedia.org/wiki/STL_(file_format)), [OBJ](https://en.wikipedia.org/wiki/Wavefront_.obj_file), [VTK/VTU/VTP/VTM](https://vtk.org/), PLY, etc.)
 - Interactive 3D visualization
 - Uniform remeshing (via [pyacvd](https://github.com/pyvista/pyacvd))
 
