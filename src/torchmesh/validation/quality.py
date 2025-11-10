@@ -5,7 +5,6 @@ skewness, and angles. Higher quality = better shaped cells.
 """
 
 from typing import TYPE_CHECKING
-import math
 
 import torch
 from tensordict import TensorDict
@@ -120,7 +119,7 @@ def compute_quality_metrics(mesh: "Mesh") -> TensorDict:
 
     # Angle quality (for triangles): min_angle / (π/3) and (π/3) / max_angle
     if mesh.n_manifold_dims == 2:
-        ideal_angle = math.pi / 3
+        ideal_angle = torch.pi / 3
         min_angle_quality = torch.clamp(min_angle / ideal_angle, max=1.0)
         max_angle_quality = torch.clamp(ideal_angle / max_angle, max=1.0)
         angle_quality = (min_angle_quality + max_angle_quality) / 2

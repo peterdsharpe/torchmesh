@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (non-orientable, has boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -35,7 +33,7 @@ def load(
         raise ValueError(f"n_width must be at least 2, got {n_width=}")
 
     # Parametric Möbius strip
-    u = torch.linspace(0, 2 * math.pi, n_circ + 1, device=device)[:-1]
+    u = torch.linspace(0, 2 * torch.pi, n_circ + 1, device=device)[:-1]
     v = torch.linspace(-width / 2, width / 2, n_width, device=device)
 
     points = []

@@ -3,8 +3,6 @@
 Dimensional: 1D manifold in 2D space.
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -13,7 +11,7 @@ from torchmesh.mesh import Mesh
 def load(
     radius: float = 1.0,
     start_angle: float = 0.0,
-    end_angle: float = math.pi / 2,
+    end_angle: float = float(torch.pi / 2),
     n_points: int = 20,
     device: str = "cpu",
 ) -> Mesh:

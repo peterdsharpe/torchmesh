@@ -4,7 +4,6 @@ Computes angles and solid angles at vertices in n-dimensional simplicial meshes.
 Uses dimension-agnostic formulas based on Gram determinants and stable atan2.
 """
 
-import math
 from typing import TYPE_CHECKING
 
 import torch
@@ -192,7 +191,7 @@ def compute_angles_at_vertices(mesh: "Mesh") -> torch.Tensor:
                 signed_angle = torch.atan2(cross_z, dot)
 
                 # Interior angle: π - signed_angle
-                interior_angles = math.pi - signed_angle
+                interior_angles = torch.pi - signed_angle
             else:
                 # Higher dimensions: Use unsigned angle
                 interior_angles = stable_angle_between_vectors(v_from_prev, v_to_next)

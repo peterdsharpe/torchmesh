@@ -150,11 +150,10 @@ class Mesh:
             )  # Result: (n_cells, n_manifold_dims, n_manifold_dims)
 
             ### Compute volume: sqrt(|det(G)|) / n!
-            import math
+            # Compute factorial using torch for small integers
+            factorial = float(torch.arange(1, self.n_manifold_dims + 1).prod())
 
-            cached = gram_matrix.det().abs().sqrt() / math.factorial(
-                self.n_manifold_dims
-            )
+            cached = gram_matrix.det().abs().sqrt() / factorial
             set_cached(self.cell_data, "areas", cached)
 
         return cached

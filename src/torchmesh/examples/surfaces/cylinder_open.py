@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (has boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -35,7 +33,7 @@ def load(
         raise ValueError(f"n_height must be at least 2, got {n_height=}")
 
     # Create cylindrical points
-    theta = torch.linspace(0, 2 * math.pi, n_circ + 1, device=device)[:-1]
+    theta = torch.linspace(0, 2 * torch.pi, n_circ + 1, device=device)[:-1]
     z = torch.linspace(-height / 2, height / 2, n_height, device=device)
 
     points = []

@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (has boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -35,8 +33,8 @@ def load(
         raise ValueError(f"phi_resolution must be at least 2, got {phi_resolution=}")
 
     # Parametric hemisphere (upper half)
-    theta = torch.linspace(0, 2 * math.pi, theta_resolution + 1, device=device)[:-1]
-    phi = torch.linspace(0, math.pi / 2, phi_resolution, device=device)
+    theta = torch.linspace(0, 2 * torch.pi, theta_resolution + 1, device=device)[:-1]
+    phi = torch.linspace(0, torch.pi / 2, phi_resolution, device=device)
 
     points = []
     for phi_val in phi:

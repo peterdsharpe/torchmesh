@@ -3,8 +3,6 @@
 Dimensional: 1D manifold in 2D space (closed, no boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -30,7 +28,7 @@ def load(
     if n_points < 3:
         raise ValueError(f"n_points must be at least 3, got {n_points=}")
 
-    theta = torch.linspace(0, 2 * math.pi, n_points + 1, device=device)[:-1]
+    theta = torch.linspace(0, 2 * torch.pi, n_points + 1, device=device)[:-1]
 
     points = torch.stack(
         [

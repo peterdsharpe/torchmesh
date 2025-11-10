@@ -4,8 +4,6 @@ Provides helper functions for computing angles, full angles in n-dimensions,
 and numerically stable geometric operations.
 """
 
-import math
-
 import torch
 
 
@@ -42,11 +40,11 @@ def compute_full_angle_n_sphere(n_manifold_dims: int) -> float:
 
     ### Special case for 1D: turning angle is π
     if n == 1:
-        return math.pi
+        return float(torch.pi)
 
     ### General case (n ≥ 2): Surface area of (n-1)-sphere
     # Formula: 2π^(n/2) / Γ(n/2)
-    result = (2 * math.pi) ** (n / 2.0) / math.gamma(n / 2.0)
+    result = float((2 * torch.pi) ** (n / 2.0) / torch.exp(torch.lgamma(torch.tensor(n / 2.0))))
 
     return result
 
@@ -113,7 +111,7 @@ def compute_triangle_angles(
         >>> p1 = torch.tensor([1., 0.])
         >>> p2 = torch.tensor([0., 1.])
         >>> angle = compute_triangle_angles(p0, p1, p2)
-        >>> assert torch.allclose(angle, torch.tensor(math.pi / 2))
+        >>> assert torch.allclose(angle, torch.tensor(torch.pi / 2))
     """
     ### Compute edge vectors from p0
     edge1 = p1 - p0  # (..., n_spatial_dims)

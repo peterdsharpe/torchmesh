@@ -146,9 +146,8 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
         all_angles = torch.stack([angles_0, angles_1, angles_2], dim=1)
 
         # Check if obtuse (any angle > π/2)
-        import math
 
-        is_obtuse = torch.any(all_angles > math.pi / 2, dim=1)  # (n_cells,)
+        is_obtuse = torch.any(all_angles > torch.pi / 2, dim=1)  # (n_cells,)
 
         ### Non-obtuse triangles: Use circumcentric Voronoi formula (Eq. 7)
         # A_voronoi_i = (1/8) * Σ (||e_ij||² cot(α_ij) + ||e_ik||² cot(α_ik))
@@ -212,7 +211,7 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
             ### For each of the 3 vertices in each obtuse triangle
             for local_v_idx in range(3):
                 ### Check if angle at this vertex is obtuse
-                is_obtuse_at_vertex = obtuse_angles[:, local_v_idx] > math.pi / 2
+                is_obtuse_at_vertex = obtuse_angles[:, local_v_idx] > torch.pi / 2
                 
                 ### Compute contribution based on Meyer Figure 4
                 # If obtuse at vertex: area(T)/2, else: area(T)/4

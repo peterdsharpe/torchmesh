@@ -39,15 +39,13 @@ class TestValidationCodePaths:
 
     def test_inverted_cells_3d(self, device):
         """Test detection of inverted cells in 3D."""
-        import math
-
         # Regular tetrahedron
         points = torch.tensor(
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,

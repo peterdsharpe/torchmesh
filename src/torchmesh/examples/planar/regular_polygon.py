@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 2D space.
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -27,7 +25,7 @@ def load(n_sides: int = 6, radius: float = 1.0, device: str = "cpu") -> Mesh:
         raise ValueError(f"n_sides must be at least 3, got {n_sides=}")
 
     # Create vertices around the circle
-    theta = torch.linspace(0, 2 * math.pi, n_sides + 1, device=device)[:-1]
+    theta = torch.linspace(0, 2 * torch.pi, n_sides + 1, device=device)[:-1]
     x = radius * torch.cos(theta)
     y = radius * torch.sin(theta)
 

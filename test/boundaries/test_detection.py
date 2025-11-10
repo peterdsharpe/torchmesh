@@ -75,9 +75,8 @@ class TestBoundaryVertices:
         n_circ = 8
         n_height = 4
 
-        import math
 
-        theta = torch.linspace(0, 2 * math.pi, n_circ + 1, device=device)[:-1]
+        theta = torch.linspace(0, 2 * torch.pi, n_circ + 1, device=device)[:-1]
         z_vals = torch.linspace(-1.0, 1.0, n_height, device=device)
 
         points = []

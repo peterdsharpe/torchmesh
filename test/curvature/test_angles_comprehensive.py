@@ -7,7 +7,6 @@ Tests coverage for:
 - Edge cases and numerical stability
 """
 
-import math
 import torch
 import pytest
 
@@ -38,8 +37,8 @@ class TestSolidAngles3D:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -52,7 +51,7 @@ class TestSolidAngles3D:
         solid_angle = compute_solid_angle_at_tet_vertex(vertex_pos, opposite_vertices)
 
         # For regular tet, each corner has solid angle ≈ 0.55129 steradians
-        expected = math.acos(23 / 27)  # Exact formula
+        expected = torch.acos(torch.tensor(23 / 27))  # Exact formula
 
         assert torch.abs(solid_angle - expected) < 1e-5
 
@@ -73,7 +72,7 @@ class TestSolidAngles3D:
         solid_angle = compute_solid_angle_at_tet_vertex(vertex_pos, opposite_vertices)
 
         # Right angle corner: solid angle = π/2 steradians
-        expected = math.pi / 2
+        expected = torch.pi / 2
 
         assert torch.abs(solid_angle - expected) < 1e-5
 
@@ -95,7 +94,7 @@ class TestSolidAngles3D:
 
         # Should all be positive and less than 4π (full sphere)
         assert torch.all(solid_angles > 0)
-        assert torch.all(solid_angles < 4 * math.pi)
+        assert torch.all(solid_angles < 4 * torch.pi)
         assert solid_angles.shape == (n_tets,)
 
     def test_angles_at_vertices_3d_single_tet(self, device):
@@ -104,8 +103,8 @@ class TestSolidAngles3D:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -195,8 +194,8 @@ class TestMultiEdgeVertices1D:
             [
                 [0.0, 0.0],  # Center (junction)
                 [1.0, 0.0],  # Right
-                [-0.5, math.sqrt(3) / 2],  # Upper left
-                [-0.5, -math.sqrt(3) / 2],  # Lower left
+                [-0.5, (3 ** 0.5) / 2],  # Upper left
+                [-0.5, -(3 ** 0.5) / 2],  # Lower left
             ],
             dtype=torch.float32,
             device=device,
@@ -275,7 +274,7 @@ class TestHigherDimensionalAngles:
 
         angle = stable_angle_between_vectors(v1, v2)
 
-        assert torch.abs(angle - math.pi / 2) < 1e-6
+        assert torch.abs(angle - torch.pi / 2) < 1e-6
 
     def test_stable_angle_between_vectors_parallel(self, device):
         """Test angle between parallel vectors."""
@@ -293,7 +292,7 @@ class TestHigherDimensionalAngles:
 
         angle = stable_angle_between_vectors(v1, v2)
 
-        assert torch.abs(angle - math.pi) < 1e-6
+        assert torch.abs(angle - torch.pi) < 1e-6
 
     def test_stable_angle_4d(self, device):
         """Test angle computation in 4D space."""
@@ -303,7 +302,7 @@ class TestHigherDimensionalAngles:
 
         angle = stable_angle_between_vectors(v1, v2)
 
-        assert torch.abs(angle - math.pi / 2) < 1e-6
+        assert torch.abs(angle - torch.pi / 2) < 1e-6
 
     def test_edges_in_higher_dim_space(self, device):
         """Test 1D manifold (edges) embedded in higher dimensional space."""
@@ -337,7 +336,7 @@ class TestHigherDimensionalAngles:
         assert angles[1] > 0  # Should be computed
 
         # For a 90° bend, interior angle should be π/2
-        assert torch.abs(angles[1] - math.pi / 2) < 0.1
+        assert torch.abs(angles[1] - torch.pi / 2) < 0.1
 
 
 class TestAngleEdgeCases:
@@ -432,7 +431,7 @@ class TestAngleEdgeCases:
         # One vertex should have angle close to 0 (nearly 0°)
         # Sum should still be close to π
         total = angles.sum()
-        assert torch.abs(total - math.pi) < 1e-3
+        assert torch.abs(total - torch.pi) < 1e-3
 
     def test_2d_manifold_in_higher_dim(self, device):
         """Test triangle mesh embedded in higher dimensional space."""
@@ -441,7 +440,7 @@ class TestAngleEdgeCases:
             [
                 [0.0, 0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0, 0.0],
+                [0.5, (3 ** 0.5) / 2, 0.0, 0.0],
             ],
             dtype=torch.float32,
             device=device,
@@ -455,7 +454,7 @@ class TestAngleEdgeCases:
 
         # Should compute angles correctly (equilateral triangle)
         # Each angle should be π/3
-        expected = math.pi / 3
+        expected = torch.pi / 3
         assert torch.allclose(
             angles, torch.full((3,), expected, device=device), atol=1e-5
         )

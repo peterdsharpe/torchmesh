@@ -17,8 +17,6 @@ where K_i is Gaussian curvature at vertex i and A_i is the Voronoi area.
 As the mesh is refined, this sum should converge to 4π.
 """
 
-import math
-
 import pytest
 import torch
 
@@ -126,7 +124,7 @@ class TestPerfectSphereConvergence:
 
     def test_sphere_gauss_bonnet_convergence(self, device):
         """Test that ∫∫ K dA converges to 4π with subdivision refinement."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         integrals = []
         errors = []
@@ -175,7 +173,7 @@ class TestPerfectSphereConvergence:
     @pytest.mark.parametrize("radius", [0.5, 1.0, 2.0, 5.0])
     def test_sphere_gauss_bonnet_scale_invariance(self, device, radius):
         """Test that ∫∫ K dA = 4π regardless of sphere radius (scale invariance)."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create sphere with given radius at moderate refinement
         mesh = sphere_icosahedral.load(
@@ -196,7 +194,7 @@ class TestPerfectSphereConvergence:
 
     def test_sphere_gauss_bonnet_absolute_value(self, device):
         """Test that the computed integral is very close to 4π at high refinement."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create highly refined sphere
         mesh = sphere_icosahedral.load(
@@ -233,7 +231,7 @@ class TestLumpySphereDiscretizationInvariance:
     @pytest.mark.parametrize("seed", [0, 42, 123])
     def test_lumpy_sphere_gauss_bonnet_value(self, device, seed):
         """Test that lumpy sphere has ∫∫ K dA ≈ 4π."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create lumpy sphere with moderate perturbation
         mesh = create_lumpy_sphere_mesh(
@@ -289,7 +287,7 @@ class TestLumpySphereDiscretizationInvariance:
         )
 
         ### Both should be close to 4π
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
         for label, integral in [("coarse", integral_coarse), ("fine", integral_fine)]:
             relative_error = torch.abs(integral - expected_integral) / expected_integral
             assert relative_error < 0.05, (
@@ -308,7 +306,7 @@ class TestGaussBonnetRobustness:
     @pytest.mark.parametrize("amplitude", [0.1, 0.2, 0.4])
     def test_different_perturbation_amplitudes(self, device, amplitude):
         """Test Gauss-Bonnet with different perturbation strengths."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create lumpy sphere with given perturbation amplitude
         mesh = create_lumpy_sphere_mesh(
@@ -336,7 +334,7 @@ class TestGaussBonnetRobustness:
 
     def test_octahedron_base_mesh(self, device):
         """Test Gauss-Bonnet starting from octahedron instead of icosahedron."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create octahedron
         mesh = octahedron_surface.load(size=1.0, device=device)
@@ -371,7 +369,7 @@ class TestGaussBonnetRobustness:
 
     def test_tetrahedron_base_mesh(self, device):
         """Test Gauss-Bonnet starting from tetrahedron."""
-        expected_integral = 4.0 * math.pi
+        expected_integral = 4.0 * torch.pi
 
         ### Create tetrahedron
         mesh = tetrahedron_surface.load(side_length=1.0, device=device)

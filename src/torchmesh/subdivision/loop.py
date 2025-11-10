@@ -93,9 +93,7 @@ def compute_loop_beta(valence: int) -> float:
     if valence == 3:
         return 3.0 / 16.0
     else:
-        import math
-
-        cos_term = 3.0 / 8.0 + 0.25 * math.cos(2.0 * math.pi / valence)
+        cos_term = 3.0 / 8.0 + 0.25 * float(torch.cos(torch.tensor(2.0 * torch.pi / valence)))
         beta = (1.0 / valence) * (5.0 / 8.0 - cos_term * cos_term)
         return beta
 
@@ -144,9 +142,8 @@ def reposition_original_vertices_2d(
     # If valence == 3: beta = 3/16
     # Else: beta = (1/n) * (5/8 - (3/8 + 1/4 * cos(2π/n))²)
     # Shape: (n_points,)
-    import math
 
-    cos_term = 3.0 / 8.0 + 0.25 * torch.cos(2.0 * math.pi / valences.float())
+    cos_term = 3.0 / 8.0 + 0.25 * torch.cos(2.0 * torch.pi / valences.float())
     beta_else = (1.0 / valences.float()) * (5.0 / 8.0 - cos_term * cos_term)
     beta = torch.where(valences == 3, 3.0 / 16.0, beta_else)
     # Handle isolated vertices (valence=0) - beta should be 0 to keep original position

@@ -3,8 +3,6 @@
 Dimensional: 1D manifold in 3D space (closed, no boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -46,7 +44,7 @@ def load(
     u = u / torch.norm(u)
     v = torch.linalg.cross(normal_t, u)
 
-    theta = torch.linspace(0, 2 * math.pi, n_points + 1, device=device)[:-1]
+    theta = torch.linspace(0, 2 * torch.pi, n_points + 1, device=device)[:-1]
     center_t = torch.tensor(center, dtype=torch.float32, device=device)
 
     # Parametric circle: center + radius * (cos(theta) * u + sin(theta) * v)

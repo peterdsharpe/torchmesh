@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (closed, no boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -22,13 +20,13 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
     """
     # Regular tetrahedron vertices
     # Place center at origin
-    a = side_length / math.sqrt(2)
+    a = side_length / (2 ** 0.5)
 
     vertices = [
-        [a, 0, -a / math.sqrt(2)],
-        [-a, 0, -a / math.sqrt(2)],
-        [0, a, a / math.sqrt(2)],
-        [0, -a, a / math.sqrt(2)],
+        [a, 0, -a / (2 ** 0.5)],
+        [-a, 0, -a / (2 ** 0.5)],
+        [0, a, a / (2 ** 0.5)],
+        [0, -a, a / (2 ** 0.5)],
     ]
 
     # 4 triangular faces

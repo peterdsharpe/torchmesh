@@ -19,16 +19,14 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
         Mesh with n_manifold_dims=3, n_spatial_dims=3, n_cells=1
     """
     # Regular tetrahedron vertices
-    import math
-
     vertices = [
         [0.0, 0.0, 0.0],
         [side_length, 0.0, 0.0],
-        [side_length / 2, side_length * math.sqrt(3) / 2, 0.0],
+        [side_length / 2, side_length * (3 ** 0.5) / 2, 0.0],
         [
             side_length / 2,
-            side_length * math.sqrt(3) / 6,
-            side_length * math.sqrt(2 / 3),
+            side_length * (3 ** 0.5) / 6,
+            side_length * ((2 / 3) ** 0.5),
         ],
     ]
 

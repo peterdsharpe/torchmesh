@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (closed, no boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -39,8 +37,8 @@ def load(
         )
 
     # Parametric torus
-    u = torch.linspace(0, 2 * math.pi, n_major + 1, device=device)[:-1]
-    v = torch.linspace(0, 2 * math.pi, n_minor + 1, device=device)[:-1]
+    u = torch.linspace(0, 2 * torch.pi, n_major + 1, device=device)[:-1]
+    v = torch.linspace(0, 2 * torch.pi, n_minor + 1, device=device)[:-1]
 
     points = []
     for u_val in u:

@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (has boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -38,7 +36,7 @@ def load(
     # Radial rings
     for i in range(1, n_radial + 1):
         r = radius * i / n_radial
-        theta = torch.linspace(0, 2 * math.pi, n_angular + 1, device=device)[:-1]
+        theta = torch.linspace(0, 2 * torch.pi, n_angular + 1, device=device)[:-1]
         for theta_val in theta:
             x = r * torch.cos(theta_val)
             y = r * torch.sin(theta_val)

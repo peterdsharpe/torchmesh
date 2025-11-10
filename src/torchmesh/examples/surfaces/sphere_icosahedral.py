@@ -3,8 +3,6 @@
 Dimensional: 2D manifold in 3D space (closed, no boundary).
 """
 
-import math
-
 import torch
 
 from torchmesh.mesh import Mesh
@@ -25,7 +23,7 @@ def load(radius: float = 1.0, subdivisions: int = 2, device: str = "cpu") -> Mes
         Mesh with n_manifold_dims=2, n_spatial_dims=3
     """
     ### Start with icosahedron
-    phi = (1.0 + math.sqrt(5.0)) / 2.0  # Golden ratio
+    phi = (1.0 + (5.0 ** 0.5)) / 2.0  # Golden ratio
 
     # 12 vertices of icosahedron
     vertices = [

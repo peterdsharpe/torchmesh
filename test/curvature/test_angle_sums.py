@@ -5,8 +5,6 @@ vertices should equal a constant determined by the mesh topology, regardless
 of geometric perturbations (as long as the mesh remains valid).
 """
 
-import math
-
 import pytest
 import torch
 
@@ -44,7 +42,7 @@ class TestClosedCurveAngleSums:
 
         # For a closed polygon with n vertices, sum of interior angles = (n-2)π
         # This is a topological invariant
-        expected_total = (n_points - 2) * math.pi
+        expected_total = (n_points - 2) * torch.pi
 
         # Should be close
         relative_error = torch.abs(total_angle - expected_total) / expected_total
@@ -79,7 +77,7 @@ class TestClosedCurveAngleSums:
         total_angle_noisy = angle_sums_noisy.sum()
 
         # Should still be close to (n-2)π (topological property)
-        expected_total = (n_points - 2) * math.pi
+        expected_total = (n_points - 2) * torch.pi
         relative_error = torch.abs(total_angle_noisy - expected_total) / expected_total
 
         # Noisy perturbation changes geometry significantly for 1D curves
@@ -118,7 +116,7 @@ class TestClosedSurfaceAngleSums:
         # Σ(angle_sum) = N * 2π - 2π * 2 = 2π(N - 2)
 
         n_points = mesh.n_points
-        expected_total = 2 * math.pi * (n_points - 2)
+        expected_total = 2 * torch.pi * (n_points - 2)
 
         # Should be close
         relative_error = torch.abs(total_angle - expected_total) / expected_total
@@ -177,7 +175,7 @@ class TestClosedSurfaceAngleSums:
         total_curvature = (K * voronoi_areas).sum()
 
         # For sphere: χ = 2, so ∫K dA = 2π * 2 = 4π
-        expected = 4 * math.pi
+        expected = 4 * torch.pi
 
         relative_error = torch.abs(total_curvature - expected) / expected
         assert relative_error < 0.1  # Within 10%
@@ -213,7 +211,7 @@ class TestTriangleAngleSum:
         triangles = [
             # Equilateral
             torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, math.sqrt(3) / 2, 0.0]],
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, (3 ** 0.5) / 2, 0.0]],
                 device=device,
             ),
             # Right triangle
@@ -251,4 +249,4 @@ class TestTriangleAngleSum:
             total = angle_0 + angle_1 + angle_2
 
             # Should sum to π
-            assert torch.abs(total - math.pi) < 1e-5
+            assert torch.abs(total - torch.pi) < 1e-5

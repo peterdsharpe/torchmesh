@@ -4,8 +4,6 @@ Tests Gaussian and mean curvature on analytical test cases including
 spheres, planes, cylinders, and tori. Validates convergence with subdivision.
 """
 
-import math
-
 import pytest
 import torch
 import torch.nn.functional as F
@@ -75,7 +73,7 @@ def create_plane_mesh(size=2.0, n_subdivisions=2, device="cpu"):
 def create_cylinder_mesh(radius=1.0, height=2.0, n_circ=16, n_height=8, device="cpu"):
     """Create a triangulated cylinder (2D manifold in 3D)."""
     # Create cylindrical points
-    theta = torch.linspace(0, 2 * math.pi, n_circ + 1, device=device)[:-1]
+    theta = torch.linspace(0, 2 * torch.pi, n_circ + 1, device=device)[:-1]
     z = torch.linspace(-height / 2, height / 2, n_height, device=device)
 
     points = []
@@ -106,7 +104,7 @@ def create_line_curve_2d(n_points=10, curvature=1.0, device="cpu"):
     """Create a 1D circular arc in 2D (for testing 1D curvature)."""
     # Circle of given curvature (κ = 1/r)
     radius = 1.0 / curvature
-    theta = torch.linspace(0, math.pi / 2, n_points, device=device)
+    theta = torch.linspace(0, torch.pi / 2, n_points, device=device)
 
     points = torch.stack(
         [
@@ -208,7 +206,7 @@ class TestGaussianCurvature:
         total_curvature = (K_vertices * voronoi_areas).sum()
 
         # For a sphere: χ = 2, so ∫K dA = 4π
-        expected = 4 * math.pi
+        expected = 4 * torch.pi
 
         # Should be close (within a few percent for subdivision level 1)
         relative_error = torch.abs(total_curvature - expected) / expected

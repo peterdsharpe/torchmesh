@@ -186,13 +186,12 @@ class TestQualityMetrics:
 
     def test_equilateral_triangle_quality(self, device):
         """Test that equilateral triangle has high quality score."""
-        import math
 
         points = torch.tensor(
             [
                 [0.0, 0.0],
                 [1.0, 0.0],
-                [0.5, math.sqrt(3) / 2],
+                [0.5, (3 ** 0.5) / 2],
             ],
             dtype=torch.float32,
             device=device,
@@ -241,7 +240,6 @@ class TestQualityMetrics:
 
     def test_quality_metrics_angles(self, device):
         """Test that angles are computed for triangles."""
-        import math
 
         # Right triangle
         points = torch.tensor(
@@ -268,10 +266,10 @@ class TestQualityMetrics:
 
         # Right triangle has angles: π/4, π/4, π/2
         assert min_angle > 0
-        assert max_angle <= math.pi
+        assert max_angle <= torch.pi
 
         # Max angle should be close to π/2
-        assert torch.abs(max_angle - math.pi / 2) < 0.1
+        assert torch.abs(max_angle - torch.pi / 2) < 0.1
 
     def test_empty_mesh_quality(self, device):
         """Test quality metrics on empty mesh."""
@@ -511,13 +509,12 @@ class TestQualityMetricsEdgeCases:
 
     def test_single_cell_quality(self, device):
         """Test quality metrics on single cell."""
-        import math
 
         points = torch.tensor(
             [
                 [0.0, 0.0],
                 [1.0, 0.0],
-                [0.5, math.sqrt(3) / 2],
+                [0.5, (3 ** 0.5) / 2],
             ],
             dtype=torch.float32,
             device=device,
@@ -566,15 +563,14 @@ class TestQualityMetricsEdgeCases:
 
     def test_3d_mesh_quality(self, device):
         """Test quality metrics on 3D tetrahedral mesh."""
-        import math
 
         # Regular tetrahedron
         points = torch.tensor(
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,

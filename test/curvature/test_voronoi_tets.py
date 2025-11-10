@@ -1,6 +1,5 @@
 """Tests for Voronoi volume computation on tetrahedral meshes."""
 
-import math
 import torch
 import pytest
 
@@ -24,8 +23,8 @@ class TestVoronoiVolumes3D:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -165,15 +164,14 @@ class TestVoronoiVolumes3D:
 
     def test_comparison_with_barycentric(self, device):
         """Compare Voronoi volumes with barycentric approximation."""
-        import math
 
         # Regular tetrahedron
         points = torch.tensor(
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
-                [0.5, math.sqrt(3) / 6, math.sqrt(2 / 3)],
+                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,

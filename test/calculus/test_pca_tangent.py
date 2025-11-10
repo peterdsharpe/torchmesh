@@ -1,6 +1,5 @@
 """Tests for PCA-based tangent space estimation."""
 
-import math
 import torch
 import pytest
 
@@ -49,7 +48,7 @@ class TestPCATangentSpace:
     def test_circle_in_3d_tangent_space(self, device):
         """Test tangent space for circle in 3D."""
         n = 20
-        theta = torch.linspace(0, 2 * math.pi, n + 1, device=device)[:-1]
+        theta = torch.linspace(0, 2 * torch.pi, n + 1, device=device)[:-1]
 
         # Circle in xy-plane
         points = torch.stack(
@@ -92,7 +91,7 @@ class TestPCATangentSpace:
 
     def test_helix_tangent_space(self, device):
         """Test tangent space for helix (curve in 3D)."""
-        t = torch.linspace(0, 4 * math.pi, 50, device=device)
+        t = torch.linspace(0, 4 * torch.pi, 50, device=device)
 
         # Helix
         points = torch.stack(
@@ -130,14 +129,13 @@ class TestPCATangentSpace:
         Note: While codimension-1 has more efficient normal-based methods,
         the PCA method should still work correctly for these cases.
         """
-        import math
 
         ### Create an equilateral triangle in the XY plane
         points = torch.tensor(
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, math.sqrt(3) / 2, 0.0],
+                [0.5, (3 ** 0.5) / 2, 0.0],
             ],
             dtype=torch.float32,
             device=device,
@@ -229,7 +227,7 @@ class TestGradientProjection:
         """Test that projection removes normal component."""
         # Circle in xy-plane
         n = 20
-        theta = torch.linspace(0, 2 * math.pi, n + 1, device=device)[:-1]
+        theta = torch.linspace(0, 2 * torch.pi, n + 1, device=device)[:-1]
 
         points = torch.stack(
             [
