@@ -15,4 +15,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - run: uv run --python ${{ matrix.python-version }} pytest .
+      - name: Check test collection
+        run: uv run --python ${{ matrix.python-version }} pytest --collect-only -q
+      - name: Run tests
+        run: uv run --python ${{ matrix.python-version }} pytest . -ra --strict-config --strict-markers
