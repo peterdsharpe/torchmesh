@@ -7,7 +7,7 @@ license = { text = "Apache-2.0" }
 authors = [
     { name = "Peter Sharpe", email = "peterdsharpe@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 keywords = ["mesh", "pytorch", "gpu", "cfd", "fem", "graphics", "geometry", "calculus", "curvature", "subdivision"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -38,7 +38,7 @@ build-backend = "uv_build"
 [project.optional-dependencies]
 io = [
     "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
+    "numpy>=2.2.6",
     "pyvista>=0.46.4",
 ]
 remeshing = [
@@ -46,15 +46,15 @@ remeshing = [
 ]
 dev = [
     "ipykernel>=7.1.0",
-    "ipython>=9.6.0",
-    "pytest>=8.4.2",
-    "numpy>=2.3.4",
+    "ipython>=8.37.0",
+    "pytest>=9.0.0",
+    "numpy>=2.2.6",
     "pyvista[all]>=0.46.4",
     "trame>=3.12.0",
     "matplotlib>=3.10.7",
-    "coverage>=7.11.0",
+    "coverage>=7.11.3",
     "pytest-cov>=7.0.0",
-    "scipy>=1.16.3",
+    "scipy>=1.15.3",
     "pyacvd>=0.2.10",
 ]
 cu130 = ["torch"]
@@ -65,7 +65,7 @@ cpu = ["torch"]
 [dependency-groups]
 io = [
     "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
+    "numpy>=2.2.6",
     "pyvista>=0.46.4",
 ]
 remeshing = [
@@ -73,15 +73,15 @@ remeshing = [
 ]
 dev = [
     "ipykernel>=7.1.0",
-    "ipython>=9.6.0",
-    "pytest>=8.4.2",
-    "numpy>=2.3.4",
+    "ipython>=8.37.0",
+    "pytest>=9.0.0",
+    "numpy>=2.2.6",
     "pyvista[all]>=0.46.4",
     "trame>=3.12.0",
     "matplotlib>=3.10.7",
-    "coverage>=7.11.0",
+    "coverage>=7.11.3",
     "pytest-cov>=7.0.0",
-    "scipy>=1.16.3",
+    "scipy>=1.15.3",
     "pyacvd>=0.2.10",
 ]
 
@@ -104,27 +104,27 @@ conflicts = [
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-nightly-cu130", extra = "cu130" },
-    { index = "pytorch-nightly-cu128", extra = "cu128" },
-    { index = "pytorch-nightly-cu126", extra = "cu126" },
-    { index = "pytorch-nightly-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cu130" },
+    { index = "pytorch-cu128", extra = "cu128" },
+    { index = "pytorch-cu126", extra = "cu126" },
+    { index = "pytorch-cpu", extra = "cpu" },
 ]
 
 [[tool.uv.index]]
 name = "pytorch-index"
 url = "https://download.pytorch.org/whl/"
 [[tool.uv.index]]
-name = "pytorch-nightly-cu130"
-url = "https://download.pytorch.org/whl/nightly/cu130"
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
 [[tool.uv.index]]
-name = "pytorch-nightly-cu128"
-url = "https://download.pytorch.org/whl/nightly/cu128"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 [[tool.uv.index]]
-name = "pytorch-nightly-cu126"
-url = "https://download.pytorch.org/whl/nightly/cu126"
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
 [[tool.uv.index]]
-name = "pytorch-nightly-cpu"
-url = "https://download.pytorch.org/whl/nightly/cpu"
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
 
 [tool.pytest.ini_options]
 markers = [
