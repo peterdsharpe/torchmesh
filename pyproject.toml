@@ -1,23 +1,66 @@
 [project]
 name = "torchmesh"
 version = "0.1.0"
-description = "Add your description here"
+description = "GPU-Accelerated Mesh Processing for Physical Simulation and Scientific Visualization in Any Dimension"
 readme = "README.md"
+license = { text = "Apache-2.0" }
 authors = [
     { name = "Peter Sharpe", email = "peterdsharpe@gmail.com" }
 ]
 requires-python = ">=3.13"
+keywords = ["mesh", "pytorch", "gpu", "cfd", "fem", "graphics", "geometry", "calculus", "curvature", "subdivision"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
 dependencies = [
     "tensordict>=0.10.0",
     "torch>=2.9.0",
 ]
 
-[project.scripts]
-torchmesh = "torchmesh:main"
+[project.urls]
+Homepage = "https://github.com/peterdsharpe/torchmesh"
+Documentation = "https://github.com/peterdsharpe/torchmesh"
+Repository = "https://github.com/peterdsharpe/torchmesh"
+Issues = "https://github.com/peterdsharpe/torchmesh/issues"
+Discussions = "https://github.com/peterdsharpe/torchmesh/discussions"
 
 [build-system]
 requires = ["uv_build>=0.9.3,<0.10.0"]
 build-backend = "uv_build"
+
+[project.optional-dependencies]
+io = [
+    "matplotlib>=3.10.7",
+    "numpy>=2.3.4",
+    "pyvista>=0.46.4",
+]
+remeshing = [
+    "pyacvd>=0.2.10",
+]
+dev = [
+    "ipykernel>=7.1.0",
+    "ipython>=9.6.0",
+    "pytest>=8.4.2",
+    "numpy>=2.3.4",
+    "pyvista[all]>=0.46.4",
+    "trame>=3.12.0",
+    "matplotlib>=3.10.7",
+    "coverage>=7.11.0",
+    "pytest-cov>=7.0.0",
+    "scipy>=1.16.3",
+    "pyacvd>=0.2.10",
+]
+cu130 = ["torch"]
+cu128 = ["torch"]
+cu126 = ["torch"]
+cpu = ["torch"]
 
 [dependency-groups]
 io = [
@@ -58,12 +101,6 @@ conflicts = [
         { extra = "cpu" },
     ]
 ]
-
-[project.optional-dependencies]
-cu130 = ["torch"]
-cu128 = ["torch"]
-cu126 = ["torch"]
-cpu = ["torch"]
 
 [tool.uv.sources]
 torch = [

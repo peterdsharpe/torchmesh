@@ -3207,6 +3207,29 @@ cu128 = [
 cu130 = [
     { name = "torch", version = "2.10.0.dev20251030+cu130", source = { registry = "https://download.pytorch.org/whl/nightly/cu130" } },
 ]
+dev = [
+    { name = "coverage" },
+    { name = "ipykernel" },
+    { name = "ipython" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pyacvd", version = "0.2.10", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyacvd", version = "0.3.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pyvista", extra = ["all"] },
+    { name = "scipy" },
+    { name = "trame" },
+]
+io = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pyvista" },
+]
+remeshing = [
+    { name = "pyacvd", version = "0.2.10", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (platform_machine != 'aarch64' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (sys_platform != 'linux' and extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+    { name = "pyacvd", version = "0.3.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'aarch64' or sys_platform != 'linux' or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu126') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cpu' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu128') or (extra == 'extra-9-torchmesh-cu126' and extra == 'extra-9-torchmesh-cu130') or (extra == 'extra-9-torchmesh-cu128' and extra == 'extra-9-torchmesh-cu130')" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -3235,14 +3258,29 @@ remeshing = [
 
 [package.metadata]
 requires-dist = [
+    { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.11.0" },
+    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=7.1.0" },
+    { name = "ipython", marker = "extra == 'dev'", specifier = ">=9.6.0" },
+    { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.10.7" },
+    { name = "matplotlib", marker = "extra == 'io'", specifier = ">=3.10.7" },
+    { name = "numpy", marker = "extra == 'dev'", specifier = ">=2.3.4" },
+    { name = "numpy", marker = "extra == 'io'", specifier = ">=2.3.4" },
+    { name = "pyacvd", marker = "extra == 'dev'", specifier = ">=0.2.10" },
+    { name = "pyacvd", marker = "extra == 'remeshing'", specifier = ">=0.2.10" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pyvista", marker = "extra == 'io'", specifier = ">=0.46.4" },
+    { name = "pyvista", extras = ["all"], marker = "extra == 'dev'", specifier = ">=0.46.4" },
+    { name = "scipy", marker = "extra == 'dev'", specifier = ">=1.16.3" },
     { name = "tensordict", specifier = ">=0.10.0" },
     { name = "torch", specifier = ">=2.9.0" },
     { name = "torch", marker = "extra == 'cpu'", index = "https://download.pytorch.org/whl/nightly/cpu", conflict = { package = "torchmesh", extra = "cpu" } },
     { name = "torch", marker = "extra == 'cu126'", index = "https://download.pytorch.org/whl/nightly/cu126", conflict = { package = "torchmesh", extra = "cu126" } },
     { name = "torch", marker = "extra == 'cu128'", index = "https://download.pytorch.org/whl/nightly/cu128", conflict = { package = "torchmesh", extra = "cu128" } },
     { name = "torch", marker = "extra == 'cu130'", index = "https://download.pytorch.org/whl/nightly/cu130", conflict = { package = "torchmesh", extra = "cu130" } },
+    { name = "trame", marker = "extra == 'dev'", specifier = ">=3.12.0" },
 ]
-provides-extras = ["cu130", "cu128", "cu126", "cpu"]
+provides-extras = ["io", "remeshing", "dev", "cu130", "cu128", "cu126", "cpu"]
 
 [package.metadata.requires-dev]
 dev = [
