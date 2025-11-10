@@ -492,19 +492,13 @@ TorchMesh is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for d
 
 ## Acknowledgments
 
-TorchMesh builds on decades of research in discrete differential geometry and computational geometry:
-
-- **Discrete Exterior Calculus**: Desbrun, Hirani, Leok, Marsden (2005) - [arXiv:math/0508341](https://arxiv.org/abs/math/0508341)
+TorchMesh draws inspiration for its API design and mathematical foundation from:
+- **[PyTorch](https://pytorch.org/)** team for the foundational deep learning framework
+- **[PyVista](https://pyvista.org/)** team for the excellent 3D visualization and I/O library
+- **Discrete Exterior Calculus**: Desbrun, Hirani, Leok, Marsden (2005) - [arXiv:math/0508341](https://arxiv.org/abs/math/0508341), and the eponymous dissertation on [Discrete Exterior Calculus by Hirani (2003)](https://www.cs.jhu.edu/~misha/Fall09/Hirani03.pdf)
 - **Discrete Differential Operators**: Meyer, Desbrun, Schröder, Barr (2003) - [Discrete Differential-Geometry Operators for Triangulated 2-Manifolds](https://www.multires.caltech.edu/pubs/diffGeoOps.pdf)
 - **Loop Subdivision**: Loop (1987) - [Smooth Subdivision Surfaces Based on Triangles](https://www.microsoft.com/en-us/research/publication/smooth-subdivision-surfaces-based-on-triangles/)
 - **Butterfly Subdivision**: Dyn, Levin, Gregory (1990) - [A Butterfly Subdivision Scheme for Surface Interpolation with Tension Control](https://dl.acm.org/doi/10.1145/97879.97880)
-
-**Special thanks to:**
-- **[PyTorch](https://pytorch.org/)** team for the foundational deep learning framework
-- **[PyVista](https://pyvista.org/)** team for the excellent 3D visualization and I/O library
-- The discrete differential geometry community for rigorous mathematical foundations
-
----
 
 **Questions? Issues? Feature requests?**  
 Open an issue on [GitHub](https://github.com/peterdsharpe/torchmesh/issues) or start a [discussion](https://github.com/peterdsharpe/torchmesh/discussions)!
