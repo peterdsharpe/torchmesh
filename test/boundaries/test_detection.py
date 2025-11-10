@@ -11,14 +11,6 @@ from torchmesh.boundaries import (
 )
 
 
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Parametrize tests over CPU and CUDA."""
-    if request.param == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA not available")
-    return request.param
-
-
 class TestBoundaryVertices:
     """Tests for get_boundary_vertices."""
 

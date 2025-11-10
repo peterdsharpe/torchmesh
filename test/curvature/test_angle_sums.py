@@ -14,15 +14,6 @@ from torchmesh.examples.surfaces import sphere_icosahedral
 from torchmesh.mesh import Mesh
 
 
-### Fixtures
-
-
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Test on both CPU and GPU if available."""
-    return request.param
-
-
 ### Test 1D Manifolds (Closed Curves)
 
 

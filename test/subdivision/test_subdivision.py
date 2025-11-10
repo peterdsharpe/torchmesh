@@ -61,15 +61,6 @@ def create_tet_mesh(device="cpu"):
     return Mesh(points=points, cells=cells)
 
 
-### Fixtures
-
-
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Test on both CPU and GPU if available."""
-    return request.param
-
-
 ### Test Linear Subdivision
 
 

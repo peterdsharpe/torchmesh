@@ -10,15 +10,6 @@ from torchmesh.mesh import Mesh
 from torchmesh.utilities import get_cached
 
 
-### Fixtures
-
-
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Test on both CPU and GPU if available."""
-    return request.param
-
-
 ### Helper Functions
 
 

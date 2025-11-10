@@ -10,14 +10,6 @@ import torch
 from torchmesh.mesh import Mesh
 
 
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Parametrize tests over CPU and CUDA devices."""
-    if request.param == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA not available")
-    return request.param
-
-
 class TestLoopSubdivisionCorrectness:
     """Verify Loop subdivision vectorization produces correct results."""
 

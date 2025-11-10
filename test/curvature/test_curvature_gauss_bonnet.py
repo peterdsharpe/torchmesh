@@ -32,15 +32,6 @@ from torchmesh.examples.surfaces import (
 from torchmesh.mesh import Mesh
 
 
-### Fixtures
-
-
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Test on both CPU and GPU if available."""
-    return request.param
-
-
 ### Helper Functions
 
 

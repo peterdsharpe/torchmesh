@@ -12,15 +12,6 @@ from torchmesh.utilities import get_cached
 from torchmesh.examples.surfaces import icosahedron_surface
 
 
-### Fixtures
-
-
-@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
-def device(request):
-    """Test on both CPU and GPU if available."""
-    return request.param
-
-
 ### Mesh Generators
 
 
