@@ -1,6 +1,8 @@
-# TorchMesh
+<p align="center">
+  <img src="examples/logo/torchmesh_logo.svg" width="100%" alt="TorchMesh">
+</p>
 
-**GPU-Accelerated Mesh Processing for Physics Simulation, CFD, Graphics, and Scientific Visualization**
+**GPU-Accelerated Mesh Processing for Physics Simulation and Scientific Visualization**
 
 by Peter Sharpe
 
