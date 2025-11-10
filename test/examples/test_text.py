@@ -70,9 +70,6 @@ def test_text_custom_text():
 )
 def test_text_device(device):
     """Test text rendering works on different devices."""
-    if device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA not available")
-
     mesh = text_2d_2d(device=device)
 
     assert mesh.points.device.type == device

@@ -50,15 +50,16 @@ class TestPyVistaDatasetExamples:
         assert tetbeam.cells.shape[1] == 4
 
     @pytest.mark.parametrize("example_name", ["airplane", "bunny"])
-    def test_device_transfer(self, example_name):
-        """Test that PyVista datasets can be moved to different devices."""
+    def test_device_transfer_cpu(self, example_name):
+        """Test that PyVista datasets can be loaded on CPU."""
         example_module = getattr(examples.pyvista_datasets, example_name)
-
-        # Test CPU
         mesh_cpu = example_module.load(device="cpu")
         assert mesh_cpu.points.device.type == "cpu"
 
-        # Test CUDA if available
-        if torch.cuda.is_available():
-            mesh_gpu = example_module.load(device="cuda")
-            assert mesh_gpu.points.device.type == "cuda"
+    @pytest.mark.cuda
+    @pytest.mark.parametrize("example_name", ["airplane", "bunny"])
+    def test_device_transfer_cuda(self, example_name):
+        """Test that PyVista datasets can be loaded on CUDA."""
+        example_module = getattr(examples.pyvista_datasets, example_name)
+        mesh_gpu = example_module.load(device="cuda")
+        assert mesh_gpu.points.device.type == "cuda"

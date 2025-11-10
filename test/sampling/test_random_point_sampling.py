@@ -14,14 +14,6 @@ from torchmesh.sampling import sample_random_points_on_cells
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
@@ -87,12 +79,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
 
 
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 class TestRandomSampling:
@@ -334,11 +320,10 @@ class TestRandomSampling:
         ### Should get zero points
         assert sampled_points.shape == (0, 2)
 
+    @pytest.mark.cuda
     def test_device_consistency(self):
         """Test that sampling preserves device."""
         torch.manual_seed(42)
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
 
         ### Create a simple triangle mesh on CUDA
         points = torch.tensor(

@@ -82,7 +82,7 @@ class TestPerlinNoiseND:
         # Smooth noise shouldn't have large jumps between adjacent points
         assert max_diff < 1.0  # Conservative bound
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.cuda
     def test_gpu_compatibility(self):
         """Test that noise works on GPU."""
         points_cpu = torch.randn(100, 3)
@@ -94,7 +94,7 @@ class TestPerlinNoiseND:
         assert noise_gpu.device.type == "cuda"
         assert noise_gpu.shape == (100,)
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.cuda
     def test_cpu_gpu_consistency(self):
         """Test that CPU and GPU produce similar statistical properties.
 

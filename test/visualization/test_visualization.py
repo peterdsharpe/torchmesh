@@ -17,21 +17,7 @@ from torchmesh import Mesh
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 ### Helper functions for creating test meshes

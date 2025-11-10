@@ -199,7 +199,7 @@ def test_repr_with_device():
     assert result == expected, f"Expected:\n{expected}\n\nGot:\n{result}"
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.cuda
 def test_repr_with_cuda_device():
     """Test that CUDA device displays correctly when explicitly set."""
     points = torch.randn(100, 3)

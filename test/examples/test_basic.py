@@ -53,15 +53,23 @@ class TestBasicExamples:
             "single_tetrahedron",
         ],
     )
-    def test_device_transfer(self, example_name):
-        """Test that meshes can be loaded on different devices."""
+    def test_device_transfer_cpu(self, example_name):
+        """Test that meshes can be loaded on CPU."""
         example_module = getattr(examples.basic, example_name)
-
-        # Test CPU
         mesh_cpu = example_module.load(device="cpu")
         assert mesh_cpu.points.device.type == "cpu"
 
-        # Test CUDA if available
-        if torch.cuda.is_available():
-            mesh_gpu = example_module.load(device="cuda")
-            assert mesh_gpu.points.device.type == "cuda"
+    @pytest.mark.cuda
+    @pytest.mark.parametrize(
+        "example_name",
+        [
+            "single_point_2d",
+            "single_triangle_2d",
+            "single_tetrahedron",
+        ],
+    )
+    def test_device_transfer_cuda(self, example_name):
+        """Test that meshes can be loaded on CUDA."""
+        example_module = getattr(examples.basic, example_name)
+        mesh_gpu = example_module.load(device="cuda")
+        assert mesh_gpu.points.device.type == "cuda"

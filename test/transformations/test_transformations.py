@@ -19,14 +19,6 @@ from torchmesh.utilities import get_cached
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def create_mesh_with_caches(
     n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"
 ):
@@ -130,12 +122,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
 
 
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 class TestTranslation:

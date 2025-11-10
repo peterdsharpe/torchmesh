@@ -10,18 +10,9 @@ import torch
 from torchmesh.mesh import Mesh
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 class TestWatertight2D:
     """Test watertight checking for 2D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_triangle_not_watertight(self, device):
         """Single triangle is not watertight (has boundary edges)."""
         points = torch.tensor(
@@ -33,7 +24,6 @@ class TestWatertight2D:
 
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_triangles_not_watertight(self, device):
         """Two triangles with shared edge are not watertight (have boundary edges)."""
         points = torch.tensor(
@@ -45,7 +35,6 @@ class TestWatertight2D:
 
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_closed_quad_watertight(self, device):
         """Closed quad (4 triangles meeting at center) is watertight in 2D sense."""
         ### In 2D, "watertight" means all edges are shared by exactly 2 triangles
@@ -69,7 +58,6 @@ class TestWatertight2D:
         ### This should NOT be watertight because outer edges are only shared by 1 triangle
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_empty_mesh_watertight(self, device):
         """Empty mesh is considered watertight."""
         points = torch.empty((0, 2), device=device)
@@ -82,7 +70,6 @@ class TestWatertight2D:
 class TestWatertight3D:
     """Test watertight checking for 3D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_tet_not_watertight(self, device):
         """Single tetrahedron is not watertight (has boundary faces)."""
         points = torch.tensor(
@@ -99,7 +86,6 @@ class TestWatertight3D:
 
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_tets_not_watertight(self, device):
         """Two tets sharing a face are not watertight (have boundary faces)."""
         points = torch.tensor(
@@ -121,7 +107,6 @@ class TestWatertight3D:
 
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_filled_cube_not_watertight(self, device):
         """Even a filled cube volume is not watertight (has exterior boundary).
 
@@ -168,7 +153,6 @@ class TestWatertight3D:
 class TestWatertight1D:
     """Test watertight checking for 1D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_edge_not_watertight(self, device):
         """Single edge is not watertight."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
@@ -177,7 +161,6 @@ class TestWatertight1D:
 
         assert not mesh.is_watertight()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_closed_loop_watertight(self, device):
         """Closed loop of edges is watertight."""
         points = torch.tensor(
@@ -197,7 +180,6 @@ class TestWatertight1D:
 class TestManifold2D:
     """Test manifold checking for 2D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_triangle_manifold(self, device):
         """Single triangle is a valid manifold with boundary."""
         points = torch.tensor(
@@ -209,7 +191,6 @@ class TestManifold2D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_triangles_manifold(self, device):
         """Two triangles sharing an edge form a valid manifold."""
         points = torch.tensor(
@@ -221,7 +202,6 @@ class TestManifold2D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_non_manifold_edge(self, device):
         """Three triangles sharing an edge create non-manifold configuration."""
         points = torch.tensor(
@@ -238,7 +218,6 @@ class TestManifold2D:
 
         assert not mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_manifold_check_levels(self, device):
         """Test different manifold check levels."""
         points = torch.tensor(
@@ -257,7 +236,6 @@ class TestManifold2D:
 class TestManifold3D:
     """Test manifold checking for 3D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_tet_manifold(self, device):
         """Single tetrahedron is a valid manifold with boundary."""
         points = torch.tensor(
@@ -274,7 +252,6 @@ class TestManifold3D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_tets_manifold(self, device):
         """Two tets sharing a face form a valid manifold."""
         points = torch.tensor(
@@ -296,7 +273,6 @@ class TestManifold3D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_non_manifold_face(self, device):
         """Three tets sharing a face create non-manifold configuration."""
         points = torch.tensor(
@@ -328,7 +304,6 @@ class TestManifold3D:
 class TestManifold1D:
     """Test manifold checking for 1D meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_edge_manifold(self, device):
         """Single edge is a valid manifold."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
@@ -337,7 +312,6 @@ class TestManifold1D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_chain_of_edges_manifold(self, device):
         """Chain of edges is a valid manifold."""
         points = torch.tensor(
@@ -349,7 +323,6 @@ class TestManifold1D:
 
         assert mesh.is_manifold()
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_non_manifold_vertex(self, device):
         """Three edges meeting at a vertex create non-manifold configuration."""
         points = torch.tensor(
@@ -373,7 +346,6 @@ class TestManifold1D:
 class TestEmptyMesh:
     """Test topology checks on empty mesh."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_empty_mesh_watertight_and_manifold(self, device):
         """Empty mesh is considered both watertight and manifold."""
         points = torch.empty((0, 3), device=device)

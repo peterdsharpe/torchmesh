@@ -13,14 +13,6 @@ from torchmesh.mesh import Mesh
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
@@ -93,15 +85,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
     assert actual_device == expected_device, (
         f"Device mismatch: tensor is on {actual_device!r}, expected {expected_device!r}"
     )
-
-
-### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 class TestBasicEdgeExtraction:
@@ -1353,7 +1336,7 @@ class TestHigherCodimension:
 class TestDifferentDevices:
     """Test edge extraction on different devices."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    @pytest.mark.cuda
     def test_cuda_edge_extraction(self):
         """Test edge extraction on CUDA device (specific real-world case)."""
         points = torch.tensor(

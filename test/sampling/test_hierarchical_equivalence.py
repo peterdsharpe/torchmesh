@@ -360,7 +360,7 @@ class TestEquivalenceLargeMesh:
         )
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.cuda
 class TestEquivalenceGPU:
     """Test equivalence on GPU."""
 
@@ -401,11 +401,9 @@ class TestEquivalenceGPU:
             result_gpu["temp"].cpu(),
         )
 
+    @pytest.mark.cuda
     def test_bvh_on_gpu(self):
         """Test that BVH works on GPU."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
-
         ### Create mesh on GPU
         points = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],

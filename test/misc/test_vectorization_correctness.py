@@ -619,12 +619,10 @@ class TestEdgeCasesCorrectness:
 class TestCPUGPUConsistency:
     """Verify CPU and GPU produce identical results."""
 
+    @pytest.mark.cuda
     @pytest.mark.parametrize("subdivision_type", ["linear", "loop", "butterfly"])
     def test_subdivision_cpu_gpu_match(self, subdivision_type):
         """Verify subdivision produces identical results on CPU and GPU."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
-
         import pyvista as pv
         from torchmesh.io import from_pyvista
 
@@ -647,11 +645,9 @@ class TestCPUGPUConsistency:
             f"{subdivision_type}: Point positions differ between CPU and GPU"
         )
 
+    @pytest.mark.cuda
     def test_curvature_cpu_gpu_match(self):
         """Verify curvature computations match between CPU and GPU."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
-
         import pyvista as pv
         from torchmesh.io import from_pyvista
 

@@ -16,14 +16,6 @@ from torchmesh.mesh import Mesh
 ### Helper Functions (shared across tests) ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def create_simple_mesh(n_spatial_dims: int, n_manifold_dims: int, device: str = "cpu"):
     """Create a simple mesh for testing."""
     if n_manifold_dims > n_spatial_dims:
@@ -177,12 +169,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
 
 
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 @pytest.fixture

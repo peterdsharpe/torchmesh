@@ -16,14 +16,6 @@ from torchmesh.mesh import Mesh
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
     """Assert tensor is on expected device."""
     actual_device = tensor.device.type
@@ -33,12 +25,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
 
 
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 class TestDataPreservation:

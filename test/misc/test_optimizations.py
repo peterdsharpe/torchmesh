@@ -18,14 +18,6 @@ from torchmesh.spatial import BVH
 ### Helper Functions ###
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
     """Assert tensor is on expected device."""
     actual_device = tensor.device.type
@@ -35,12 +27,6 @@ def assert_on_device(tensor: torch.Tensor, expected_device: str) -> None:
 
 
 ### Test Fixtures ###
-
-
-@pytest.fixture(params=get_available_devices())
-def device(request):
-    """Parametrize over all available devices."""
-    return request.param
 
 
 class TestBarycentricOptimizations:
@@ -413,7 +399,7 @@ class TestBVHPerformance:
         # Point outside should find no candidates
         assert len(candidates[2]) == 0
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+    @pytest.mark.cuda
     def test_bvh_on_gpu(self):
         """Test BVH works on GPU."""
         torch.manual_seed(42)

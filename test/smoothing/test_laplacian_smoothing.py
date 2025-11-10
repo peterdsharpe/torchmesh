@@ -791,9 +791,6 @@ def test_cells_connectivity_unchanged():
 )
 def test_device_compatibility(device):
     """Test smoothing works on different devices."""
-    if device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA not available")
-
     # Simple triangle mesh
     points = torch.tensor(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],

@@ -13,18 +13,9 @@ import torch
 from torchmesh.mesh import Mesh
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 class TestMergeDuplicatePoints:
     """Test duplicate point merging."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_merge_exact_duplicates(self, device):
         """Merge points at exactly the same location."""
         points = torch.tensor(
@@ -48,7 +39,6 @@ class TestMergeDuplicatePoints:
         ### Only 1 cell should remain after duplicate cell removal
         assert cleaned.n_cells == 1
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_merge_within_tolerance(self, device):
         """Merge points within specified tolerance."""
         points = torch.tensor(
@@ -71,7 +61,6 @@ class TestMergeDuplicatePoints:
         cleaned_loose = mesh.clean(atol=1e-10, rtol=1e-10)
         assert cleaned_loose.n_points == 3
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_no_merge_outside_tolerance(self, device):
         """Don't merge points outside tolerance."""
         points = torch.tensor(
@@ -90,7 +79,6 @@ class TestMergeDuplicatePoints:
         cleaned = mesh.clean()
         assert cleaned.n_points == 4
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_merge_multiple_groups(self, device):
         """Merge multiple groups of duplicate points."""
         points = torch.tensor(
@@ -115,7 +103,6 @@ class TestMergeDuplicatePoints:
         ### Should have 3 unique points: 0/2, 1/3, 4
         assert cleaned.n_points == 3
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_merge_preserves_point_data(self, device):
         """Point data is averaged when merging."""
         points = torch.tensor(
@@ -145,7 +132,6 @@ class TestMergeDuplicatePoints:
 class TestRemoveDuplicateCells:
     """Test duplicate cell removal."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_remove_exact_duplicate_cells(self, device):
         """Remove cells with same vertices in same order."""
         points = torch.tensor(
@@ -164,7 +150,6 @@ class TestRemoveDuplicateCells:
         ### Should have only 1 cell
         assert cleaned.n_cells == 1
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_remove_permuted_duplicate_cells(self, device):
         """Remove cells with same vertices in different order."""
         points = torch.tensor(
@@ -183,7 +168,6 @@ class TestRemoveDuplicateCells:
         ### Should have only 1 cell (all are duplicates)
         assert cleaned.n_cells == 1
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_keep_different_cells(self, device):
         """Keep cells with different vertices."""
         points = torch.tensor(
@@ -206,7 +190,6 @@ class TestRemoveDuplicateCells:
 class TestRemoveUnusedPoints:
     """Test unused point removal."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_remove_single_unused_point(self, device):
         """Remove point not referenced by any cell."""
         points = torch.tensor(
@@ -221,7 +204,6 @@ class TestRemoveUnusedPoints:
         ### Should have only 3 points
         assert cleaned.n_points == 3
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_remove_multiple_unused_points(self, device):
         """Remove multiple unused points."""
         points = torch.tensor(
@@ -242,7 +224,6 @@ class TestRemoveUnusedPoints:
         ### Should have only 3 points
         assert cleaned.n_points == 3
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_keep_all_used_points(self, device):
         """Keep all points that are used by cells."""
         points = torch.tensor(
@@ -261,7 +242,6 @@ class TestRemoveUnusedPoints:
 class TestCombinedCleaning:
     """Test combinations of cleaning operations."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_clean_all_operations(self, device):
         """Apply all cleaning operations together."""
         points = torch.tensor(
@@ -289,7 +269,6 @@ class TestCombinedCleaning:
         assert cleaned.n_points == 3
         assert cleaned.n_cells == 1
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_selective_cleaning(self, device):
         """Apply only specific cleaning operations."""
         points = torch.tensor(
@@ -331,7 +310,6 @@ class TestCombinedCleaning:
 class TestCleaningWithData:
     """Test that cleaning preserves mesh data."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_preserve_cell_data(self, device):
         """Cell data is preserved after cleaning."""
         points = torch.tensor(
@@ -352,7 +330,6 @@ class TestCleaningWithData:
         assert "pressure" in cleaned.cell_data.keys()
         assert len(cleaned.cell_data["pressure"]) == cleaned.n_cells
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_preserve_global_data(self, device):
         """Global data is preserved after cleaning."""
         points = torch.tensor(
@@ -376,7 +353,6 @@ class TestCleaningWithData:
 class TestEdgeCases:
     """Test edge cases for cleaning operations."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_clean_empty_mesh(self, device):
         """Cleaning empty mesh returns empty mesh."""
         points = torch.empty((0, 2), device=device)
@@ -388,7 +364,6 @@ class TestEdgeCases:
         assert cleaned.n_points == 0
         assert cleaned.n_cells == 0
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_clean_single_cell(self, device):
         """Cleaning single cell mesh works correctly."""
         points = torch.tensor(
@@ -404,7 +379,6 @@ class TestEdgeCases:
         assert cleaned.n_points == 3
         assert cleaned.n_cells == 1
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_clean_all_duplicates(self, device):
         """Cleaning mesh with all duplicate points/cells."""
         points = torch.tensor(
@@ -429,7 +403,6 @@ class TestEdgeCases:
 class TestToleranceSettings:
     """Test different tolerance settings for point merging."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_different_tolerances(self, device):
         """Different tolerances merge different sets of points."""
         points = torch.tensor(

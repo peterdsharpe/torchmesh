@@ -10,18 +10,9 @@ import torch
 from torchmesh.mesh import Mesh
 
 
-def get_available_devices() -> list[str]:
-    """Get list of available compute devices for testing."""
-    devices = ["cpu"]
-    if torch.cuda.is_available():
-        devices.append("cuda")
-    return devices
-
-
 class TestBoundaryExtraction2D:
     """Test boundary extraction for 2D triangular meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_triangle_boundary(self, device):
         """Single triangle has 3 boundary edges."""
         points = torch.tensor(
@@ -44,7 +35,6 @@ class TestBoundaryExtraction2D:
             == torch.sort(expected_edges, dim=-1)[0]
         )
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_triangles_shared_edge(self, device):
         """Two triangles sharing an edge have 4 boundary edges."""
         points = torch.tensor(
@@ -65,7 +55,6 @@ class TestBoundaryExtraction2D:
         matches = torch.all(boundary_sorted == shared_edge, dim=1)
         assert not torch.any(matches), "Shared edge should not be in boundary"
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_closed_2d_mesh_no_boundary(self, device):
         """Closed 2D mesh (all edges shared) has empty boundary."""
         ### Create a simple quad (4 triangles)
@@ -94,7 +83,6 @@ class TestBoundaryExtraction2D:
 class TestBoundaryExtraction3D:
     """Test boundary extraction for 3D tetrahedral meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_tetrahedron_boundary(self, device):
         """Single tetrahedron has 4 boundary triangular faces."""
         points = torch.tensor(
@@ -133,7 +121,6 @@ class TestBoundaryExtraction3D:
             matches = torch.all(boundary_sorted == expected_face.unsqueeze(0), dim=1)
             assert torch.any(matches), f"Face {expected_face} should be in boundary"
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_two_tets_shared_face(self, device):
         """Two tets sharing a face have 6 boundary faces."""
         points = torch.tensor(
@@ -169,7 +156,6 @@ class TestBoundaryExtraction3D:
 class TestBoundaryExtraction1D:
     """Test boundary extraction for 1D edge meshes."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_single_edge_boundary(self, device):
         """Single edge has 2 boundary vertices."""
         points = torch.tensor([[0.0, 0.0], [1.0, 0.0]], device=device)
@@ -182,7 +168,6 @@ class TestBoundaryExtraction1D:
         assert boundary.n_cells == 2
         assert boundary.n_manifold_dims == 0
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_chain_of_edges(self, device):
         """Chain of edges has 2 boundary vertices at ends."""
         points = torch.tensor(
@@ -207,7 +192,6 @@ class TestBoundaryExtraction1D:
             torch.sort(boundary_vertices)[0] == torch.tensor([0, 3], device=device)
         )
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_closed_loop_no_boundary(self, device):
         """Closed loop of edges has no boundary."""
         points = torch.tensor(
@@ -230,7 +214,6 @@ class TestBoundaryExtraction1D:
 class TestBoundaryDataInheritance:
     """Test that boundary mesh correctly inherits data from parent."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_boundary_inherits_cell_data(self, device):
         """Boundary mesh inherits data from parent cells."""
         points = torch.tensor(
@@ -249,7 +232,6 @@ class TestBoundaryDataInheritance:
         assert "pressure" in boundary.cell_data.keys()
         assert len(boundary.cell_data["pressure"]) == boundary.n_cells
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_boundary_inherits_point_data(self, device):
         """Boundary mesh can inherit data from points."""
         points = torch.tensor(
@@ -272,7 +254,6 @@ class TestBoundaryDataInheritance:
 class TestBoundaryEmptyMesh:
     """Test boundary extraction on edge cases."""
 
-    @pytest.mark.parametrize("device", get_available_devices())
     def test_empty_mesh(self, device):
         """Empty mesh has empty boundary."""
         points = torch.empty((0, 2), device=device)
