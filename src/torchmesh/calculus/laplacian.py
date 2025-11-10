@@ -114,6 +114,7 @@ def compute_laplacian_points_dec(
     Returns:
         Laplacian at vertices, same shape as input
     """
+    raise NotImplementedError(f"This function is a work-in-progress; results are known to be buggy; please use the least-squares version in the meantime.")
     from torchmesh.calculus._circumcentric_dual import (
         get_or_compute_dual_volumes_0,
         compute_cotan_weights_triangle_mesh,
