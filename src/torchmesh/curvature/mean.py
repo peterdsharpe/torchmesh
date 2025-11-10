@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from torchmesh.curvature._laplacian import compute_laplacian_at_points
-from torchmesh.curvature._voronoi import compute_voronoi_areas
+from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
@@ -72,13 +72,13 @@ def mean_curvature_vertices(
     # ||L @ points|| gives 2 * H * voronoi_area
     laplacian_magnitude = torch.norm(laplacian_coords, dim=-1)  # (n_points,)
 
-    ### Compute Voronoi areas
-    voronoi_areas = compute_voronoi_areas(mesh)  # (n_points,)
+    ### Compute dual volumes (Voronoi areas)
+    dual_volumes = compute_dual_volumes_0(mesh)  # (n_points,)
 
     ### Compute mean curvature
-    # H = ||L @ points|| / (2 * voronoi_area)
-    voronoi_areas_safe = torch.clamp(voronoi_areas, min=1e-30)
-    mean_curvature = laplacian_magnitude / (2.0 * voronoi_areas_safe)
+    # H = ||L @ points|| / (2 * dual_volume)
+    dual_volumes_safe = torch.clamp(dual_volumes, min=1e-30)
+    mean_curvature = laplacian_magnitude / (2.0 * dual_volumes_safe)
 
     ### Determine sign using normal orientation
     # The mean curvature normal is: H * n = (1/2) * L @ points
@@ -109,7 +109,7 @@ def mean_curvature_vertices(
 
     ### Set isolated vertices to NaN
     mean_curvature = torch.where(
-        voronoi_areas > 0,
+        dual_volumes > 0,
         mean_curvature,
         torch.tensor(
             float("nan"), dtype=mean_curvature.dtype, device=mesh.points.device

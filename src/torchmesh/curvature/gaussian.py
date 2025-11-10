@@ -16,7 +16,7 @@ import torch
 
 from torchmesh.curvature._angles import compute_angles_at_vertices
 from torchmesh.curvature._utils import compute_full_angle_n_sphere
-from torchmesh.curvature._voronoi import compute_voronoi_areas
+from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
 
 if TYPE_CHECKING:
     from torchmesh.mesh import Mesh
@@ -70,20 +70,20 @@ def gaussian_curvature_vertices(mesh: "Mesh") -> torch.Tensor:
     # Positive defect = positive curvature
     angle_defect = full_angle - angle_sums  # (n_points,)
 
-    ### Compute Voronoi areas
-    voronoi_areas = compute_voronoi_areas(mesh)  # (n_points,)
+    ### Compute dual volumes (Voronoi areas)
+    dual_volumes = compute_dual_volumes_0(mesh)  # (n_points,)
 
     ### Compute Gaussian curvature
-    # K = angle_defect / voronoi_area
-    # For isolated vertices (voronoi_area = 0), this gives inf/nan
+    # K = angle_defect / dual_volume
+    # For isolated vertices (dual_volume = 0), this gives inf/nan
     # Clamp areas to avoid division by zero, use inf for zero areas
-    voronoi_areas_safe = torch.clamp(voronoi_areas, min=1e-30)
+    dual_volumes_safe = torch.clamp(dual_volumes, min=1e-30)
 
-    gaussian_curvature = angle_defect / voronoi_areas_safe
+    gaussian_curvature = angle_defect / dual_volumes_safe
 
-    # Set isolated vertices (zero voronoi area) to NaN
+    # Set isolated vertices (zero dual volume) to NaN
     gaussian_curvature = torch.where(
-        voronoi_areas > 0,
+        dual_volumes > 0,
         gaussian_curvature,
         torch.tensor(float("nan"), dtype=gaussian_curvature.dtype, device=device),
     )
