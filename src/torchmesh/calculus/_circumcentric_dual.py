@@ -114,124 +114,6 @@ def compute_circumcenters(
     return circumcenters
 
 
-def compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
-    """Compute CIRCUMCENTRIC dual 0-cell volumes (Voronoi cell volumes).
-
-    CRITICAL: This computes Voronoi (circumcentric) cells, NOT barycentric cells.
-    This distinction is essential for DEC to work correctly (per Desbrun et al.).
-
-    For triangle meshes, the Voronoi cell of a vertex consists of regions from
-    edge midpoints to triangle circumcenters. For well-centered meshes, this gives
-    better geometric properties than barycentric subdivision.
-
-    Args:
-        mesh: Input simplicial mesh
-
-    Returns:
-        Voronoi cell volumes for each vertex, shape (n_points,)
-
-    Algorithm:
-        For each triangle and each of its vertices:
-        - The contribution is the area of the quadrilateral formed by:
-          vertex, midpoint of edge1, circumcenter, midpoint of edge2
-        - This is computed as the area of triangle from vertex to circumcenter
-          to edge midpoints
-    """
-    if mesh.n_manifold_dims == 2:
-        ### Triangle meshes: use proper Voronoi area formula
-        # Loop over 3 vertex positions is acceptable (not looping over mesh elements)
-        cell_vertices = mesh.points[mesh.cells]  # (n_cells, 3, n_spatial_dims)
-        circumcenters = compute_circumcenters(
-            cell_vertices
-        )  # (n_cells, n_spatial_dims)
-
-        dual_volumes = torch.zeros(
-            mesh.n_points, dtype=mesh.points.dtype, device=mesh.points.device
-        )
-
-        ### For each vertex position in triangles, compute Voronoi contributions
-        for local_v_idx in range(3):
-            ### Get vertex indices and positions
-            # Shape: (n_cells,)
-            v_indices = mesh.cells[:, local_v_idx]
-            # Shape: (n_cells, n_spatial_dims)
-            v_pos = cell_vertices[:, local_v_idx, :]
-
-            ### Get adjacent vertices (next and previous in cyclic order)
-            v_next = cell_vertices[:, (local_v_idx + 1) % 3, :]
-            v_prev = cell_vertices[:, (local_v_idx + 2) % 3, :]
-
-            ### Compute edge midpoints
-            mid_next = (v_pos + v_next) / 2
-            mid_prev = (v_pos + v_prev) / 2
-
-            ### Voronoi region is quadrilateral: v, mid_next, circ, mid_prev
-            # Compute as two triangles: [v, mid_next, circ] and [v, circ, mid_prev]
-
-            ### Triangle 1: v, mid_next, circ
-            vec1 = mid_next - v_pos
-            vec2 = circumcenters - v_pos
-
-            if mesh.n_spatial_dims == 2:
-                # 2D cross product (z-component)
-                cross_z = vec1[:, 0] * vec2[:, 1] - vec1[:, 1] * vec2[:, 0]
-                area1 = 0.5 * torch.abs(cross_z)
-            else:
-                # 3D: cross product magnitude / 2
-                cross1 = torch.linalg.cross(vec1, vec2)
-                area1 = 0.5 * torch.norm(cross1, dim=-1)
-
-            ### Triangle 2: v, circ, mid_prev
-            vec3 = mid_prev - v_pos
-            if mesh.n_spatial_dims == 2:
-                cross_z = vec2[:, 0] * vec3[:, 1] - vec2[:, 1] * vec3[:, 0]
-                area2 = 0.5 * torch.abs(cross_z)
-            else:
-                cross2 = torch.linalg.cross(vec2, vec3)
-                area2 = 0.5 * torch.norm(cross2, dim=-1)
-
-            ### Total Voronoi area contribution
-            voronoi_contributions = area1 + area2
-
-            ### Scatter-add to dual volumes
-            dual_volumes.scatter_add_(
-                dim=0,
-                index=v_indices,
-                src=voronoi_contributions,
-            )
-
-        return dual_volumes
-
-    else:
-        ### For other dimensions, use barycentric approximation
-        # Each vertex receives an equal share of each incident cell's volume
-        #
-        # Note: For 2D this gives different results than the circumcentric
-        # computation above. For 3D and higher, true Voronoi volumes would
-        # require computing complex polyhedra. The barycentric approximation
-        # is widely used in practice and provides good numerical properties.
-        cell_volumes = mesh.cell_areas
-        n_vertices_per_cell = mesh.n_manifold_dims + 1
-        contribution_per_vertex = cell_volumes / n_vertices_per_cell
-
-        dual_volumes = torch.zeros(
-            mesh.n_points,
-            dtype=cell_volumes.dtype,
-            device=mesh.points.device,
-        )
-
-        vertex_indices = mesh.cells.flatten()
-        contributions = contribution_per_vertex.repeat_interleave(n_vertices_per_cell)
-
-        dual_volumes.scatter_add_(
-            dim=0,
-            index=vertex_indices,
-            src=contributions,
-        )
-
-        return dual_volumes
-
-
 def compute_cotan_weights_triangle_mesh(
     mesh: "Mesh",
     edges: torch.Tensor | None = None,
@@ -450,6 +332,8 @@ def get_or_compute_dual_volumes_0(mesh: "Mesh") -> torch.Tensor:
     Returns:
         Dual volumes for vertices, shape (n_points,)
     """
+    from torchmesh.geometry.dual_meshes import compute_dual_volumes_0
+    
     cached = get_cached(mesh.point_data, "dual_volumes_0")
     if cached is None:
         cached = compute_dual_volumes_0(mesh)
