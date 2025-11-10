@@ -53,7 +53,7 @@ def load(
         for j in range(n_width - 1):
             idx = i * n_width + j
             next_j = i * n_width + j + 1
-            
+
             # Handle Möbius twist at wrap-around
             if i == n_circ - 1:  # Last slice connecting back to first
                 # Flip width index for the half-twist: j -> (n_width - 1 - j)

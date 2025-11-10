@@ -241,19 +241,19 @@ def compute_cotan_weights_triangle_mesh(
 
     For each edge, computes the cotangent weights using the standard formula from
     discrete differential geometry (Meyer et al. 2003, Desbrun et al. 2005).
-    
+
     For 2D manifolds (triangles):
         w_ij = (1/2) × Σ cot(α) over adjacent triangles
-        
+
         This gives the proper ratio |⋆e|/|e| where |⋆e| is the dual 1-cell volume
         (length of segment from edge midpoint through triangle circumcenters).
-    
+
     For 3D manifolds (tets):
         Uses geometric approximation (inverse edge length weighting)
-    
+
     For 1D manifolds (edges):
         Uses uniform weights
-    
+
     Args:
         mesh: Input mesh
         edges: Edge connectivity, shape (n_edges, 2). If None, extracts edges from mesh.
@@ -263,16 +263,16 @@ def compute_cotan_weights_triangle_mesh(
         If return_edges=True: Tuple of (cotan_weights, edges)
         If return_edges=False: Just cotan_weights
         where cotan_weights has shape (n_edges,) and edges has shape (n_edges, 2)
-    
+
     Mathematical Background:
         The cotangent weight formula comes from the circumcentric dual construction in DEC.
         For an edge e shared by triangles with opposite angles α and β, the dual 1-cell
         volume is |⋆e| = (|e|/2)(cot α + cot β), giving |⋆e|/|e| = (1/2)(cot α + cot β).
-        
+
         The factor of 1/2 is GEOMETRIC, arising from the distance from edge midpoints
         to triangle circumcenters. This is rigorously derived in Desbrun et al. (2005)
         "Discrete Exterior Calculus" and Meyer et al. (2003).
-    
+
     Example:
         >>> # Standard usage
         >>> weights, edges = compute_cotan_weights_triangle_mesh(mesh)
@@ -281,7 +281,7 @@ def compute_cotan_weights_triangle_mesh(
     """
     n_manifold_dims = mesh.n_manifold_dims
     device = mesh.points.device
-    
+
     ### Extract edges if not provided
     if edges is None:
         if n_manifold_dims == 1:
@@ -294,17 +294,17 @@ def compute_cotan_weights_triangle_mesh(
             sorted_edges, _ = torch.sort(edge_mesh.cells, dim=-1)
     else:
         sorted_edges, _ = torch.sort(edges, dim=-1)
-    
+
     n_edges = len(sorted_edges)
 
     ### Initialize weights
     cotan_weights = torch.zeros(n_edges, dtype=mesh.points.dtype, device=device)
-    
+
     ### Compute weights based on manifold dimension
     if n_manifold_dims == 1:
         ### 1D: Use uniform weights (no cotangent defined)
         cotan_weights = torch.ones(n_edges, dtype=mesh.points.dtype, device=device)
-    
+
     elif n_manifold_dims == 2:
         ### 2D triangles: Cotangent of opposite angles (fully vectorized)
         # Use facet extraction to get candidate edges with parent tracking
@@ -340,7 +340,9 @@ def compute_cotan_weights_triangle_mesh(
         dot_products = (vec_to_v0 * vec_to_v1).sum(dim=-1)
 
         if mesh.n_spatial_dims == 2:
-            cross_z = vec_to_v0[:, 0] * vec_to_v1[:, 1] - vec_to_v0[:, 1] * vec_to_v1[:, 0]
+            cross_z = (
+                vec_to_v0[:, 0] * vec_to_v1[:, 1] - vec_to_v0[:, 1] * vec_to_v1[:, 0]
+            )
             cross_mag = torch.abs(cross_z)
         else:
             cross_vec = torch.linalg.cross(vec_to_v0, vec_to_v1)
@@ -368,11 +370,11 @@ def compute_cotan_weights_triangle_mesh(
 
         # Accumulate cotans using scatter_add (vectorized)
         cotan_weights.scatter_add_(0, indices_in_original, cotans)
-        
+
         ### Apply the REQUIRED factor of 1/2 from the geometric derivation
         # |⋆e|/|e| = (1/2) × Σ cot(opposite angles)
         cotan_weights = cotan_weights / 2.0
-        
+
     elif n_manifold_dims == 3:
         ### 3D tetrahedra: Geometric approximation (inverse edge length weighting)
         # Full dihedral angle cotangents would require complex face-based structures
@@ -380,7 +382,7 @@ def compute_cotan_weights_triangle_mesh(
         edge_vectors = mesh.points[sorted_edges[:, 1]] - mesh.points[sorted_edges[:, 0]]
         edge_lengths = torch.norm(edge_vectors, dim=-1)
         cotan_weights = (1.0 / edge_lengths.clamp(min=1e-10)) / 2.0
-    
+
     else:
         raise NotImplementedError(
             f"Cotangent weights not implemented for {n_manifold_dims=}."
@@ -399,7 +401,7 @@ def compute_dual_volumes_1(mesh: "Mesh") -> torch.Tensor:
     For triangle meshes, uses the circumcentric dual construction from DEC.
     The dual 1-cell for an edge consists of segments from the edge midpoint
     to the circumcenters of adjacent triangles.
-    
+
     For an edge shared by triangles with opposite angles α and β:
         |⋆e| = (|e|/2)(cot α + cot β) = |e| × w_ij
     where w_ij are the cotangent weights.

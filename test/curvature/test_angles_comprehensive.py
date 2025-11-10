@@ -37,8 +37,8 @@ class TestSolidAngles3D:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
-                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
+                [0.5, (3**0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -103,8 +103,8 @@ class TestSolidAngles3D:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
-                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
+                [0.5, (3**0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -194,8 +194,8 @@ class TestMultiEdgeVertices1D:
             [
                 [0.0, 0.0],  # Center (junction)
                 [1.0, 0.0],  # Right
-                [-0.5, (3 ** 0.5) / 2],  # Upper left
-                [-0.5, -(3 ** 0.5) / 2],  # Lower left
+                [-0.5, (3**0.5) / 2],  # Upper left
+                [-0.5, -(3**0.5) / 2],  # Lower left
             ],
             dtype=torch.float32,
             device=device,
@@ -440,7 +440,7 @@ class TestAngleEdgeCases:
             [
                 [0.0, 0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0, 0.0],
+                [0.5, (3**0.5) / 2, 0.0, 0.0],
             ],
             dtype=torch.float32,
             device=device,

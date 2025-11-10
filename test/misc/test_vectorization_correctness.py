@@ -76,7 +76,9 @@ class TestLoopSubdivisionCorrectness:
         for valence, expected in test_cases:
             if expected is None:
                 # Compute expected using formula
-                cos_term = 3.0 / 8.0 + 0.25 * float(torch.cos(torch.tensor(2.0 * torch.pi / valence)))
+                cos_term = 3.0 / 8.0 + 0.25 * float(
+                    torch.cos(torch.tensor(2.0 * torch.pi / valence))
+                )
                 expected = (1.0 / valence) * (5.0 / 8.0 - cos_term * cos_term)
 
             actual = compute_loop_beta(valence)
@@ -181,7 +183,7 @@ class TestCotangentWeightsCorrectness:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 2, 0.0],
             ],
             dtype=torch.float32,
             device=device,
@@ -199,7 +201,7 @@ class TestCotangentWeightsCorrectness:
         # cot(60°) = 1/sqrt(3) ≈ 0.5774
         # Each edge has one adjacent triangle (boundary)
         # Weight = cot(60°) / 2 ≈ 0.2887
-        expected_weight = (1.0 / (3 ** 0.5)) / 2.0
+        expected_weight = (1.0 / (3**0.5)) / 2.0
 
         ### All three edges should have the same weight
         assert torch.allclose(
@@ -254,7 +256,7 @@ class TestCotangentWeightsCorrectness:
         # Two triangles sharing an edge
         # Triangle 1: [0, 1, 2] with 60° angles (equilateral)
         # Triangle 2: [1, 3, 2] with known angles
-        h = (3 ** 0.5) / 2
+        h = (3**0.5) / 2
         points = torch.tensor(
             [
                 [0.0, 0.0, 0.0],
@@ -292,7 +294,7 @@ class TestCotangentWeightsCorrectness:
         # Both triangles are equilateral, so both angles are 60°
         # cot(60°) = 1/sqrt(3)
         # Weight = (cot(60°) + cot(60°)) / 2 = 2 * (1/sqrt(3)) / 2 = 1/sqrt(3)
-        expected_weight = 1.0 / (3 ** 0.5)
+        expected_weight = 1.0 / (3**0.5)
 
         assert abs(weights[shared_edge_idx] - expected_weight) < 1e-4, (
             f"Interior edge weight: expected {expected_weight:.4f}, "

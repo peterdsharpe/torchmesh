@@ -37,10 +37,10 @@ def create_sphere_mesh(radius=1.0, subdivisions=0, device="cpu"):
     """
     mesh = icosahedron_surface.load(radius=1.0, device=device)
     mesh = mesh.subdivide(subdivisions, "loop")
-    
+
     # Project to perfect sphere
     mesh.points = F.normalize(mesh.points, dim=-1) * radius
-    
+
     return mesh
 
 
@@ -226,38 +226,39 @@ class TestGaussianCurvature:
 
     def test_pentagonal_vertex_convergence(self, device):
         """Test that pentagonal vertices converge correctly on icosphere.
-        
+
         The icosahedron has 12 pentagonal vertices (valence 5) which remain
         pentagonal under Loop subdivision. With proper Voronoi areas, these
         should converge to the same curvature as hexagonal vertices (valence 6).
-        
+
         This test verifies the fix for the systematic error at irregular vertices.
         """
         radius = 1.0
         expected_K = 1.0 / (radius**2)
-        
+
         # Test at high subdivision level
         mesh = create_sphere_mesh(radius=radius, subdivisions=5, device=device)
         K_vertices = mesh.gaussian_curvature_vertices
-        
+
         # Identify pentagonal vs hexagonal vertices by valence
         from torchmesh.neighbors import get_point_to_cells_adjacency
+
         adjacency = get_point_to_cells_adjacency(mesh)
         valences = adjacency.offsets[1:] - adjacency.offsets[:-1]
-        
+
         pentagonal_mask = valences == 5
         hexagonal_mask = valences == 6
-        
+
         # Check that both types converge to K=1.0
         K_pent = K_vertices[pentagonal_mask]
         assert len(K_pent) == 12, "Icosphere should have exactly 12 pentagonal vertices"
         pent_error = torch.abs(K_pent.mean() - expected_K).item()
         assert pent_error < 0.02, f"Pentagonal vertex error too large: {pent_error:.6f}"
-        
+
         K_hex = K_vertices[hexagonal_mask]
         hex_error = torch.abs(K_hex.mean() - expected_K).item()
         assert hex_error < 0.02, f"Hexagonal vertex error too large: {hex_error:.6f}"
-        
+
         # Pentagonal and hexagonal vertices should have similar curvature
         pent_hex_diff = torch.abs(K_pent.mean() - K_hex.mean()).item()
         assert pent_hex_diff < 0.01, (
@@ -266,21 +267,25 @@ class TestGaussianCurvature:
 
     def test_voronoi_areas_tile_surface(self, device):
         """Test that Voronoi areas perfectly tile the mesh surface.
-        
+
         The sum of Voronoi areas should equal the sum of triangle areas,
         ensuring perfect tiling without gaps or overlaps (Meyer et al. 2003, Sec 3.4).
         """
         from torchmesh.curvature._voronoi import compute_voronoi_areas
-        
+
         for subdivisions in [0, 2, 4]:
-            mesh = create_sphere_mesh(radius=1.0, subdivisions=subdivisions, device=device)
+            mesh = create_sphere_mesh(
+                radius=1.0, subdivisions=subdivisions, device=device
+            )
             voronoi_areas = compute_voronoi_areas(mesh)
-            
+
             # Sum of Voronoi areas should equal sum of triangle areas
             total_voronoi_area = voronoi_areas.sum().item()
             total_triangle_area = mesh.cell_areas.sum().item()
-            relative_error = abs(total_voronoi_area - total_triangle_area) / total_triangle_area
-            
+            relative_error = (
+                abs(total_voronoi_area - total_triangle_area) / total_triangle_area
+            )
+
             # Should be nearly exact (perfect tiling property)
             assert relative_error < 1e-6, (
                 f"Voronoi areas don't perfectly tile mesh at subdivision {subdivisions}: "
@@ -623,9 +628,7 @@ class TestCurvatureNumerical:
     def test_small_radius_sphere(self, device):
         """Test curvature on very small sphere."""
         radius = 0.01
-        mesh = create_sphere_mesh(
-            radius=radius, subdivisions=2, device=device
-        )
+        mesh = create_sphere_mesh(radius=radius, subdivisions=2, device=device)
 
         K = mesh.gaussian_curvature_vertices
         H = mesh.mean_curvature_vertices
@@ -657,9 +660,7 @@ class TestCurvatureNumerical:
     def test_large_radius_sphere(self, device):
         """Test curvature on very large sphere."""
         radius = 100.0
-        mesh = create_sphere_mesh(
-            radius=radius, subdivisions=2, device=device
-        )
+        mesh = create_sphere_mesh(radius=radius, subdivisions=2, device=device)
 
         K = mesh.gaussian_curvature_vertices
         H = mesh.mean_curvature_vertices

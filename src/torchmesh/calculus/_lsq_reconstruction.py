@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 def _solve_batched_lsq_gradients(
     positions: torch.Tensor,  # shape: (n_entities, n_spatial_dims)
-    values: torch.Tensor,  # shape: (n_entities, ...) 
+    values: torch.Tensor,  # shape: (n_entities, ...)
     adjacency,  # Adjacency object
     weight_power: float,
     min_neighbors: int = 0,

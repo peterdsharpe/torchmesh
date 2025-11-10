@@ -44,7 +44,9 @@ def compute_full_angle_n_sphere(n_manifold_dims: int) -> float:
 
     ### General case (n ≥ 2): Surface area of (n-1)-sphere
     # Formula: 2π^(n/2) / Γ(n/2)
-    result = float((2 * torch.pi) ** (n / 2.0) / torch.exp(torch.lgamma(torch.tensor(n / 2.0))))
+    result = float(
+        (2 * torch.pi) ** (n / 2.0) / torch.exp(torch.lgamma(torch.tensor(n / 2.0)))
+    )
 
     return result
 

@@ -68,7 +68,7 @@ def compute_laplacian_at_points(mesh: "Mesh") -> torch.Tensor:
 
     ### Apply cotangent Laplacian operator to point coordinates using shared utility
     from torchmesh.calculus.laplacian import _apply_cotan_laplacian_operator
-    
+
     laplacian_coords = _apply_cotan_laplacian_operator(
         n_vertices=n_points,
         edges=unique_edges,
@@ -106,8 +106,10 @@ def compute_cotangent_weights(mesh: "Mesh", edges: torch.Tensor) -> torch.Tensor
         >>> weights = compute_cotangent_weights(mesh, edges)
         >>> # Use in Laplacian: L_ij = w_ij if connected, else 0
     """
-    from torchmesh.calculus._circumcentric_dual import compute_cotan_weights_triangle_mesh
-    
+    from torchmesh.calculus._circumcentric_dual import (
+        compute_cotan_weights_triangle_mesh,
+    )
+
     # Use the merged implementation (now uses correct formula by default)
     return compute_cotan_weights_triangle_mesh(
         mesh,

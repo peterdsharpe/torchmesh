@@ -62,7 +62,7 @@ def scatter_aggregate(
     ### Initialize weights if not provided
     if weights is None:
         weights = torch.ones(len(src_to_dst_mapping), dtype=dtype, device=device)
-    
+
     ### Ensure weights have same dtype as data (avoid dtype mismatch in multiplication)
     if weights.dtype != dtype:
         weights = weights.to(dtype)
@@ -102,7 +102,9 @@ def scatter_aggregate(
 
         ### Normalize by total weight (avoid division by zero)
         weight_sums = weight_sums.clamp(min=1e-30)
-        aggregated_data = aggregated_data / weight_sums.view(-1, *([1] * len(data_shape)))
+        aggregated_data = aggregated_data / weight_sums.view(
+            -1, *([1] * len(data_shape))
+        )
 
     elif aggregation == "sum":
         # Already computed weighted sum, no normalization needed
@@ -114,4 +116,3 @@ def scatter_aggregate(
         )
 
     return aggregated_data
-

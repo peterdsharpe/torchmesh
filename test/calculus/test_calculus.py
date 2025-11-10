@@ -493,14 +493,14 @@ class TestLaplacian:
 
     def test_dec_laplacian_quadratic_reasonable(self):
         """DEC Laplacian of φ=||r||² gives reasonable approximation.
-        
+
         Note: Uses a Delaunay-quality mesh. Circumcentric duals work best on
         well-centered meshes where circumcenters lie inside triangles. Axis-aligned
         grids create poorly-conditioned duals.
         """
         import pyvista as pv
         from torchmesh.io import from_pyvista
-        
+
         # Use a sphere mesh which is naturally well-centered (close to Delaunay)
         # Subdivide for refinement
         sphere_pv = pv.Sphere(radius=1.0, theta_resolution=20, phi_resolution=20)

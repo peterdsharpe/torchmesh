@@ -131,8 +131,12 @@ def categorize_facets_by_count(
     # Update inverse indices to point to filtered facets
     # Create mapping from old unique indices to new filtered indices
     # For facets that don't pass the filter, map to -1
-    old_to_new = torch.full((len(unique_facets),), -1, dtype=torch.int64, device=unique_facets.device)
-    old_to_new[mask] = torch.arange(mask.sum(), dtype=torch.int64, device=unique_facets.device)
+    old_to_new = torch.full(
+        (len(unique_facets),), -1, dtype=torch.int64, device=unique_facets.device
+    )
+    old_to_new[mask] = torch.arange(
+        mask.sum(), dtype=torch.int64, device=unique_facets.device
+    )
 
     # Remap inverse indices
     filtered_inverse = old_to_new[inverse_indices]

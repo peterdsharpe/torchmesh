@@ -20,13 +20,13 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
     """
     # Regular tetrahedron vertices
     # Place center at origin
-    a = side_length / (2 ** 0.5)
+    a = side_length / (2**0.5)
 
     vertices = [
-        [a, 0, -a / (2 ** 0.5)],
-        [-a, 0, -a / (2 ** 0.5)],
-        [0, a, a / (2 ** 0.5)],
-        [0, -a, a / (2 ** 0.5)],
+        [a, 0, -a / (2**0.5)],
+        [-a, 0, -a / (2**0.5)],
+        [0, a, a / (2**0.5)],
+        [0, -a, a / (2**0.5)],
     ]
 
     # 4 triangular faces

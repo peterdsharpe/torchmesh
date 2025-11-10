@@ -93,7 +93,9 @@ def compute_loop_beta(valence: int) -> float:
     if valence == 3:
         return 3.0 / 16.0
     else:
-        cos_term = 3.0 / 8.0 + 0.25 * float(torch.cos(torch.tensor(2.0 * torch.pi / valence)))
+        cos_term = 3.0 / 8.0 + 0.25 * float(
+            torch.cos(torch.tensor(2.0 * torch.pi / valence))
+        )
         beta = (1.0 / valence) * (5.0 / 8.0 - cos_term * cos_term)
         return beta
 

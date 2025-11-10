@@ -59,10 +59,10 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
 
     Implements the mixed area approach from Meyer et al. (2003) for optimal
     error bounds in discrete curvature computation:
-    
+
     - **Non-obtuse triangles**: Circumcentric Voronoi formula (Section 3.3, Eq. 7)
       A_Voronoi = (1/8) * Σ (||e_ij||² cot(α_ij) + ||e_ik||² cot(α_ik))
-      
+
     - **Obtuse triangles**: Mixed area (Section 3.4, Figure 4)
       - If obtuse at vertex: A_Mixed = area(T)/2
       - Otherwise: A_Mixed = area(T)/4
@@ -90,7 +90,7 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
     Example:
         >>> voronoi_areas = compute_voronoi_areas(mesh)
         >>> # Use for curvature: K = angle_defect / voronoi_area
-        
+
     Note:
         The proper Voronoi areas are critical for accurate curvature computation.
         Using barycentric approximation (area/3 per vertex) causes systematic
@@ -157,30 +157,34 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
         if non_obtuse_mask.any():
             ### Extract non-obtuse triangles
             non_obtuse_cells = mesh.cells[non_obtuse_mask]  # (n_non_obtuse, 3)
-            non_obtuse_vertices = cell_vertices[non_obtuse_mask]  # (n_non_obtuse, 3, n_spatial_dims)
+            non_obtuse_vertices = cell_vertices[
+                non_obtuse_mask
+            ]  # (n_non_obtuse, 3, n_spatial_dims)
             non_obtuse_angles = all_angles[non_obtuse_mask]  # (n_non_obtuse, 3)
 
             ### For each of the 3 vertices in each triangle, compute Voronoi area
             # Vertex 0: uses edges to vertices 1 and 2
             # Voronoi area = (1/8) * (||edge_01||² * cot(angle_2) + ||edge_02||² * cot(angle_1))
-            
+
             for local_v_idx in range(3):
                 ### Get the two adjacent vertices (in cyclic order)
                 next_idx = (local_v_idx + 1) % 3
                 prev_idx = (local_v_idx + 2) % 3
-                
+
                 ### Compute edge vectors from current vertex
                 edge_to_next = (
-                    non_obtuse_vertices[:, next_idx, :] - non_obtuse_vertices[:, local_v_idx, :]
+                    non_obtuse_vertices[:, next_idx, :]
+                    - non_obtuse_vertices[:, local_v_idx, :]
                 )  # (n_non_obtuse, n_spatial_dims)
                 edge_to_prev = (
-                    non_obtuse_vertices[:, prev_idx, :] - non_obtuse_vertices[:, local_v_idx, :]
+                    non_obtuse_vertices[:, prev_idx, :]
+                    - non_obtuse_vertices[:, local_v_idx, :]
                 )  # (n_non_obtuse, n_spatial_dims)
-                
+
                 ### Compute edge lengths squared
-                edge_to_next_sq = (edge_to_next ** 2).sum(dim=-1)  # (n_non_obtuse,)
-                edge_to_prev_sq = (edge_to_prev ** 2).sum(dim=-1)  # (n_non_obtuse,)
-                
+                edge_to_next_sq = (edge_to_next**2).sum(dim=-1)  # (n_non_obtuse,)
+                edge_to_prev_sq = (edge_to_prev**2).sum(dim=-1)  # (n_non_obtuse,)
+
                 ### Get cotangents of opposite angles
                 # Cotangent at prev vertex (opposite to edge_to_next)
                 cot_prev = torch.cos(non_obtuse_angles[:, prev_idx]) / torch.sin(
@@ -190,12 +194,12 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
                 cot_next = torch.cos(non_obtuse_angles[:, next_idx]) / torch.sin(
                     non_obtuse_angles[:, next_idx]
                 ).clamp(min=1e-10)
-                
+
                 ### Compute Voronoi area contribution for this vertex (Equation 7)
                 voronoi_contribution = (
-                    (edge_to_next_sq * cot_prev + edge_to_prev_sq * cot_next) / 8.0
-                )  # (n_non_obtuse,)
-                
+                    edge_to_next_sq * cot_prev + edge_to_prev_sq * cot_next
+                ) / 8.0  # (n_non_obtuse,)
+
                 ### Scatter to global voronoi areas
                 vertex_indices = non_obtuse_cells[:, local_v_idx]
                 voronoi_areas.scatter_add_(0, vertex_indices, voronoi_contribution)
@@ -207,12 +211,12 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
             obtuse_cells = mesh.cells[is_obtuse]  # (n_obtuse, 3)
             obtuse_areas = cell_areas[is_obtuse]  # (n_obtuse,)
             obtuse_angles = all_angles[is_obtuse]  # (n_obtuse, 3)
-            
+
             ### For each of the 3 vertices in each obtuse triangle
             for local_v_idx in range(3):
                 ### Check if angle at this vertex is obtuse
                 is_obtuse_at_vertex = obtuse_angles[:, local_v_idx] > torch.pi / 2
-                
+
                 ### Compute contribution based on Meyer Figure 4
                 # If obtuse at vertex: area(T)/2, else: area(T)/4
                 contribution = torch.where(
@@ -220,7 +224,7 @@ def compute_voronoi_areas(mesh: "Mesh") -> torch.Tensor:
                     obtuse_areas / 2.0,
                     obtuse_areas / 4.0,
                 )  # (n_obtuse,)
-                
+
                 ### Scatter to global voronoi areas
                 vertex_indices = obtuse_cells[:, local_v_idx]
                 voronoi_areas.scatter_add_(0, vertex_indices, contribution)

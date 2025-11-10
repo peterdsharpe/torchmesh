@@ -25,7 +25,7 @@ def load(
         raise ValueError(f"n_subdivisions must be non-negative, got {n_subdivisions=}")
 
     # Create vertices of equilateral triangle
-    height = side_length * (3 ** 0.5) / 2
+    height = side_length * (3**0.5) / 2
     points = torch.tensor(
         [[0.0, 0.0], [side_length, 0.0], [side_length / 2, height]],
         dtype=torch.float32,

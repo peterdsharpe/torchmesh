@@ -22,10 +22,10 @@ def load(side_length: float = 1.0, device: str = "cpu") -> Mesh:
     vertices = [
         [0.0, 0.0, 0.0],
         [side_length, 0.0, 0.0],
-        [side_length / 2, side_length * (3 ** 0.5) / 2, 0.0],
+        [side_length / 2, side_length * (3**0.5) / 2, 0.0],
         [
             side_length / 2,
-            side_length * (3 ** 0.5) / 6,
+            side_length * (3**0.5) / 6,
             side_length * ((2 / 3) ** 0.5),
         ],
     ]

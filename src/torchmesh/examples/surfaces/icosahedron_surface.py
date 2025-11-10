@@ -18,7 +18,7 @@ def load(radius: float = 1.0, device: str = "cpu") -> Mesh:
     Returns:
         Mesh with n_manifold_dims=2, n_spatial_dims=3
     """
-    phi = (1.0 + (5.0 ** 0.5)) / 2.0  # Golden ratio
+    phi = (1.0 + (5.0**0.5)) / 2.0  # Golden ratio
 
     # 12 vertices of icosahedron
     vertices = [

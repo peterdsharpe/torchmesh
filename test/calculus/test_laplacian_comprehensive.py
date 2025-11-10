@@ -32,8 +32,8 @@ class TestLaplacianTensorFields:
             [
                 [0.0, 0.0],
                 [1.0, 0.0],
-                [0.5, (3 ** 0.5) / 2],
-                [1.5, (3 ** 0.5) / 2],
+                [0.5, (3**0.5) / 2],
+                [1.5, (3**0.5) / 2],
             ],
             dtype=torch.float32,
             device=device,
@@ -196,8 +196,8 @@ class TestLaplacianManifoldDimensions:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
-                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
+                [0.5, (3**0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
@@ -245,7 +245,7 @@ class TestLaplacianBoundaryAndEdgeCases:
 
     def create_sphere_mesh(self, subdivisions=1, device="cpu"):
         """Create icosahedral sphere."""
-        phi = (1.0 + (5.0 ** 0.5)) / 2.0
+        phi = (1.0 + (5.0**0.5)) / 2.0
 
         vertices = [
             [-1, phi, 0],

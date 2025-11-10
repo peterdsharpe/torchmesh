@@ -135,7 +135,7 @@ class TestPCATangentSpace:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 2, 0.0],
             ],
             dtype=torch.float32,
             device=device,

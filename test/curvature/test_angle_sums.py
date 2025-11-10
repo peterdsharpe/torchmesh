@@ -211,7 +211,7 @@ class TestTriangleAngleSum:
         triangles = [
             # Equilateral
             torch.tensor(
-                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, (3 ** 0.5) / 2, 0.0]],
+                [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, (3**0.5) / 2, 0.0]],
                 device=device,
             ),
             # Right triangle

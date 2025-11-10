@@ -191,7 +191,7 @@ class TestQualityMetrics:
             [
                 [0.0, 0.0],
                 [1.0, 0.0],
-                [0.5, (3 ** 0.5) / 2],
+                [0.5, (3**0.5) / 2],
             ],
             dtype=torch.float32,
             device=device,
@@ -514,7 +514,7 @@ class TestQualityMetricsEdgeCases:
             [
                 [0.0, 0.0],
                 [1.0, 0.0],
-                [0.5, (3 ** 0.5) / 2],
+                [0.5, (3**0.5) / 2],
             ],
             dtype=torch.float32,
             device=device,
@@ -569,8 +569,8 @@ class TestQualityMetricsEdgeCases:
             [
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
-                [0.5, (3 ** 0.5) / 2, 0.0],
-                [0.5, (3 ** 0.5) / 6, ((2 / 3) ** 0.5)],
+                [0.5, (3**0.5) / 2, 0.0],
+                [0.5, (3**0.5) / 6, ((2 / 3) ** 0.5)],
             ],
             dtype=torch.float32,
             device=device,
