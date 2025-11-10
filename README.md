@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>GPU-Accelerated Mesh Processing for Any Dimension</strong>
+  <strong>GPU-Accelerated Mesh Processing for Physical Simulation and Scientific Visualization in Any Dimension</strong>
 </p>
 
 <p align="center">
