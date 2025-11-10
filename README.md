@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <em>"It's not just a bag of triangles -- it's a fast bag of triangles!"</em>
+  <em>"It's not just a bag of triangles -- it's a <strong>fast</strong> bag of triangles!"</em>
 </p>
 
 ---
