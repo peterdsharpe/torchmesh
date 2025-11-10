@@ -52,9 +52,16 @@ def load(
     for i in range(n_circ):
         for j in range(n_width - 1):
             idx = i * n_width + j
-            next_i = ((i + 1) % n_circ) * n_width + j
             next_j = i * n_width + j + 1
-            next_both = ((i + 1) % n_circ) * n_width + j + 1
+            
+            # Handle Möbius twist at wrap-around
+            if i == n_circ - 1:  # Last slice connecting back to first
+                # Flip width index for the half-twist: j -> (n_width - 1 - j)
+                next_i = n_width - 1 - j
+                next_both = n_width - 2 - j
+            else:
+                next_i = (i + 1) * n_width + j
+                next_both = (i + 1) * n_width + j + 1
 
             # Two triangles per quad
             cells.append([idx, next_j, next_i])
