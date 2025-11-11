@@ -51,7 +51,7 @@ The only restriction: **meshes must be simplicial** (composed of [points](https:
 - **Differentiable**: Most features offer seamless integration with [PyTorch autograd](https://pytorch.org/docs/stable/autograd.html)
 
 **Mathematical Operations:**
-- **Discrete Calculus**: [Gradient](https://en.wikipedia.org/wiki/Gradient), [divergence](https://en.wikipedia.org/wiki/Divergence), [curl](https://en.wikipedia.org/wiki/Curl_(mathematics)), [Laplace-Beltrami operator](https://en.wikipedia.org/wiki/Laplace%E2%80%93Beltrami_operator)
+- **Discrete Calculus**: [Gradient](https://en.wikipedia.org/wiki/Gradient), [divergence](https://en.wikipedia.org/wiki/Divergence), [curl](https://en.wikipedia.org/wiki/Curl_(mathematics)), [Laplace-Beltrami operator](https://en.wikipedia.org/wiki/Laplace%E2%80%93Beltrami_operator) (Note: these are all the core ingredients required for a high-performance manifold PDE solver for many PDEs of industrial interest.)
   - Both [DEC](https://en.wikipedia.org/wiki/Discrete_exterior_calculus) (Discrete Exterior Calculus) and LSQ (Least-Squares) methods
   - Intrinsic (tangent space) and extrinsic (ambient space) derivatives
 - **Differential Geometry**: [Gaussian curvature](https://en.wikipedia.org/wiki/Gaussian_curvature), [mean curvature](https://en.wikipedia.org/wiki/Mean_curvature), normals, tangent spaces
@@ -65,8 +65,8 @@ The only restriction: **meshes must be simplicial** (composed of [points](https:
 
 **Analysis Tools:**
 - **Topology**: Boundary detection, [watertight](https://en.wikipedia.org/wiki/Watertight_(3D_modeling))/[manifold](https://en.wikipedia.org/wiki/Manifold) checking
-- **Neighbors**: Point-to-point, point-to-cell, cell-to-cell adjacency
-- **Quality Metrics**: [Aspect ratio](https://en.wikipedia.org/wiki/Aspect_ratio_(image)), edge lengths, angles, quality scores
+- **Neighbors**: Point-to-point, point-to-cell, cell-to-cell, cell-to-point adjacency, computed and stored efficiently
+- **Quality Metrics**: Aspect ratio, edge lengths, angles, quality scores
 - **Spatial Queries**: [BVH](https://en.wikipedia.org/wiki/Bounding_volume_hierarchy)-accelerated point containment and nearest-cell search
 
 ---
