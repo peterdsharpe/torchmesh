@@ -12,6 +12,7 @@ Demonstrates creating and visualizing the TorchMesh logo with:
 This creates a beautiful 3D solid text logo with smooth surface and procedural coloring.
 """
 
+import math
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -34,7 +35,7 @@ if __name__ == "__main__":
         )
 
         m = m.subdivide(6, "linear")
-        m = remesh(m, n_clusters=1200)
+        m = remesh(m, n_clusters=math.floor(1200 * (len(text) / 9) ** 0.5))
         m.points = m.points[:, :2]
 
         m.cell_data["noise"] = perlin_noise_nd(m.cell_centroids, scale=1.0, seed=42)
