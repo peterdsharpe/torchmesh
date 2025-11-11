@@ -36,7 +36,7 @@ This means you can work with:
 - 1D edges in 3D space (curve meshes for path planning)
 - Any other n-dimensional manifold in m-dimensional space (where n ≤ m)
 
-all with the same API. TorchMesh's API design takes heavy inspiration from [PyVista](https://pyvista.org/), but it is designed to be a) end-to-end GPU-accelerated, b) dimensionally generic, c) autograd-differentiable where possible, d) allow arbitrary-rank tensor fields as data, and e) support nested field data.
+all with the same API. TorchMesh's API design takes heavy inspiration from [PyVista](https://pyvista.org/), but it is designed to be a) end-to-end GPU-accelerated, b) dimensionally generic, c) autograd-differentiable where possible, d) allow arbitrary-rank tensor fields as data, and e) support nested field data. TorchMesh is extremely fast and lightweight, depending only on [PyTorch](https://pytorch.org/) and [TensorDict](https://github.com/pytorch/tensordict) (an official PyTorch data structure).
 
 The only restriction: **meshes must be simplicial** (composed of [points](https://en.wikipedia.org/wiki/Point_(geometry)), [line segments](https://en.wikipedia.org/wiki/Line_segment), [triangles](https://en.wikipedia.org/wiki/Triangle), [tetrahedra](https://en.wikipedia.org/wiki/Tetrahedron), and higher-dimensional [n-simplices](https://en.wikipedia.org/wiki/Simplex)). This enables a plethora of rigorous differential geometry + discrete calculus computations, as well as significant performance benefits.
 
