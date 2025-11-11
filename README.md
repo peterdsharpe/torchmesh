@@ -283,8 +283,8 @@ Comprehensive overview of TorchMesh capabilities:
 | Cell areas/volumes | ✅ | [Gram determinant](https://en.wikipedia.org/wiki/Gramian_matrix) method |
 | Cell normals | ✅ | [Generalized cross product](https://en.wikipedia.org/wiki/Cross_product#Generalizations) |
 | Point normals | ✅ | Area-weighted from adjacent cells |
-| Facet extraction | ✅ | Extract (n-1)-dimensional simplices |
-| Boundary detection | ✅ | |
+| Facet extraction | ✅ | Extract all (n-1)-dimensional simplices |
+| Boundary detection and extraction | ✅ | Extract only the boundary (n-1)-dimensional simplices |
 | **Curvature** | | |
 | Gaussian curvature (vertices) | ✅ | [Angle defect](https://en.wikipedia.org/wiki/Angular_defect) method |
 | Gaussian curvature (cells) | ✅ | |
