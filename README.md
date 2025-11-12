@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="examples/logo/torchmesh_logo.svg" width="100%" alt="TorchMesh">
+  <a href="examples/logo"><img src="examples/logo/torchmesh_logo.svg" width="100%" alt="TorchMesh"></a>
 </p>
 
 <p align="center">
