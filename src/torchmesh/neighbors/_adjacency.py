@@ -77,6 +77,9 @@ class Adjacency:
         This method is primarily for testing and comparison with other libraries.
         The order of neighbors within each sublist is preserved (not sorted).
 
+        This is, in general, much less efficient than directly using the sparse encoding
+        itself -- all internal library operations use Adjacency objects directly.
+
         Returns:
             Ragged list where result[i] contains all neighbors of source i.
             Empty sublists represent sources with no neighbors.
