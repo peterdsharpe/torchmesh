@@ -55,8 +55,8 @@ The only restriction: **meshes must be simplicial** (composed of [points](https:
 - **Discrete Calculus**: [Gradient](https://en.wikipedia.org/wiki/Gradient), [divergence](https://en.wikipedia.org/wiki/Divergence), [curl](https://en.wikipedia.org/wiki/Curl_(mathematics)), [Laplace-Beltrami operator](https://en.wikipedia.org/wiki/Laplace%E2%80%93Beltrami_operator) (Note: these are all the core ingredients required for a high-performance manifold PDE solver for many PDEs of industrial interest.)
   - Both [DEC](https://en.wikipedia.org/wiki/Discrete_exterior_calculus) (Discrete Exterior Calculus) and LSQ (Least-Squares) methods
   - Intrinsic (tangent space) and extrinsic (ambient space) derivatives
-- **Differential Geometry**: [Gaussian curvature](https://en.wikipedia.org/wiki/Gaussian_curvature), [mean curvature](https://en.wikipedia.org/wiki/Mean_curvature), normals, tangent spaces
-- **Curvature Analysis**: Angle defect (intrinsic) and [cotangent Laplacian](https://en.wikipedia.org/wiki/Discrete_Laplace_operator) (extrinsic) methods
+- **Differential Geometry**: [Gaussian curvature](https://en.wikipedia.org/wiki/Gaussian_curvature), [mean curvature](https://en.wikipedia.org/wiki/Mean_curvature), [normals](https://en.wikipedia.org/wiki/Normal_(geometry)), [tangent spaces](https://en.wikipedia.org/wiki/Tangent_space)
+- **Curvature Analysis**: [Angle defect](https://en.wikipedia.org/wiki/Angular_defect) (intrinsic) and [cotangent Laplacian](https://en.wikipedia.org/wiki/Discrete_Laplace_operator) (extrinsic) methods
 
 **Mesh Operations:**
 - **Subdivision**: Linear, [Loop](https://en.wikipedia.org/wiki/Loop_subdivision_surface) (C²), and [Butterfly](https://en.wikipedia.org/wiki/Butterfly_subdivision_surface) (interpolating) schemes
